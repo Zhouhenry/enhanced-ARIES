@@ -1,0 +1,31 @@
+{
+  "name": "jiuwenswarm-e2b-embedded-pptx-workload-replay",
+  "agent_type": "jiuwenswarm",
+  "placement": "embedded",
+  "sandbox_backend": "e2b-cloud",
+  "workload": "llm-development-pptx-v1",
+  "versions_file": "../../configs/versions.json",
+  "output_dir": "runs",
+  "sandbox": {
+    "template": "ttxxjaq0b0in3cnktqcs:10182696-b09b-4812-95ff-af600ea700d0",
+    "timeout_seconds": 2100
+  },
+  "harness": {
+    "jiuwen_source_dir": "/opt/jiuwenswarm",
+    "jiuwen_python_path": "/opt/jiuwenswarm/.venv/bin/python"
+  },
+  "model": {
+    "mode": "replay",
+    "replay_policy": "workload",
+    "session_protocol": "jiuwen-tool-branches-v1",
+    "timing": "zero",
+    "tape_file": "REPLACE_WITH_SHARED_JIUWEN_PPTX_B_TAPE.json",
+    "max_turns": 96
+  },
+  "execution": {
+    "concurrency": 1,
+    "attempts": 1,
+    "task_timeout": "25m",
+    "verifier_timeout": "2m"
+  }
+}

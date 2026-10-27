@@ -68,8 +68,12 @@ with verified image digests, never placeholders; do not duplicate the field inve
   file into children. Keep upstream keys out of Agent/Sandbox configuration.
 - Bind cloud model sessions explicitly by per-attempt bearer token at `/v1`.
   Default replay to `strict`, comparing the complete request. Explicit
-  `model.replay_policy=workload` permits only string `content` differences between
-  corresponding tool messages; all other complete-history fields, IDs, arguments
+  `model.replay_policy=workload` permits string `content` differences between
+  corresponding tool messages. For the pinned Jiuwen main-agent history dialect,
+  it also permits only the native formatter's system date/private runtime path
+  and initial user timestamp differences; compare the actual task content,
+  attachments and all remaining fields. Record prompt-context differences
+  separately from tool content. All other complete-history fields, IDs, arguments
   and message order stay exact. Preserve placement/version checks, original Tapes,
   real tool results and independent verification; no automatic policy fallback,
   prompt-based routing, silent mapping or scripted mock substituted for a real

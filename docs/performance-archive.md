@@ -7,11 +7,11 @@
 | E2B A，release27 `record-3` | `e2b-a-record-3/.../output/final.pptx`，5 页非空 | 89 个精确 ToolCall，563 个 sampled SDK Span，50 命令/348 事件；四离线投影通过，后端本次 UNRUN |
 | E2B B，release25 `record-2` | `e2b-b-record-2/.../output/content.pptx`，5 页非空；其 `final.pptx` 是 7 页，不合格 | 原生 Trace 下载失败，四离线投影失败；历史失败保留 |
 | 华为 A，release27 `record-3` | `huawei-a-record-3/.../output/final.pptx`，5 页非空 | 78 个精确 ToolCall，450 个 sampled SDK Span，32 命令/225 事件；四投影及 Perfetto/Jaeger/Prometheus 实际查询通过 |
-| 华为 B，release27 `record-3` | `huawei-b-record-3/.../output/final.pptx`，5 页非空 | 公开路由端口误脱敏导致原生来源被拒绝，四投影失败；release28 修复后另立复测 |
+| 华为 B，release28 `record-4` | `huawei-b-record-4/.../output/final.pptx` 与 `大模型发展脉络与趋势.pptx`，同一五页非空成品的两个原文件 | 73 个精确 ToolCall，264 个 sampled SDK Span，36 命令/252 事件；四离线投影通过，后端本次 UNRUN；旧 `record-3` 观测失败保留 |
 
 所有原件在本机 `runs/jiuwen-pptx-20261027/`，包括不合格中间稿和模板，逐项 SHA 校验。[逐文件结果、八阶段、资源与缺口](jiuwen-pptx-capacity-20261027.md)保存详细证据；[E2B A 最新完整录制](jiuwen-pptx-capacity-20261027.md#release27-e2b-appt完整录制与离线观测通过)已通过，原 57 轮收尾失败另存。以上观测通过范围的 global coverage 仍 unknown，华为评分出网仍 assumed，不升级为全隔离验证的 Goodput。
 
-旧 E2B A 的 Tape 收尾失败、E2B B 的七页 final 与观测缺失、旧华为 A 的 JSON 拒绝均保留在[历史结果](jiuwen-pptx-capacity-20261027.md#release25-真实复测与后续修复)。这些是独立真实模型录制，仍未完成 PPT 同 Tape 跨云 MockLLM 对照；最新三组 release27 录制均未触发子 Agent/JSON，不能用功能通过证明 JSON 子轨迹云端通过。
+旧 E2B A 的 Tape 收尾失败、E2B B 的七页 final 与观测缺失、旧华为 A 的 JSON 拒绝均保留在[历史结果](jiuwen-pptx-capacity-20261027.md#release25-真实复测与后续修复)。[华为 B 新复测](jiuwen-pptx-capacity-20261027.md#huawei-b-record4)完成公开路由端口修复的真实闭环，旧失败不改判。这些是独立真实模型录制，仍未完成 PPT 同 Tape 跨云 MockLLM 对照；三组 release27 和新 B `record-4` 均未触发子 Agent/JSON，不能用功能通过证明 JSON 子轨迹云端通过。
 
 **最新 Jiuwen 命令进程计时：[release23 双云 A/B 与后端验收](jiuwen-release23-cloud-validation-20261027.md)已完成。** 861 文件冻结组合通过五门禁，四次独立真实模型任务各原评分 12/12；15 个命令进程、105 条事件精确关联并完整收尾，8 个 Sandbox 独立确认删除。报告列出九阶段、逐命令墙钟时间/首输出/退出码与 ToolCall、分对象 CPU/内存；四组各自冻结快照的 Perfetto/Jaeger/Prometheus 实际查询均限定 PASS。[每段时间的定义与请求时间的区别](jiuwen-process-observation-20261027.md)单独说明。整体 integrity=complete / coverage=unknown，华为评分出网仍 assumed；独立模型轨迹不是同 Tape 对照，不作云性能排名，也不新增六例 Strict 成功数。
 

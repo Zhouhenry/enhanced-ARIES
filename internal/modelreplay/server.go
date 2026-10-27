@@ -51,30 +51,31 @@ type Options struct {
 // Server binds one listener/handler to one explicit attempt and session.
 // Multiple servers can run in one process without sharing progress or credentials.
 type Server struct {
-	options                    Options
-	upstream                   string
-	client                     *http.Client
-	mu                         sync.Mutex
-	busy, closing, closed      bool
-	settled                    chan struct{}
-	admissionClosed            bool
-	failed                     string
-	tape                       Tape
-	position                   int
-	lastRequest                string
-	lastTurn                   *Turn
-	lastToolContentDifferences []toolContentDifference
-	bytes                      int
-	frames                     int
-	started                    time.Time
-	active                     sync.WaitGroup
-	observationMu              sync.Mutex
-	observations               *legacyObservationFile
-	observationError           error
-	legacyIOReportError        error
-	boundaries                 *boundaryRecorder
-	branch                     string
-	recordInParent             bool
+	options                      Options
+	upstream                     string
+	client                       *http.Client
+	mu                           sync.Mutex
+	busy, closing, closed        bool
+	settled                      chan struct{}
+	admissionClosed              bool
+	failed                       string
+	tape                         Tape
+	position                     int
+	lastRequest                  string
+	lastTurn                     *Turn
+	lastToolContentDifferences   []toolContentDifference
+	lastPromptContextDifferences []promptContextDifference
+	bytes                        int
+	frames                       int
+	started                      time.Time
+	active                       sync.WaitGroup
+	observationMu                sync.Mutex
+	observations                 *legacyObservationFile
+	observationError             error
+	legacyIOReportError          error
+	boundaries                   *boundaryRecorder
+	branch                       string
+	recordInParent               bool
 }
 
 // The encoder keeps its original writes and error handling. These counters
@@ -481,6 +482,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	key := digest(req)
 	var turn *Turn
 	var toolContentDifferences []toolContentDifference
+	var promptContextDifferences []promptContextDifference
 	retry := s.lastTurn != nil && key == s.lastRequest
 	observed.retry = retry
 	if retry {
@@ -488,6 +490,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		// Re-delivery never advances progress or repeats a paid upstream call.
 		turn = s.lastTurn
 		toolContentDifferences = s.lastToolContentDifferences
+		promptContextDifferences = s.lastPromptContextDifferences
 		if s.options.Mode == "record" {
 			timing := s.options.Timing.Mode
 			if timing != "recorded" && timing != "synthetic" {
@@ -502,13 +505,14 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		expected, _ := decode(s.tape.Turns[position].Request)
-		path, allowed := replayRequestDifference(expected, req, s.options.ReplayPolicy)
+		path, allowed, promptAllowed := replayRequestDifference(expected, req, s.options.ReplayPolicy, s.options.HistoryDialect)
 		if path != "" {
 			observed.replayDiverged(req)
 			s.reject(w, observed, position, "REPLAY_DIVERGED", "request differs at "+path)
 			return
 		}
 		toolContentDifferences = allowed
+		promptContextDifferences = promptAllowed
 		turn = &s.tape.Turns[position]
 	} else {
 		if position >= s.options.MaxTurns {
@@ -533,7 +537,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	observed.emit(boundaryEvent{Event: "request_matched", Scope: "request_history_and_trajectory_validation", Status: "succeeded",
-		ToolContentDifferences: toolContentDifferences}, time.Now())
+		ToolContentDifferences: toolContentDifferences, PromptContextDifferences: promptContextDifferences}, time.Now())
 	if retry {
 		observed.legacy(observation{Event: "request_retry", Turn: position})
 	}
@@ -577,6 +581,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		clone := result
 		s.lastTurn = &clone
 		s.lastToolContentDifferences = toolContentDifferences
+		s.lastPromptContextDifferences = promptContextDifferences
 		s.mu.Unlock()
 	}
 	observed.result("succeeded", "", http.StatusOK)

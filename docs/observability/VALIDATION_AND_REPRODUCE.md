@@ -1,5 +1,17 @@
 # 验证与复现归档
 
+<a id="jiuwen-workload-release29"></a>
+
+## release29：Jiuwen PPT 显式 Workload 接入
+
+工程验证在 ECS 完成。显式 `model.replay_policy=workload` 使用固定 Jiuwen 原生 formatter 的有限提示上下文例外；Strict、原 Tape、工具参数、真实工具、独立 Verifier 和停止隔离门保持原行为。[具体契约](../implementation/model-replay.md#jiuwen-原生-ppt-的非-strict-接入)与[差异 Schema](OBSERVABILITY_SCHEMA_AND_MEASUREMENT.md)分别定义功能和测量边界。
+
+相关 modelreplay/performance/config/app 四包、私有真实首请求 fixture、构建通过。fixture 使用原 Huawei A record3 和 E2B A record3 的实际首请求：Workload 匹配且记录两个提示差异，Strict 仍拒绝，原 Tape 前后 SHA 不变；它没有执行真实工具。首次 `make test` 因 wiring 的旧“拒绝 Workload”负例失败；只删除这条过期负例，保留 `attempt-1` 原源码、失败 evidence 和日志。续跑 wiring 定向、全量 test、race、lint、integration 均通过；生产源码未变，原已通过构建的二进制按 SHA 复用，测试源码修正与来源关系单列。最终 ECS 容器/网络、fixture、源码核对通过，临时缓存清理，锁释放。
+
+冻结来源：`/opt/aries-artifacts/release29/`；source manifest SHA `932384701b543d4531476c7a7dbcb20131b45446983639eecdb4b3e9bcbe38f6`，工程 evidence SHA `cd623c814537f73b304045cc93838babd584dc898e5c4d744dd7364a43a339a1`，freeze manifest SHA `71fe8c5a0b493d0d22eef0c7bf7b7c09454cfdf73f5fe13b9c2c255f50bbbeac`。本节及本轮新增结果文档在冻结后整理，不冒称属于编译输入。
+
+真实回放计划按华为 A → 华为 B → E2B A → E2B B 串行执行，`timing=zero`、image8、4 vCPU / 8192 MiB；每轮重新执行真实工具、PPT 评分及清理。A 原 Tape SHA `6a15976b408e008a238c34e60e417006a989963b42e4f4db1ea042bd13df9c17`，B 原 Tape SHA `f31d9799e43b28fafbdb4167234bc65244674aac53121aea2ebcd98a745338f7`，均来自华为 record3，不为不同云替换 Tape。当前尚无此批完整回放 PASS，成功后另追加实际结果；模型游标完成、PPT 功能通过、同工作量资格和观测验收分别报告。工程检查不改历史 Strict 成功数或全局 coverage。
+
 **Jiuwen process（ECS release23）限定 PASS：** 861文件冻结组合通过 build/test/test-race/lint/integration；最终新旧镜像 native/worker/bootstrap 回归通过。E2B A/B、华为 A/B 四次真实DeepSeek任务各原12/12，15进程/105事件完整且exact关联，8个Sandbox已独立确认删除。四组各自冻结快照的 Perfetto/Jaeger/Prometheus 实际查询全部通过，后端资源清理确认；整体 integrity=complete / coverage=unknown。华为评分出网仍 assumed，四份独立模型轨迹不作性能排名。原Go夹具超时、B夹具失败及历史记录保留。[逐阶段、命令、资源与原件SHA](../jiuwen-release23-cloud-validation-20261027.md)、[测量定义与原生测试](../jiuwen-process-observation-20261027.md)。
 
 <a id="jiuwen-release23"></a>

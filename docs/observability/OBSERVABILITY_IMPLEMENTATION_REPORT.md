@@ -1,5 +1,7 @@
 # 可观测性分阶段实施报告
 
+**Jiuwen PPT Workload 接入（release29）：工程通过，真实回放待验。** 显式非 Strict 模式使用原 Tape 的决策，继续执行真实工具与独立 PPT 评分；只对固定原生 formatter 的日期、私有运行根目录和首个 user 时间戳增加声明过的比较例外。正文差异与提示上下文差异分开留存摘要，由同一校验 Snapshot 投影到 Perfetto/OTLP；Strict 默认行为不变。ECS 五项发布检查和两份真实 Tape 的首请求兼容检查通过，后者不是完整回放。按用户要求优先华为 A/B，再用同两份 Tape 回放 E2B A/B；云端成功与性能资格须逐次留证。[契约](../implementation/model-replay.md#jiuwen-原生-ppt-的非-strict-接入)、[工程证据与未验项](VALIDATION_AND_REPRODUCE.md#jiuwen-workload-release29)。[华为 B record4](../jiuwen-pptx-capacity-20261027.md#huawei-b-record4)是独立真实模型录制，已有新的功能/离线观测 PASS，不冒充本轮回放。
+
 **Jiuwen 命令进程计时（release23）限定 PASS：** A/B 已接入原生创建、首输出、直接子进程退出及管道关闭，与请求计时分开。ECS 五项发布门、E2B/华为 A/B 四组真实模型任务均通过，原 Verifier 各 12/12；15 个进程、105 条事件精确关联并完整收尾，8 个 Sandbox 独立确认删除。四组各自冻结 Snapshot 的实际 Perfetto/Jaeger/Prometheus 查询均通过：2,035 个 Jaeger span、31 个进程 histogram 样本、18 个有值 metrics 流对账，5 流保持 NOT_COLLECTED，临时后端已清理。[本轮真实数据与 SHA](../jiuwen-release23-cloud-validation-20261027.md)、[边界与版本](../jiuwen-process-observation-20261027.md)。整体 integrity=complete / coverage=unknown；华为评分出网仍 assumed，独立真实模型轨迹不能作性能排名，不宣称生产化全部完成。
 
 **历史 release21：** 五项 ECS 门禁、image5 双云 A/B 四组真实模型任务均通过，原 Verifier 各 12/12，8 个 Sandbox 回收确认。两组 A 各 8 个原生 ToolCall、11 次 Provider 调用精确贯通，Bridge 准备已纳入阶段；E2B A 同一快照通过实际 TraceProcessor、Jaeger 与 Prometheus 查询对账。[阶段、资源、证据与限定范围](../jiuwen-release21-cloud-validation-20261027.md)。[工程记录](../jiuwen-native-runtime-validation-20261027.md)保留模型错误负例和生产目录修复。全局 coverage 仍 unknown，P0/P1 的其他退出条件不据此关闭，不宣称生产化全部完成。以下旧版本结果保持原范围。

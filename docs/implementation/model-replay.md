@@ -38,11 +38,23 @@ v2补充固定原生`extract_call_goal`的精确行为：模型响应中的顶�
 
 `aries cloud` 的 `model.mode="replay"` 可设置 `model.replay_policy="workload"`；省略或填 `strict` 保持完整请求严格匹配。录制时不允许设置此字段，独立 `aries-model-replay` CLI 仍使用 Strict。release12已通过[ECS五项工程门禁](../observability/VALIDATION_AND_REPRODUCE.md#workload-replay-release12)，并完成[DB两云Workload](../workload-db-performance-20261026.md)和[SQLite两云Workload](../workload-sqlite-performance-20261026.md)的真实工具、原评分、终态、双Trace及清理验收。DB各原7/7、11工具；SQLite各原3/3、40工具结果。SQLite首轮Snapshot重载失败及华为缺shell配置失败保留，修复后独立新轮通过；不重写历史失败或增加Strict成功数。
 
-Workload 只允许双方均为字符串的 `role=tool` 消息正文不同，包括更早历史中的正文；缺字段、null、数组或对象不会因此放行。调用 ID、名称、参数、顺序、全部非正文历史、模型参数和工具 schema 继续精确匹配。录制 Tape、实际请求、真实工具输出与录制模型响应均不改写，失败不会自动切换策略。cached retry 仍按完整实际请求识别，不按去掉正文的请求去重。
+Workload 允许双方均为字符串的 `role=tool` 消息正文不同，包括更早历史中的正文；缺字段、null、数组或对象不会因此放行。OpenClaw 的其他字段继续精确匹配。Jiuwen 固定原生上下文的候选扩展见下一节，不改变 Strict 或旧 Tape。调用 ID、名称、参数、顺序、assistant 决策、模型参数和工具 schema 继续精确匹配。录制 Tape、实际请求、真实工具输出与录制模型响应均不改写，失败不会自动切换策略。cached retry 仍按完整实际请求识别，不按去掉正文的请求去重。
 
 `request_matched.tool_content_differences` 记录每个发生差异的 JSON pointer、UTF-8 字节数及双方 SHA-256，不收录工具正文。它描述本次完整历史比较，同一旧结果在后续请求中可重复出现，不能把条目数相加当独立工具数。`model_sessions`、请求边界及索引均记录 `replay_policy`；分析器 v1.8.0 将同一份校验后证据投影到 Perfetto 与 OTLP。历史原件没记录策略时标 `unknown`，不能猜为 Strict；record 标 `not_applicable`。不为没有区间的事件伪造 Span。
 
 模型匹配完成只证明决策输入契约满足。工作量性能合格还须对账真实派发、终态及退出证据、后台作业依赖、原独立 Verifier、停止撤权和清理；原录制包含的诊断失败保留，不把所有非零退出一律拒绝，也不把未执行或退出状态变化当成相同工作量。Strict 原成功在同次运行满足共同验收门时可满足工作量判定，但新建 Sandbox 的另一轮实验仍须实际验证。Strict 和 Workload 分开统计，不把 Workload 成功改称 Strict 成功。
+
+<a id="jiuwen-原生-ppt-的非-strict-接入"></a>
+
+### Jiuwen 原生 PPT 的非 Strict 接入
+
+本轮优先完成用户 PPT 任务，Strict 不作为功能交付门槛。沿用已有 `model.replay_policy=workload`，不新增绑定文件，不修改原生提示或执行时钟。仅在固定 `JiuwenHistoryDialect` 主 Agent 中，额外允许已核验原生 formatter 的系统日期、私有运行根路径及初始 user JSON 的 timestamp 变化；任务正文、附件及其他 user 字段仍相等，运行时附件也仍精确比较。子 Agent 不自动继承此提示例外。完整历史在每轮都比较，旧历史的非允许变化仍失败。
+
+任务绑定来自实际首轮 user 题目，而非只相信 profile 名称。Tape 的 placement、Harness 源码/lock、模型、dialect 和分支协议检查继续执行。旧 Tape 的 ToolCall 参数若含旧运行路径，仍原样执行，不重写命令；实际失败输出留证，并由独立 PPT Verifier 判断业务是否完成。
+
+提示例外记录在 `request_matched.prompt_context_differences`，与 `tool_content_differences` 分开。每条保存类别、JSON pointer、UTF-8 长度及双方 SHA-256，不输出正文。分析快照验证后共享给 Perfetto 与 OTLP，不在两个出口各自处理差异。release29 的 ECS 五项发布检查和两份真实 Tape 的首请求检查已通过；真实工具执行、PPT 评分和清理尚需本轮云回放证据，不能用首请求通过替代。[验证与未验范围](../observability/VALIDATION_AND_REPRODUCE.md#jiuwen-workload-release29)。
+
+四份 `profiles/cloud/jiuwenswarm-{e2b,huawei}-{external,embedded}-pptx-workload-replay.json` 为独立非 Strict 示例。A 两云使用同一份 A Tape，B 两云使用同一份 B Tape，保留原 SHA。示例 `timing=zero` 去掉回放器计划等待，不代表工具耗时为零；若改用 `recorded`，需作为另一组时序实验报告。示例中的占位 Tape 路径必须替换，不能把配置存在当作已完成回放。
 
 ### 如何使用工作量回放
 

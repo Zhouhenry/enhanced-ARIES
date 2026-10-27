@@ -60,7 +60,7 @@ func TestJiuwenCloudSelectionAndUnsupportedOptions(t *testing.T) {
 		{"missing Python", func(p map[string]any) { delete(p["harness"].(map[string]any), "jiuwen_python_path") }, "absolute guest"},
 		{"workload replay", func(p map[string]any) {
 			p["model"] = map[string]any{"mode": "replay", "replay_policy": "workload", "tape_file": "jiuwen.tape.json", "timing": "recorded"}
-		}, "only strict"},
+		}, ""},
 		{"OpenClaw dialect", func(p map[string]any) { p["model"].(map[string]any)["tool_call_id_dialect"] = "openclaw-2026.7.1" }, "OpenClaw"},
 	} {
 		t.Run(test.name, func(t *testing.T) {
@@ -86,8 +86,14 @@ func TestJiuwenCloudSelectionAndUnsupportedOptions(t *testing.T) {
 			if cfg.Workload != "merge-ranges" || cfg.Harness.OpenClawVersion != "" || cfg.Model.MaxTurns != 32 {
 				t.Fatalf("native or codingcase defaults changed: %+v", cfg)
 			}
-			if cfg.Model.Mode == "replay" && cfg.Model.ReplayPolicy != "strict" {
-				t.Fatal("replay did not remain strict")
+			if cfg.Model.Mode == "replay" {
+				wantPolicy, _ := profile["model"].(map[string]any)["replay_policy"].(string)
+				if wantPolicy == "" {
+					wantPolicy = "strict"
+				}
+				if cfg.Model.ReplayPolicy != wantPolicy {
+					t.Fatal("replay policy changed or strict default lost")
+				}
 			}
 			if cfg.SandboxBackend == "huawei-agentsphere" && cfg.Sandbox.TokenEnv != "ARIES_HUAWEI_ADAPTER_TOKEN" {
 				t.Fatal("wrong provider credential reference")

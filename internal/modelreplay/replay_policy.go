@@ -21,31 +21,36 @@ type toolContentDifference struct {
 	Actual        requestTextDiagnostic `json:"actual"`
 }
 
-// Workload replay fixes the recorded decisions but permits textual tool results
-// to differ. Compare a private shallow copy of the expected request: never edit
-// the received request, the Tape, or anything delivered to the Agent.
-func replayRequestDifference(expected, actual any, policy string) (string, []toolContentDifference) {
+// Workload fixes recorded decisions while allowing tool text and the declared
+// Jiuwen native context fields to differ. Compare a private copy: never edit the
+// received request, Tape, or anything delivered to the Agent.
+func replayRequestDifference(expected, actual any, policy, historyDialect string) (string, []toolContentDifference, []promptContextDifference) {
 	if policy != ReplayPolicyWorkload {
-		return difference(expected, actual, ""), nil
+		return difference(expected, actual, ""), nil, nil
 	}
 	want, wantOK := expected.(map[string]any)
 	got, gotOK := actual.(map[string]any)
 	if !wantOK || !gotOK {
-		return difference(expected, actual, ""), nil
+		return difference(expected, actual, ""), nil, nil
 	}
 	wantMessages, wantOK := want["messages"].([]any)
 	gotMessages, gotOK := got["messages"].([]any)
 	if !wantOK || !gotOK || len(wantMessages) != len(gotMessages) {
-		return difference(expected, actual, ""), nil
+		return difference(expected, actual, ""), nil, nil
 	}
 	compared := maps.Clone(want)
 	messages := slices.Clone(wantMessages)
 	compared["messages"] = messages
 	var allowed []toolContentDifference
+	var promptAllowed []promptContextDifference
+	firstUser := -1
 	for i := range wantMessages {
 		wantMessage, wantOK := wantMessages[i].(map[string]any)
 		gotMessage, gotOK := gotMessages[i].(map[string]any)
-		if !wantOK || !gotOK || wantMessage["role"] != "tool" || gotMessage["role"] != "tool" {
+		if wantOK && wantMessage["role"] == "user" && firstUser < 0 {
+			firstUser = i
+		}
+		if !wantOK || !gotOK || wantMessage["role"] != gotMessage["role"] {
 			continue
 		}
 		wantText, wantOK := wantMessage["content"].(string)
@@ -53,15 +58,31 @@ func replayRequestDifference(expected, actual any, policy string) (string, []too
 		if !wantOK || !gotOK || wantText == gotText {
 			continue
 		}
+		path := "/messages/" + strconv.Itoa(i) + "/content"
+		if wantMessage["role"] == "tool" {
+			allowed = append(allowed, toolContentDifference{SchemaVersion: 1,
+				Path: path, Encoding: "utf-8", Recorded: textDiagnostic(wantText), Actual: textDiagnostic(gotText)})
+		} else {
+			category := ""
+			if historyDialect == JiuwenHistoryDialect {
+				if i == 0 && wantMessage["role"] == "system" && jiuwenSystemContextEqual(wantText, gotText) {
+					category = "jiuwen_system_context"
+				} else if i == firstUser && jiuwenUserTimestampEqual(wantText, gotText) {
+					category = "jiuwen_user_timestamp"
+				}
+			}
+			if category == "" {
+				continue
+			}
+			promptAllowed = append(promptAllowed, promptContextDifference{SchemaVersion: 1,
+				Path: path, Encoding: "utf-8", Category: category, Recorded: textDiagnostic(wantText), Actual: textDiagnostic(gotText)})
+		}
 		message := maps.Clone(wantMessage)
 		message["content"] = gotText
 		messages[i] = message
-		allowed = append(allowed, toolContentDifference{SchemaVersion: 1,
-			Path: "/messages/" + strconv.Itoa(i) + "/content", Encoding: "utf-8",
-			Recorded: textDiagnostic(wantText), Actual: textDiagnostic(gotText)})
 	}
 	if path := difference(compared, actual, ""); path != "" {
-		return path, nil
+		return path, nil, nil
 	}
-	return "", allowed
+	return "", allowed, promptAllowed
 }

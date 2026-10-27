@@ -18,7 +18,7 @@ import (
 )
 
 const AnalysisSchemaVersion = 1
-const AnalysisParserVersion = "aries-analysis-v1.16.0-jiuwen-process-timing"
+const AnalysisParserVersion = "aries-analysis-v1.17.0-jiuwen-workload-context"
 
 // AnalysisSnapshot is a detached, deterministic projection of immutable evidence.
 // Exporters consume this value only; they must not reread or rematch source logs.

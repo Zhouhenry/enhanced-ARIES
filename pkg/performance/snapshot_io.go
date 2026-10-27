@@ -51,6 +51,17 @@ func restoreSnapshotAttributes(attributes map[string]any) error {
 	if err := restoreSDKCalls(attributes); err != nil {
 		return err
 	}
+	if value, exists := attributes["prompt_context_differences"]; exists {
+		content, err := json.Marshal(value)
+		if err != nil {
+			return err
+		}
+		var differences []modelPromptContextDifference
+		if err := json.Unmarshal(content, &differences); err != nil {
+			return fmt.Errorf("decode snapshot prompt context differences: %w", err)
+		}
+		attributes["prompt_context_differences"] = differences
+	}
 	value, exists := attributes["tool_content_differences"]
 	if !exists {
 		return nil

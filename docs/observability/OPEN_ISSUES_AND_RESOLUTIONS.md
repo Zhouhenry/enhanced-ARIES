@@ -1,5 +1,9 @@
 # 可观测性问题与处置台账
 
+**release29 / R03、R12 增量：工程 PASS，真实 Jiuwen PPT 回放待验。** 已接入显式 Workload 的原生提示上下文例外及独立差异摘要；旧 Strict 失败、原 Tape、工具参数和真实输出不改写。两份真实 A Tape 的首请求离线兼容检查通过，不能推出全部模型历史、工具工作量或 PPT 回放成功。旧测试仍要求拒绝 Workload，首次全量测试因此失败；删除这一过期负例后续跑发布检查通过，旧日志保留。[证据](VALIDATION_AND_REPRODUCE.md#jiuwen-workload-release29)。
+
+剩余风险与退出条件：完成华为 A/B、E2B A/B 同 placement/同 Tape 的真实执行、PPT 评分、停止撤权和清理；逐次判断终态与工作量变化。旧随机路径若造成新失败或少执行工作，功能评分 PASS 仍不能自动升级为可比性能样本。子 Agent 的提示例外未开放；当前选定两份 Tape 均无 child/JSON 轨迹，不能用它们验收真实云端子分支。`zero` 与 `recorded` 分开计量；全局观测覆盖、R15 扰动、R16 深度剖析等原退出条件保留，不由本次工程检查关闭。
+
 **R07 / Jiuwen 增量限定 PASS，整体仍 PARTIAL：** release23 五门禁及 image7 双云 A/B 四组真实任务通过；原独立评分各12/12，15进程105事件、exact身份、实际退出、完整收尾及8个Sandbox回收均有证据。命令计时不再借用 Provider/Bridge 请求时间。四组各自冻结快照的 Perfetto/Jaeger/Prometheus 实际查询已通过，18个有值metrics流首次/重复payload对账，5流NOT_COLLECTED，后端容器/listener/cgroup均清理。整体 integrity=complete / coverage=unknown，华为评分出网 assumed，独立真实模型轨迹不作云性能排名。自然 EOF、单条命令完整后代树计时、跨机时钟对齐、逐Tool资源和新插桩成本对照仍未证明；不以此关闭原R01–R18或R15。[专项边界](../jiuwen-process-observation-20261027.md)、[实际结果与来源SHA](../jiuwen-release23-cloud-validation-20261027.md)。
 
 **Jiuwen增量（2026-10-27）：** [release18五门禁冻结](VALIDATION_AND_REPRODUCE.md#jiuwen-release18)后，E2B record7与华为record2均通过原12/12、score1，完整Tape分别9/7轮；每轮Stop/revoke、两个Sandbox独立删除及cleanup=[]均确认。两份真实模型轨迹不同，仅作双云功能验收，不是同Tape性能对照；华为评分出网仍为显式假设。 record3多user、record4临时附件、record5顶层`call_goal`三项旧失败保留。Strict replay3与record1–5旧失败保留；校验模式讨论延后，固定提示变体暂停，历史六例Strict仍3/6。

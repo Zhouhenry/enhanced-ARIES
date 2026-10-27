@@ -47,7 +47,6 @@ func TestJiuwenUnsupportedConfigurationFailsBeforeCredentials(t *testing.T) {
 		{"native protocol", func(c *config.CloudConfig) { c.Harness.NativeObservationProtocol = "aries-native-process-v1" }},
 		{"reasoning", func(c *config.CloudConfig) { c.Model.ReasoningEffort = "none" }},
 		{"missing Python", func(c *config.CloudConfig) { c.Harness.JiuwenPythonPath = "" }},
-		{"workload replay", func(c *config.CloudConfig) { c.Model.ReplayPolicy = "workload" }},
 	} {
 		t.Run(test.name, func(t *testing.T) {
 			cfg := jiuwenConfig()

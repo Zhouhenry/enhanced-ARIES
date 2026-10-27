@@ -37,29 +37,30 @@ type modelBoundary struct {
 		AttemptID string `json:"attempt_id"`
 		SessionID string `json:"session_id"`
 	} `json:"identity"`
-	RequestID              string                       `json:"model_request_instance_id"`
-	Event                  string                       `json:"event"`
-	EmitterID              string                       `json:"emitter_id"`
-	ClockDomain            string                       `json:"clock_domain"`
-	Offset                 *int64                       `json:"monotonic_offset_ns"`
-	Scope                  string                       `json:"measurement_scope"`
-	Location               string                       `json:"producer_location"`
-	Route                  string                       `json:"route"`
-	Mode                   string                       `json:"mode"`
-	ReplayPolicy           string                       `json:"replay_policy"`
-	ToolContentDifferences []modelToolContentDifference `json:"tool_content_differences"`
-	Timing                 string                       `json:"timing_source"`
-	Turn                   *int                         `json:"turn"`
-	Frame                  *int                         `json:"frame_index"`
-	Status                 string                       `json:"status"`
-	Duration               *int64                       `json:"duration_ns"`
-	HTTPStatus             *int                         `json:"http_status"`
-	Reason                 string                       `json:"reason"`
-	CachedRetry            bool                         `json:"cached_retry"`
-	Branch                 string                       `json:"model_branch"`
-	Target                 *int64                       `json:"target_offset_ns"`
-	Actual                 *int64                       `json:"actual_offset_ns"`
-	Received               *int64                       `json:"received_offset_ns"`
+	RequestID                string                         `json:"model_request_instance_id"`
+	Event                    string                         `json:"event"`
+	EmitterID                string                         `json:"emitter_id"`
+	ClockDomain              string                         `json:"clock_domain"`
+	Offset                   *int64                         `json:"monotonic_offset_ns"`
+	Scope                    string                         `json:"measurement_scope"`
+	Location                 string                         `json:"producer_location"`
+	Route                    string                         `json:"route"`
+	Mode                     string                         `json:"mode"`
+	ReplayPolicy             string                         `json:"replay_policy"`
+	ToolContentDifferences   []modelToolContentDifference   `json:"tool_content_differences"`
+	PromptContextDifferences []modelPromptContextDifference `json:"prompt_context_differences"`
+	Timing                   string                         `json:"timing_source"`
+	Turn                     *int                           `json:"turn"`
+	Frame                    *int                           `json:"frame_index"`
+	Status                   string                         `json:"status"`
+	Duration                 *int64                         `json:"duration_ns"`
+	HTTPStatus               *int                           `json:"http_status"`
+	Reason                   string                         `json:"reason"`
+	CachedRetry              bool                           `json:"cached_retry"`
+	Branch                   string                         `json:"model_branch"`
+	Target                   *int64                         `json:"target_offset_ns"`
+	Actual                   *int64                         `json:"actual_offset_ns"`
+	Received                 *int64                         `json:"received_offset_ns"`
 }
 
 type modelBoundaryIndex struct {
@@ -156,7 +157,7 @@ func (s *AnalysisSnapshot) modelSnapshot(root string, attempt traceAttempt) {
 		if json.Unmarshal(line, &e) != nil || e.SchemaVersion != 1 || e.Sequence != sequence+1 || e.Identity.RunID != s.RunID || e.Identity.AttemptID != attempt.AttemptID || e.Identity.SessionID != attempt.ModelSessionID || e.EmitterID != index.EmitterID || e.ClockDomain != clock || e.Offset == nil || *e.Offset < 0 || !validAnalysisIdentity(e.RequestID) || !allowed[e.Event] || e.Location != "model_proxy" || e.Scope == "" {
 			return false
 		}
-		if !validModelReplayPolicy(e.Mode, e.ReplayPolicy) || e.ReplayPolicy != index.ReplayPolicy || !validToolContentDifferences(e) {
+		if !validModelReplayPolicy(e.Mode, e.ReplayPolicy) || e.ReplayPolicy != index.ReplayPolicy || !validToolContentDifferences(e) || !validPromptContextDifferences(e) {
 			return false
 		}
 		if attempt.ModelMode != "" && e.Mode != attempt.ModelMode {
@@ -175,6 +176,9 @@ func (s *AnalysisSnapshot) modelSnapshot(root string, attempt traceAttempt) {
 		}
 		if len(e.ToolContentDifferences) > 0 {
 			attributes["tool_content_differences"] = e.ToolContentDifferences
+		}
+		if len(e.PromptContextDifferences) > 0 {
+			attributes["prompt_context_differences"] = e.PromptContextDifferences
 		}
 		attributes["reason"] = modelBoundaryReason(e.Reason)
 		attributes["target_offset_ns"], attributes["actual_offset_ns"], attributes["received_offset_ns"] = e.Target, e.Actual, e.Received

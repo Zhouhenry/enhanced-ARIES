@@ -236,3 +236,46 @@ E2B A `jiuwen-e2b-external-pptx-record-3` 使用冻结 release27，已完成下�
 华为 A 的 Agent 容器内存采样最大值约 646 MiB，而 provider `mem_used_mib` 最大值为 7733 MiB；两者对象和统计语义不同，不能据此宣称 Agent 用满 8 GiB 或泄漏。Provider 时间戳尚未验证，保留其原读数，但不据此积分 CPU、推导内存曲线因果或比较两云内存效率。
 
 后续同 Tape MockLLM 对照中，每个 placement 固定一份 Tape，真实工具和独立 Verifier 继续执行。`recorded` 时序保留录制的模型等待，`zero` 时序去掉回放器的计划等待；两组分别报告，不能混在一张耗时排名中。当前 Jiuwen 原生 PPT 的此项真实回放尚未完成，不作为本轮功能交付的阻塞项。
+
+<a id="huawei-b-record4"></a>
+
+## release28 华为 B：新 PPT 与观测复测通过
+
+`jiuwen-huawei-embedded-pptx-record-4` 已完成真实 DeepSeek 录制、Agent 执行、独立结构评分和清理，score=1。沿用 image8、4 vCPU / 8192 MiB、全部原生技能及 25 分钟 / 96 轮预算。两个 Sandbox 均独立查无，Stop/revoke 确认；华为评分出网隔离仍是 assumed。此结果验证公开端口误脱敏修复后的真实观测链路，**不改判旧 record-3 的失败**。
+
+三个原始 PPT 已按 SHA 取回本机 `runs/jiuwen-pptx-20261027/huawei-b-record-4/decks/`：
+
+| Sandbox 工作区内相对路径 | 文件级结果 | SHA-256 |
+| --- | --- | --- |
+| `projects/llm-development-5p/output/final.pptx` | 5 页，5/5 非空，PASS | `cab8f269e2c7ea68c0d36a7e328fdf100d171b23889b6da987e3a7667a989d01` |
+| `大模型发展脉络与趋势.pptx` | 与上述 final 字节相同，PASS | 同上 |
+| `projects/llm-development-5p/output/content.pptx` | 3 页中间稿，FAIL，原件保留 | `73fca4410b10ffbd96d9a1d3075d4a1005cf09d4762fce61ff02b607778826fe` |
+
+这是一个任务产生的三个文件，其中两个是同一成品。当前独立 Verifier 检查“至少一份可读、五页且每页非空”，不把其他中间稿也算合格，不评价内容事实、排版或最后一次发送文件的选择。
+
+| 八阶段 | 秒 |
+| --- | ---: |
+| 任务 Sandbox 创建 | 0.775 |
+| 工作区准备 | 0.903 |
+| Bridge 准备 | 0.125 |
+| Harness 启动 | 22.587 |
+| Runtime 执行 | 1082.419 |
+| 停止与撤权 | 3.049 |
+| 独立验证 | 2.219 |
+| 清理 | 0.711 |
+
+排队另计 0.000019358 秒，Attempt 为 1115.901001303 秒且不含排队；driver 为 1169.440673 秒，还包含部署、收集和导出。Runtime 内包含模型等待与真实工具，逐工具时间不能再加到 Runtime 上；各层时钟也不能直接相减。
+
+本次完整 Tape 为 47 个 root SSE 回合，0 child / 0 JSON。73 个 ToolCall 均按精确 ID 关联；SDK 264 个 sampled span 的 started/ended/exported 一致。36 个命令进程、252 条事件完整对账，drop/write_failed/identity_failed/pending 均为 0。Snapshot integrity=complete、global coverage=unknown；四个离线出口通过，本次 Perfetto 导入、Jaeger/Prometheus 后端查询仍 UNRUN。不能把已采集范围完整解释成全部内部环节覆盖。
+
+CPU、内存按归属展示，CPU 秒表示实际累计用量，内存采样最大值与生命周期峰值分别列出：
+
+| 归属与窗口 | CPU | 内存 | 测量边界 |
+| --- | --- | --- | --- |
+| ECS 共享控制器，start/end | 累计增量 114.215821 CPU 秒 | 进程生命周期 RSS 峰值 458.566 MiB | 包含同进程模型代理，不是 Sandbox 用量 |
+| Sandbox 内 Agent cgroup 及后代，四个边界 | 最终累计 90.012348 CPU 秒 | cgroup 生命周期峰值 856.379 MiB；四次当前内存采样最大值 713.918 MiB | 包含原生 Agent 与其后代工具；不是只覆盖 Runtime 的峰值，也不是逐工具用量 |
+| 华为任务 Sandbox 平台接口，224 条读数 | 返回样本最大 25.65% | 返回样本最大 7763 MiB | provider 时间语义未验证，与 guest cgroup 指标不等价 |
+
+guest cgroup 四边界的累计 CPU 秒依次为 start=0、runtime_start=20.589707、runtime_end=89.712755、stopped=90.012348。设备 `254:0` 在 runtime_start/runtime_end/stopped 的累计读字节分别为 167284736/440537088/442900480，写字节均为 0；设备 `254:16` 仅在 runtime_end/stopped 有读 466944、写 8540160 的读数。start 的 io.stat 无设备计数；不补零，不合并设备制造“完整 Runtime I/O”，Network 仍未采集。
+
+证据来自 ECS `/opt/aries-artifacts/jiuwen-huawei-embedded-pptx-record-4`。本机 `evidence/acceptance-summary.json` SHA 为 `0cc1d6cc2094ef861f70169026827bd30faf9718eebaca5a1572057d9b3aebf6`，`copy-receipt.json` 为 `9ec5f9006a46bd44749501c704619cbfd26381cc99209207a7f02652a7913a5f`；原 Snapshot 的资源边界提取回执 `evidence/resources-boundary-addendum.json` 为 `1e834e642ac7293fa492cd0755e94ddb24797f01eb48dbc356f3a2d9cd574d61`，无新采样。原 Tape SHA 为 `f77f9a523f04bfee38a00a30d2e097e2e6aa2872ce8243c5be1525f109e61d74`；已选定的后续 B 跨云 Workload 仍复用旧 B3 Tape，不因这次独立录制通过而换 Tape。

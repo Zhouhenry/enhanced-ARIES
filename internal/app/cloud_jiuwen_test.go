@@ -42,10 +42,14 @@ func testJiuwenCloudRecordAndStrictReplayUseNativePins(t *testing.T, placement, 
 		Execution: config.CloudExecutionConfig{TaskTimeout: time.Second}}
 	cfg.Model.SessionProtocol = protocol
 	var tape *modelreplay.Tape
-	for _, mode := range []string{"record", "replay"} {
+	for _, policy := range []string{"record", "strict", "workload"} {
+		mode := "replay"
+		if policy == "record" {
+			mode = "record"
+		}
 		cfg.Model.Mode = mode
 		if mode == "replay" {
-			cfg.Model.Timing, cfg.Model.ReplayPolicy = "zero", "strict"
+			cfg.Model.Timing, cfg.Model.ReplayPolicy = "zero", policy
 		}
 		root := t.TempDir()
 		proxy := &cloudModelProxy{sessions: make(map[[32]byte]http.Handler)}
@@ -79,6 +83,9 @@ func testJiuwenCloudRecordAndStrictReplayUseNativePins(t *testing.T, placement, 
 		if err != nil || len(result.ModelSessions) != 1 || result.ModelSessions[0].Status != core.StatusSucceeded || len(proxy.sessions) != 0 {
 			t.Fatalf("%s model session or cleanup failed: %+v %v", mode, result.ModelSessions, err)
 		}
+		if mode == "replay" && result.ModelSessions[0].ReplayPolicy != policy {
+			t.Fatal("Jiuwen replay policy lost at the application boundary")
+		}
 		if mode == "record" {
 			tape, err = modelreplay.Load(filepath.Join(root, "merge-ranges-001", "model", "tape.json"))
 			if err != nil {
@@ -90,7 +97,7 @@ func testJiuwenCloudRecordAndStrictReplayUseNativePins(t *testing.T, placement, 
 		}
 	}
 	if upstreamCalls.Load() != 1 {
-		t.Fatal("strict replay called the upstream model")
+		t.Fatal("replay called the upstream model")
 	}
 	if protocol != "" {
 		return

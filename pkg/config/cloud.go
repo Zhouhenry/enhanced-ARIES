@@ -150,8 +150,8 @@ func (c CloudConfig) ValidateAgent() error {
 		if c.Model.ReasoningEffort != "" || c.Model.MaxTokens != 0 || c.Model.ContextLength != 0 || c.Model.Temperature != nil {
 			return errors.New("Jiuwen reasoning_effort, max_tokens, context_length and temperature overrides are unsupported")
 		}
-		if c.Model.ReplayPolicy != "" && c.Model.ReplayPolicy != "strict" {
-			return errors.New("Jiuwen currently supports only strict model replay")
+		if c.Model.ReplayPolicy != "" && c.Model.ReplayPolicy != "strict" && c.Model.ReplayPolicy != "workload" {
+			return errors.New("Jiuwen replay_policy must be strict or workload")
 		}
 		return nil
 	default:

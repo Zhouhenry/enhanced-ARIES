@@ -1,5 +1,9 @@
 # 观测 Schema 与测量口径
 
+**Jiuwen Workload 提示差异（release29）：** 分析器 `aries-analysis-v1.17.0-jiuwen-workload-context` 在成功的 replay/workload `request_matched` 上接收 `prompt_context_differences`。每条 schema_version=1，含 `/messages/<index>/content`、encoding=utf-8、类别 `jiuwen_system_context` 或 `jiuwen_user_timestamp`，以及完整原始内容双方的字节数/SHA-256；不保存正文。它与 `tool_content_differences` 分开，不把提示变化伪装成工具输出变化。冻结/重载校验类型、路径、类别和摘要，两个 Trace 出口直接使用同一 Snapshot。cached retry 沿用原实际请求及其差异回执，不新增模型决策；失败匹配不输出 accepted 差异。此扩展不创造时间区间、身份或资源指标。[契约与资格](../implementation/model-replay.md#jiuwen-原生-ppt-的非-strict-接入)、[验证状态](VALIDATION_AND_REPRODUCE.md#jiuwen-workload-release29)。
+
+本次 `zero` 时序只取消回放器的计划等待，实际 HTTP、解析、匹配、Agent 调度和工具耗时照常计量；不能把模型入口真实耗时写成 0，或与 `recorded` 样本混合排名。八阶段定义和失败分母不变，Workload 与 Strict 分开统计。
+
 **Jiuwen process schema 1（release23）：** 原生进程使用独立单调时钟、创建时身份快照和 producer 分母，已通过双云 A/B 真实任务。`creation` 从 spawn_requested 到 connection_made，含起点后的同步观测写入；`command` 从 connection_made 到直接子进程退出回调；`exit_to_pipe_closed` 只在管道晚于退出关闭时存在。`observation` 是重叠事件容器，禁止加总。不是 CPU time、内核 exec/exit 或完整后代树时长；缺失边界不补零。分析器 v1.16.0、OTLP v1.3-process-events/事件策略v3，双出口使用同一快照。[完整口径与证据](../jiuwen-process-observation-20261027.md)。
 
 四组各自冻结 Snapshot 的 Perfetto、Jaeger、Prometheus 实际查询已限定 PASS：15 个进程、105 个 markers、46 个含容器区间，Metrics 排除 15 个容器后只聚合 31 个区间样本。进程相对时间与 v3 epoch 投影误差 0 ns，旧版微秒投影和 Prometheus 毫秒截断按各自精度对账；身份链接不证明跨时钟校准。18 个有值 metrics 流通过首次/重复 payload 查询，5 流保持 NOT_COLLECTED。整体 integrity=complete / coverage=unknown，华为评分出网 assumed，独立模型轨迹不作性能排名。[四组数值、资源归属和原件 SHA](../jiuwen-release23-cloud-validation-20261027.md)。
