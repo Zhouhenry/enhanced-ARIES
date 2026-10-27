@@ -1,0 +1,121 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 1050" role="img" aria-labelledby="time-map-title time-map-desc">
+  <title id="time-map-title">ARIES 时间口径图：整项任务、模型、工具服务与命令进程</title>
+  <desc id="time-map-desc">这是一张不按比例的边界示意图。八阶段与未归属时间组成 Attempt。Runtime 内包含模型请求与工具调用。需要 Sandbox 的前台工具调用内部包含 Worker 服务处理与命令进程区间。各层存在包含或并发关系，不能重复相加；后台进程可能晚于工具返回结束。</desc>
+  <style>
+    text{font-family:"Aries CJK","PingFang SC","Microsoft YaHei","Noto Sans CJK SC",sans-serif;fill:#152d3a;font-size:15px}
+    .title{font-size:25px;font-weight:600}.heading{font-size:20px;font-weight:600}.label{font-size:16px;font-weight:600}
+    .small{font-size:13px;fill:#586f7b}.note{font-size:14px;fill:#586f7b}.white{fill:white}.accent{fill:#087b70}
+    .panel{fill:#fff;stroke:#d3dfe4;stroke-width:1.5}.box{fill:#f3f7f8;stroke:#b7c9d0;stroke-width:1.5}
+    .green{fill:#edf7f3;stroke:#29978b;stroke-width:1.5}.stage{fill:#e9f0f3;stroke:#b7c9d0}
+    .highlight{fill:#087b70;stroke:#087b70}.dash{fill:none;stroke:#7894a2;stroke-width:1.5;stroke-dasharray:5 4}
+    .is-highlighted>.panel,.is-highlighted>.box,.is-highlighted>.green{stroke:#c5741b;stroke-width:4}
+    .is-highlighted>.heading,.is-highlighted>.label{fill:#9c5912}
+  </style>
+  <rect width="1280" height="1050" rx="8" fill="#f4f7f8"/>
+  <text x="28" y="40" class="title">每个时间，究竟测的是哪一段？</text>
+  <text x="28" y="68" class="note">边界示意，不按时长比例；不同主机的时钟没有在这张图中对齐。点击看板指标可查看对应层。</text>
+
+  <g id="time-global">
+    <rect x="24" y="90" width="1232" height="246" rx="7" class="panel"/>
+    <text x="44" y="120" class="heading">① 全局阶段：从准备任务到评分、清理</text>
+    <g id="time-driver" data-measure="driver">
+      <rect x="42" y="138" width="1196" height="162" rx="5" class="box"/>
+      <text x="58" y="160" class="label">外层脚本 / driver</text>
+      <text x="270" y="160" class="small">还包括任务前的服务准备，以及任务后的离线分析、归档和清理确认</text>
+      <g id="time-queue" data-measure="queue">
+        <rect x="58" y="190" width="104" height="82" rx="4" class="panel"/>
+        <text x="110" y="220" text-anchor="middle" class="label">排队</text>
+        <text x="110" y="244" text-anchor="middle" class="small">Attempt 外</text>
+      </g>
+      <g id="time-attempt" data-measure="attempt">
+        <rect x="180" y="174" width="1040" height="112" rx="4" class="panel"/>
+        <text x="194" y="196" class="label">整项任务 / Attempt</text>
+        <text x="426" y="196" class="small">八阶段 + 未归属时间 = Attempt；排队、外层收尾另列</text>
+        <g text-anchor="middle">
+          <rect x="194" y="208" width="118" height="62" rx="3" class="stage"/>
+          <text x="253" y="234">Sandbox</text><text x="253" y="255">创建</text>
+          <rect x="322" y="208" width="118" height="62" rx="3" class="stage"/>
+          <text x="381" y="234">工作区</text><text x="381" y="255">准备</text>
+          <rect x="450" y="208" width="118" height="62" rx="3" class="stage"/>
+          <text x="509" y="234">工具通道</text><text x="509" y="255">Bridge 准备</text>
+          <rect x="578" y="208" width="118" height="62" rx="3" class="stage"/>
+          <text x="637" y="234">Agent</text><text x="637" y="255">启动</text>
+          <rect x="706" y="208" width="118" height="62" rx="3" class="highlight"/>
+          <text x="765" y="234" class="white">任务运行</text><text x="765" y="255" class="white">Runtime ↓</text>
+          <rect x="834" y="208" width="118" height="62" rx="3" class="stage"/>
+          <text x="893" y="234">停止</text><text x="893" y="255">与撤权</text>
+          <rect x="962" y="208" width="118" height="62" rx="3" class="stage"/>
+          <text x="1021" y="234">独立</text><text x="1021" y="255">验证</text>
+          <rect x="1090" y="208" width="116" height="62" rx="3" class="stage"/>
+          <text x="1148" y="234">资源</text><text x="1148" y="255">清理</text>
+        </g>
+      </g>
+    </g>
+    <text x="44" y="322" class="small">阶段间未归属时间单列；不强行分摊给网络或 Agent Loop。上图中的各阶段宽度不代表实际耗时。</text>
+  </g>
+
+  <g id="time-runtime" data-measure="runtime">
+    <rect x="24" y="354" width="1232" height="496" rx="7" class="panel"/>
+    <text x="44" y="386" class="heading">② 展开 Runtime：模型与工具都在这一段里面</text>
+    <text x="44" y="412" class="note">Agent 在这里组织模型请求、工具调用和结果消费；这些操作可能交替、并行或嵌套。</text>
+
+    <g id="time-model" data-measure="model">
+      <rect x="44" y="434" width="510" height="258" rx="5" class="green"/>
+      <text x="62" y="464" class="label">模型入口 HTTP 请求耗时</text>
+      <text x="62" y="488" class="small">在 Controller 侧：收到请求 → 响应处理完成</text>
+      <g text-anchor="middle">
+        <rect x="62" y="505" width="142" height="61" rx="3" class="panel"/>
+        <text x="133" y="532">读取</text><text x="133" y="552">请求正文</text>
+        <text x="216" y="542" class="accent">→</text>
+        <rect x="236" y="505" width="122" height="61" rx="3" class="panel"/>
+        <text x="297" y="532">解析</text><text x="297" y="552">与匹配</text>
+        <text x="370" y="542" class="accent">→</text>
+        <rect x="390" y="505" width="146" height="61" rx="3" class="panel"/>
+        <text x="463" y="532">等待、接收</text><text x="463" y="552">或发送响应</text>
+      </g>
+      <text x="62" y="593" class="note">真实模型：还包含访问上游模型的等待。</text>
+      <text x="62" y="619" class="note">去等待回放：取消录制节奏的计划等待，仍有实际开销。</text>
+      <text x="62" y="645" class="note">保留节奏回放：按录制时序返回响应，包含计划等待。</text>
+      <text x="62" y="674" class="small">HTTP 整段不是纯推理时间；其中子窗口不能再次相加。</text>
+    </g>
+
+    <g id="time-tool" data-measure="tool">
+      <rect x="580" y="434" width="650" height="384" rx="5" class="box"/>
+      <text x="600" y="464" class="label">Agent 侧完整 Tool 调用耗时</text>
+      <text x="600" y="488" class="small">此处展开需要 Sandbox 的前台工具；部分工具只在 Agent 内运行。</text>
+      <rect x="600" y="504" width="610" height="43" rx="3" class="panel"/>
+      <text x="618" y="532">包含 Provider / Bridge 调用及通信，不等于纯 Sandbox 执行。</text>
+
+      <g id="time-worker" data-measure="worker">
+        <rect x="600" y="562" width="610" height="226" rx="4" class="green"/>
+        <text x="618" y="591" class="label">Sandbox 内工具服务处理耗时 / Worker</text>
+        <text x="618" y="615" class="small">请求校验后开始工具处理 → 终态；包含结果封装与发送。</text>
+        <rect x="618" y="633" width="204" height="78" rx="3" class="panel"/>
+        <text x="634" y="662">文件读取 / 写入等</text>
+        <text x="634" y="689" class="small">目前没有更细的内部计时</text>
+        <g id="time-cmd" data-measure="cmd">
+          <rect x="838" y="633" width="354" height="78" rx="3" class="panel"/>
+          <text x="854" y="658" class="label">命令进程耗时 / cmd</text>
+          <text x="854" y="682" class="small">进程连接建立 → 直接子进程退出回调</text>
+          <text x="854" y="702" class="small">包含 I/O 等待；不是 CPU 秒</text>
+        </g>
+        <text x="618" y="740" class="small">一个 Tool 可能发起多次 Worker 调用；并非每次调用都产生进程。</text>
+        <text x="618" y="766" class="small">后台进程可晚于工具返回结束，需另看实际终态，不能套用前台包含关系。</text>
+      </g>
+      <text x="600" y="806" class="small">各层按精确身份关联；身份相同不代表跨主机时钟已经对齐。</text>
+    </g>
+
+    <text x="62" y="735" class="label">如何读累计值？</text>
+    <text x="62" y="763" class="note">累计 = 同一类调用的各自时长相加，可能重复覆盖同一时间。</text>
+    <text x="62" y="789" class="note">同域覆盖时长 = 该时钟域内区间合并后的时长。</text>
+    <text x="62" y="815" class="note">Runtime ≠ 模型累计 + Tool 累计 + Worker 累计 + cmd 累计。</text>
+  </g>
+
+  <g id="time-resources" data-measure="resources">
+    <rect x="24" y="870" width="1232" height="122" rx="7" class="panel"/>
+    <text x="44" y="902" class="heading">③ CPU 与内存：这是资源用量，不是另一段任务时间</text>
+    <text x="44" y="933" class="note">CPU 秒：累计消耗的计算量，多核并行时可以超过墙钟时间。内存采样最大值：采到的最大读数，可能漏掉瞬时峰值。</text>
+    <text x="44" y="961" class="note">A 模式中，ECS Agent、共享 Controller / MockLLM、云 Sandbox 分别计量；不同归属不能直接相加，未采集不填 0。</text>
+  </g>
+  <text x="28" y="1024" class="small">先看全局阶段定位耗时集中处，再看 Sandbox 服务与进程；未拆出的开销保持未知，不用相减猜出“纯网络”或“纯 Agent Loop”。</text>
+</svg>

@@ -1,0 +1,16 @@
+data.js
+data.json
+traces/
+downloads/
+evidence/
+*.png
+browser-validation.json
+build-receipt.json
+*.zip
+__pycache__/
+fonts/
+browser-validation-*.json
+inputs/
+delivery-manifest.json
+v1/
+v2/

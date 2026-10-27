@@ -1,0 +1,157 @@
+<!doctype html>
+<html lang="zh-CN">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="color-scheme" content="light"><title>ARIES · 一次 PPT 任务的完整耗时</title><link rel="stylesheet" href="style.css"><script defer src="data.js"></script><script defer src="app.js"></script></head>
+<body>
+<header class="masthead"><a href="#overview" class="brand">ARIES <span>性能实验室</span></a><span class="edition">Jiuwen · 两云 A 模式 · 2026.10.27</span><button id="download-data" class="quiet">下载数据</button></header>
+<main>
+<section id="overview" class="group-opening"><p class="kicker">同一任务 · 两朵云 · 三种模型方式</p><h1>5 页 PPT，六组运行放在一起看</h1><p class="lead">先看整项任务与 Sandbox 的实测，再选择一组下钻。A 模式：Jiuwen Agent 在 ECS，真实工具在 4 vCPU / 8 GiB Sandbox。</p><div class="mode-legend"><div><strong>实时模型</strong><span>调用 DeepSeek，Agent 自己决定下一步；两云动作可能不同。</span></div><div><strong>回放，去除模型等待</strong><span>固定录制决策，工具重新运行，用于观察执行侧开销。</span></div><div><strong>回放，保留模型节奏</strong><span>同一份决策按录制时间返回，工具仍重新执行。</span></div></div></section>
+<section class="overview-panel"><div class="overview-heading"><div><p class="kicker">先看总体阶段</p><h2>整项任务，时间花在哪一步？</h2></div><span id="group-status"></span></div><p class="overview-note">表内单位为秒。八个阶段 + 未归属差额 = 完整任务；Agent 运行是其中一段。横向同一列始终代表同一次实际运行。</p><div class="table-scroll"><table class="matrix-table" id="global-matrix"><thead id="global-overview-head"></thead><tbody id="global-overview-body"></tbody></table></div><p id="global-takeaway" class="matrix-takeaway"></p></section>
+<section class="overview-panel"><div class="overview-heading"><div><p class="kicker">再看 Sandbox 内部</p><h2>工具服务处理，与其中的命令进程</h2></div><span>组号与上表相同</span></div><p class="overview-note">服务处理从 Sandbox Worker 完成校验后的调用起点到终态，包含结果封装与发送；cmd 是直接子进程执行区间。先列有明确 ToolCall 身份的服务，辅助 / 未归属请求另外保留；与 cmd 两层有包含关系，<strong>不可相加</strong>，也不是纯 CPU 计算时间。</p><div class="table-scroll"><table class="matrix-table" id="sandbox-matrix"><thead id="sandbox-overview-head"></thead><tbody id="sandbox-overview-body"></tbody></table></div><details class="matrix-detail"><summary>完整收集窗口：按文件 / Shell 操作进一步拆分</summary><div class="table-scroll"><table class="matrix-table"><thead id="worker-overview-head"></thead><tbody id="worker-overview-body"></tbody></table></div><p class="footnote">服务调用次数与模型 ToolCall 次数不同：一个工具动作可以发出多个 Worker 请求。这里按 invocation ID 去重，仅累计同层实测区间。</p></details><p class="footnote">每组一次，历史失败见归档。实时模型的动作数量不同，仅作端到端参考；回放只在<strong>同一时序、同一 Tape</strong>内比较两云。磁盘等平台差异保留说明，CPU / 内存均为 4 vCPU / 8 GiB。</p></section>
+<details id="time-map" class="section time-map"><summary>读懂时间口径：每个数字对应哪一段？</summary><p class="footnote">点击下方指标定位图中的对应层；这是边界示意，不按时长比例，不是跨主机时间线。</p><div class="time-controls"><button data-time="attempt">完整任务</button><button data-time="runtime">Agent 运行</button><button data-time="model">模型 HTTP</button><button data-time="tool">原生 Tool</button><button data-time="worker">Sandbox 服务</button><button data-time="cmd">命令进程</button><button data-time="resources">CPU / 内存</button><button data-time="queue">排队</button><button data-time="driver">外层脚本</button></div><div class="time-diagram" tabindex="0"><!-- time-boundaries:start --><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 1050" role="img" aria-labelledby="time-map-title time-map-desc">
+  <title id="time-map-title">ARIES 时间口径图：整项任务、模型、工具服务与命令进程</title>
+  <desc id="time-map-desc">这是一张不按比例的边界示意图。八阶段与未归属时间组成 Attempt。Runtime 内包含模型请求与工具调用。需要 Sandbox 的前台工具调用内部包含 Worker 服务处理与命令进程区间。各层存在包含或并发关系，不能重复相加；后台进程可能晚于工具返回结束。</desc>
+  <style>
+    text{font-family:"Aries CJK","PingFang SC","Microsoft YaHei","Noto Sans CJK SC",sans-serif;fill:#152d3a;font-size:15px}
+    .title{font-size:25px;font-weight:600}.heading{font-size:20px;font-weight:600}.label{font-size:16px;font-weight:600}
+    .small{font-size:13px;fill:#586f7b}.note{font-size:14px;fill:#586f7b}.white{fill:white}.accent{fill:#087b70}
+    .panel{fill:#fff;stroke:#d3dfe4;stroke-width:1.5}.box{fill:#f3f7f8;stroke:#b7c9d0;stroke-width:1.5}
+    .green{fill:#edf7f3;stroke:#29978b;stroke-width:1.5}.stage{fill:#e9f0f3;stroke:#b7c9d0}
+    .highlight{fill:#087b70;stroke:#087b70}.dash{fill:none;stroke:#7894a2;stroke-width:1.5;stroke-dasharray:5 4}
+    .is-highlighted>.panel,.is-highlighted>.box,.is-highlighted>.green{stroke:#c5741b;stroke-width:4}
+    .is-highlighted>.heading,.is-highlighted>.label{fill:#9c5912}
+  </style>
+  <rect width="1280" height="1050" rx="8" fill="#f4f7f8"/>
+  <text x="28" y="40" class="title">每个时间，究竟测的是哪一段？</text>
+  <text x="28" y="68" class="note">边界示意，不按时长比例；不同主机的时钟没有在这张图中对齐。点击看板指标可查看对应层。</text>
+
+  <g id="time-global">
+    <rect x="24" y="90" width="1232" height="246" rx="7" class="panel"/>
+    <text x="44" y="120" class="heading">① 全局阶段：从准备任务到评分、清理</text>
+    <g id="time-driver" data-measure="driver">
+      <rect x="42" y="138" width="1196" height="162" rx="5" class="box"/>
+      <text x="58" y="160" class="label">外层脚本 / driver</text>
+      <text x="270" y="160" class="small">还包括任务前的服务准备，以及任务后的离线分析、归档和清理确认</text>
+      <g id="time-queue" data-measure="queue">
+        <rect x="58" y="190" width="104" height="82" rx="4" class="panel"/>
+        <text x="110" y="220" text-anchor="middle" class="label">排队</text>
+        <text x="110" y="244" text-anchor="middle" class="small">Attempt 外</text>
+      </g>
+      <g id="time-attempt" data-measure="attempt">
+        <rect x="180" y="174" width="1040" height="112" rx="4" class="panel"/>
+        <text x="194" y="196" class="label">整项任务 / Attempt</text>
+        <text x="426" y="196" class="small">八阶段 + 未归属时间 = Attempt；排队、外层收尾另列</text>
+        <g text-anchor="middle">
+          <rect x="194" y="208" width="118" height="62" rx="3" class="stage"/>
+          <text x="253" y="234">Sandbox</text><text x="253" y="255">创建</text>
+          <rect x="322" y="208" width="118" height="62" rx="3" class="stage"/>
+          <text x="381" y="234">工作区</text><text x="381" y="255">准备</text>
+          <rect x="450" y="208" width="118" height="62" rx="3" class="stage"/>
+          <text x="509" y="234">工具通道</text><text x="509" y="255">Bridge 准备</text>
+          <rect x="578" y="208" width="118" height="62" rx="3" class="stage"/>
+          <text x="637" y="234">Agent</text><text x="637" y="255">启动</text>
+          <rect x="706" y="208" width="118" height="62" rx="3" class="highlight"/>
+          <text x="765" y="234" class="white">任务运行</text><text x="765" y="255" class="white">Runtime ↓</text>
+          <rect x="834" y="208" width="118" height="62" rx="3" class="stage"/>
+          <text x="893" y="234">停止</text><text x="893" y="255">与撤权</text>
+          <rect x="962" y="208" width="118" height="62" rx="3" class="stage"/>
+          <text x="1021" y="234">独立</text><text x="1021" y="255">验证</text>
+          <rect x="1090" y="208" width="116" height="62" rx="3" class="stage"/>
+          <text x="1148" y="234">资源</text><text x="1148" y="255">清理</text>
+        </g>
+      </g>
+    </g>
+    <text x="44" y="322" class="small">阶段间未归属时间单列；不强行分摊给网络或 Agent Loop。上图中的各阶段宽度不代表实际耗时。</text>
+  </g>
+
+  <g id="time-runtime" data-measure="runtime">
+    <rect x="24" y="354" width="1232" height="496" rx="7" class="panel"/>
+    <text x="44" y="386" class="heading">② 展开 Runtime：模型与工具都在这一段里面</text>
+    <text x="44" y="412" class="note">Agent 在这里组织模型请求、工具调用和结果消费；这些操作可能交替、并行或嵌套。</text>
+
+    <g id="time-model" data-measure="model">
+      <rect x="44" y="434" width="510" height="258" rx="5" class="green"/>
+      <text x="62" y="464" class="label">模型入口 HTTP 请求耗时</text>
+      <text x="62" y="488" class="small">在 Controller 侧：收到请求 → 响应处理完成</text>
+      <g text-anchor="middle">
+        <rect x="62" y="505" width="142" height="61" rx="3" class="panel"/>
+        <text x="133" y="532">读取</text><text x="133" y="552">请求正文</text>
+        <text x="216" y="542" class="accent">→</text>
+        <rect x="236" y="505" width="122" height="61" rx="3" class="panel"/>
+        <text x="297" y="532">解析</text><text x="297" y="552">与匹配</text>
+        <text x="370" y="542" class="accent">→</text>
+        <rect x="390" y="505" width="146" height="61" rx="3" class="panel"/>
+        <text x="463" y="532">等待、接收</text><text x="463" y="552">或发送响应</text>
+      </g>
+      <text x="62" y="593" class="note">真实模型：还包含访问上游模型的等待。</text>
+      <text x="62" y="619" class="note">去等待回放：取消录制节奏的计划等待，仍有实际开销。</text>
+      <text x="62" y="645" class="note">保留节奏回放：按录制时序返回响应，包含计划等待。</text>
+      <text x="62" y="674" class="small">HTTP 整段不是纯推理时间；其中子窗口不能再次相加。</text>
+    </g>
+
+    <g id="time-tool" data-measure="tool">
+      <rect x="580" y="434" width="650" height="384" rx="5" class="box"/>
+      <text x="600" y="464" class="label">Agent 侧完整 Tool 调用耗时</text>
+      <text x="600" y="488" class="small">此处展开需要 Sandbox 的前台工具；部分工具只在 Agent 内运行。</text>
+      <rect x="600" y="504" width="610" height="43" rx="3" class="panel"/>
+      <text x="618" y="532">包含 Provider / Bridge 调用及通信，不等于纯 Sandbox 执行。</text>
+
+      <g id="time-worker" data-measure="worker">
+        <rect x="600" y="562" width="610" height="226" rx="4" class="green"/>
+        <text x="618" y="591" class="label">Sandbox 内工具服务处理耗时 / Worker</text>
+        <text x="618" y="615" class="small">请求校验后开始工具处理 → 终态；包含结果封装与发送。</text>
+        <rect x="618" y="633" width="204" height="78" rx="3" class="panel"/>
+        <text x="634" y="662">文件读取 / 写入等</text>
+        <text x="634" y="689" class="small">目前没有更细的内部计时</text>
+        <g id="time-cmd" data-measure="cmd">
+          <rect x="838" y="633" width="354" height="78" rx="3" class="panel"/>
+          <text x="854" y="658" class="label">命令进程耗时 / cmd</text>
+          <text x="854" y="682" class="small">进程连接建立 → 直接子进程退出回调</text>
+          <text x="854" y="702" class="small">包含 I/O 等待；不是 CPU 秒</text>
+        </g>
+        <text x="618" y="740" class="small">一个 Tool 可能发起多次 Worker 调用；并非每次调用都产生进程。</text>
+        <text x="618" y="766" class="small">后台进程可晚于工具返回结束，需另看实际终态，不能套用前台包含关系。</text>
+      </g>
+      <text x="600" y="806" class="small">各层按精确身份关联；身份相同不代表跨主机时钟已经对齐。</text>
+    </g>
+
+    <text x="62" y="735" class="label">如何读累计值？</text>
+    <text x="62" y="763" class="note">累计 = 同一类调用的各自时长相加，可能重复覆盖同一时间。</text>
+    <text x="62" y="789" class="note">同域覆盖时长 = 该时钟域内区间合并后的时长。</text>
+    <text x="62" y="815" class="note">Runtime ≠ 模型累计 + Tool 累计 + Worker 累计 + cmd 累计。</text>
+  </g>
+
+  <g id="time-resources" data-measure="resources">
+    <rect x="24" y="870" width="1232" height="122" rx="7" class="panel"/>
+    <text x="44" y="902" class="heading">③ CPU 与内存：这是资源用量，不是另一段任务时间</text>
+    <text x="44" y="933" class="note">CPU 秒：累计消耗的计算量，多核并行时可以超过墙钟时间。内存采样最大值：采到的最大读数，可能漏掉瞬时峰值。</text>
+    <text x="44" y="961" class="note">A 模式中，ECS Agent、共享 Controller / MockLLM、云 Sandbox 分别计量；不同归属不能直接相加，未采集不填 0。</text>
+  </g>
+  <text x="28" y="1024" class="small">先看全局阶段定位耗时集中处，再看 Sandbox 服务与进程；未拆出的开销保持未知，不用相减猜出“纯网络”或“纯 Agent Loop”。</text>
+</svg>
+<!-- time-boundaries:end --></div><a href="time-boundaries.svg" download class="text-link">下载原始口径图 SVG ↗</a></details>
+<nav aria-label="看板导航"><a href="#overview">六组总览</a><a href="#selection">选择组</a><a href="#stages">任务阶段</a><a href="#layers">Agent 运行</a><a href="#tools">Sandbox 执行</a><a href="#trace">Trace 与证据</a></nav>
+<section id="selection" class="selection-panel"><div><p class="kicker">查看所选组的真实记录</p><label class="sample-control">选择实验组<select id="sample-mode"></select></label><p id="sample-explanation" class="footnote"></p></div><div class="selection-result"><span id="selected-label"></span><strong><span id="hero-attempt"></span><small> 秒 · 完整任务</small></strong><span id="hero-queue"></span><span id="delivery-detail"></span><a id="download-current-ppt" class="button" href="#" download>下载该组真实 PPT ↗</a></div></section>
+<section id="stages" class="section"><div class="section-heading"><span class="section-no">01</span><div><h2 id="stages-title">整项任务，主要时间花在哪一步？</h2><p>先定位最耗时的阶段，再下钻内部；阶段耗时不等于已经找到瓶颈。</p></div><button class="button compact" data-help="stages">读懂时间关系</button></div>
+<div class="stage-summary"><span>完整尝试</span><strong id="stage-attempt" data-time="attempt" role="button" tabindex="0">169.414 s</strong><span id="stage-equation">≈ 八阶段 162.920 s + 未归属差额 6.493 s</span></div><p id="stage-takeaway" class="stage-takeaway"></p>
+<div id="stage-composition" aria-label="当前任务阶段构成，非绝对时间线"></div><p class="footnote">构成条按实测阶段时长排列，<strong>不是绝对起止时间线</strong>。显示值独立四舍五入，原始纳秒精确守恒；点击阶段可看说明。</p>
+<div class="table-scroll"><table class="stage-table"><thead><tr><th>阶段 / 做了什么</th><th>所选组耗时 · 秒</th><th>占完整任务</th></tr></thead><tbody id="stage-body"></tbody></table></div>
+<details><summary>排队、Attempt、外层脚本和未归属差额</summary><div class="detail-copy"><div id="outer-times"></div><p>八阶段之和 + 未归属差额 = Attempt。排队在 Attempt 之前；外层 driver 还包括服务准备、离线投影和归档，不等于任务时间。未归属差额不命名为“纯网络”或“Agent Loop”。</p></div></details></section>
+
+<section id="layers" class="section"><div class="section-heading"><span class="section-no">02</span><div><h2>进入 Agent 运行这一段</h2><p id="runtime-intro">模型入口、工具调用和期间等待，都已包含在 Runtime 中。</p></div></div>
+<div class="layer-list"><article><span class="layer-index">模型入口 HTTP</span><div><strong id="model-total" data-time="model" role="button" tabindex="0">5.359 <small>s 累计</small></strong><p id="model-scope">64 次真实请求处理；zero 去掉计划等待，仍有接收、解析、匹配和响应开销。</p></div><button class="help" data-help="model" aria-label="模型入口时间口径">?</button></article><article><span class="layer-index">原生工具调用</span><div><strong id="tool-total" data-time="tool" role="button" tabindex="0">22.219 <small>s 累计</small></strong><p id="tool-scope">78 个 Tool Span，同域去重覆盖 20.243 s。A 模式包含工具转发与封装。</p></div><button class="help" data-help="tool" aria-label="原生工具时间口径">?</button></article><article><span class="layer-index">其中：Sandbox 命令</span><div><strong id="command-total" data-time="cmd" role="button" tabindex="0">11.802 <small>s 累计</small></strong><p id="command-scope">32 条直接子进程区间，属于工具内部；33 次 bash 中 1 次无对应进程计时。</p></div><button class="help" data-help="command" aria-label="命令进程时间口径">?</button></article></div>
+<div class="statement"><span id="runtime-relation">Runtime</span> <strong>≠</strong> 模型累计 + 工具累计 + 命令累计<p>这些层可能嵌套或重叠，并使用不同时间域；不能相减后把余数称为“纯 Agent Loop”。</p></div>
+<details><summary>模型子窗口与原生工具统计</summary><div class="two-tables"><div><h3>模型入口</h3><div id="model-breakdown"></div><p class="footnote">子窗口已包含在 HTTP 内，不再加到总时间。</p></div><div><h3>工具 · 保留真实错误</h3><div class="table-scroll"><table><thead><tr><th>工具</th><th>次数</th><th>累计 s</th><th>最长 s</th></tr></thead><tbody id="tool-aggregate"></tbody></table></div></div></div></details>
+<div id="agent-resources" class="subsection"><h3>Agent 在 ECS 上运行，资源也归 ECS</h3><p class="footnote">CPU 秒是累计计算量，不是运行时长。容器采样窗口不等于 Runtime，不能相除推断平均核心数。</p><div class="placement-map"><div><small>远程 ECS · 共享进程</small><strong id="controller-role">Controller + MockLLM</strong><span id="controller-sampling"></span></div><div><small>远程 ECS · Agent 容器</small><strong>Jiuwen Agent</strong><span id="agent-sampling"></span></div><span class="map-arrow" aria-hidden="true">→</span><div class="sandbox-node"><small id="selected-sandbox-provider"></small><strong>工具在独立 Sandbox</strong><span>下方单独展示命令与平台资源</span></div></div><div class="table-scroll"><table><thead><tr><th>归属与口径</th><th>本次实测</th></tr></thead><tbody id="resource-body"></tbody></table></div><p class="footnote">内存采样最大值可能漏掉峰值；Controller RSS 是共享进程生命周期高水位，不是单任务独占峰值。</p></div></section>
+
+<section id="tools" class="section"><div class="section-heading"><span class="section-no">03</span><div><h2>再看 Sandbox：每次命令做了什么？</h2><p id="tools-intro">33 次 bash，32 条真实进程计时。默认前 8 次，可按耗时排序查看最慢动作。</p></div></div><div class="worker-selected"><h3>本组 Sandbox Worker 服务处理</h3><p id="worker-current-summary"></p><div class="table-scroll"><table><thead><tr><th>操作</th><th>调用次数</th><th>累计 · s</th><th>最长 · s</th></tr></thead><tbody id="worker-current-body"></tbody></table></div><p class="footnote">以下命令表继续下钻到直接子进程，不把服务处理或 Agent 端 Tool Span 当作纯命令时间。</p></div><div class="filters"><label>工具范围<select id="tool-kind"><option value="command">命令调用（含非 bash）</option><option value="bash">仅 bash</option><option value="all">全部工具动作</option><option value="grep">grep 搜索文件</option><option value="read_file">读取文件</option><option value="edit_file">编辑文件</option><option value="write_file">写入文件</option></select></label><label>搜索动作或 ID<input id="tool-search" type="search" placeholder="转换、读取、call_…"></label><label>排序<select id="tool-sort"><option value="order">录制顺序</option><option value="slow">命令耗时从长到短</option><option value="errors">报错 / 缺失优先</option></select></label></div><p id="tool-count" class="footnote" aria-live="polite"></p><div class="table-scroll tools-scroll"><table class="tools-table"><thead><tr><th>轮 / 序</th><th>本次做了什么</th><th>进程 exit</th><th>进程 cmd · ms</th><th>Worker 服务 · ms</th><th>展开</th></tr></thead><tbody id="tool-body"></tbody></table></div><button id="tool-expand" class="quiet" type="button">展开全部工具动作</button><div id="tool-detail" class="inspector" hidden></div><p class="footnote">进程 exit 与 OTel 原生 Span 状态不同。缺少进程计时不补为 0，也不推断没有启动进程；真实报错步骤保留。</p>
+<div id="resources" class="subsection"><h3>Sandbox 平台资源：明确已知与未知</h3><p id="provider-sampling" class="footnote"></p><div id="provider-warning" class="statement warning"></div><details><summary>云端资源回执和当前采集缺口</summary><div class="detail-copy"><div id="provider-resources"></div><p>两平台的内存与采样口径未完全对齐；华为是否含缓存等定义仍未核实。不能把平台内存值直接当作 PPT 工具真实峰值。任务 I/O / Network 字节、逐工具 CPU / 内存仍未采集；磁盘占用不是 I/O 字节。</p><p>本页只展示实际汇总，未将汇总画成连续时序；不因云磁盘不同而否定已完成的同规格任务时延对照。</p></div></details></div></section>
+
+<details id="comparison" class="section"><summary>补充：固定工作量的去等待两云对照</summary><div class="section-heading"><span class="section-no">04</span><div><h2>去等待回放：同 Tape 两云对照</h2><p>这里固定使用两云 zero 样本，独立于上方选中的任务；保留录制等待的样本不混入。</p></div><label class="control">比较口径<select id="comparison-metric"><option value="attempt_ns">完整任务</option><option value="runtime_ns">Agent 运行</option></select></label></div><div class="comparison-grid"><div id="comparison-bars"></div><div class="comparison-takeaway"><span id="comparison-label"></span><strong id="comparison-delta"></strong><p id="comparison-percent"></p><span class="small">单次实测 n=1 / 云<br>不是稳定性、P95 或云厂商排名</span></div></div><p id="comparison-scope" class="footnote"></p><details><summary>固定条件、可比范围与逐工具对照</summary><div class="detail-copy"><p>release29、同一个 A placement、同一华为 Tape、4vCPU / 8GiB。64 轮完成、78 个 ToolCall 精确贯通，32 条命令按 ID 配对且返回码一致，独立评分均为 1。磁盘、底层硬件和网络差异随结果说明；不能把任务差额全部归因于 Sandbox 命令。</p><p><a href="downloads/huawei-final.pptx" download>华为 zero PPT</a> · <a href="downloads/e2b-final.pptx" download>E2B zero PPT</a> · <a href="data.json" download>逐 ToolCall 精确对照数据</a></p><p>B 模式使用另一份 Tape，本页不以 A/B 判断部署位置优劣。</p></div></details></details>
+
+<details id="case" class="section evidence"><summary>任务内容、独立评分与运行条件</summary><div class="detail-copy"><blockquote>“幻灯片 生成一份关于大模型发展的pptx材料，写5页。”</blockquote><div class="workflow"><div><b>01</b><strong>读取技能与资料</strong><span>20 项原生技能已注册；读取 PPT 技能和项目文件。</span></div><div><b>02</b><strong>编辑并生成</strong><span>写入脚本，运行生成、转换与文件处理。</span></div><div><b>03</b><strong>独立验证</strong><span>Agent 停止、工具撤权后，在另一个 Sandbox 检查 PPT。</span></div></div><p>至少一份导出文件可解析为 PPTX，恰好 5 页且每页正文非空，独立评分为 1。没有评分事实准确性、审美或完整技能工作流。zero 中间 <a href="downloads/huawei-content.pptx" download>content.pptx</a> 只有 3 页，未通过产物与中途报错均保留。</p><p><strong>Workload 不是 Strict。</strong>模型决策、工具 ID、参数和因果顺序保持轨迹；真实工具结果及约定的提示上下文可以变化。Tape 没有改写，两个时序模式均不调用实时 DeepSeek。A 模式 Agent 在 ECS，工具在云 Sandbox。</p><p>清理状态由各次回执记录。华为评分环境禁止出网仍为显式假设，不能写成已实测确认。</p></div></details>
+
+<section id="trace" class="section"><div class="section-heading"><span class="section-no">05</span><div><h2>第 03 组的 Trace 与真实验收证据</h2><p>本专区固定展示华为 A 去等待回放原件；不会用它背书其他五组的后端验收。</p></div></div><div id="backend-status" class="backend-status"></div><details id="trace-explorer"><summary>展开真实 Trace，按时钟域查看</summary><div class="filters"><label>时钟域<select id="trace-domain"></select></label><label>查找区间<input id="trace-search" type="search" placeholder="model.match、ToolCall ID…"></label><label>放大<select id="trace-zoom"><option value="1">1×</option><option value="2">2×</option><option value="4">4×</option><option value="8">8×</option></select></label></div><p id="trace-scope" class="footnote"></p><div id="trace-preview" class="trace-preview" tabindex="0" aria-label="同一时钟域真实区间预览"></div><div class="trace-footer"><span id="trace-count" class="footnote"></span><button id="trace-more" class="quiet">显示更多</button></div><div id="trace-detail" class="inspector" hidden></div><div class="trace-actions"><button id="perfetto-open" class="button primary">在 Perfetto 查看完整 Trace</button><a id="trace-download" class="button" download>下载完整 Trace · gzip</a><a href="https://ui.perfetto.dev/" target="_blank" rel="noopener" class="text-link">Perfetto 官网 ↗</a></div><p id="trace-status" class="footnote" role="status" aria-live="polite"></p><div id="perfetto-host"></div><p class="detail-copy">预览只含原有完整区间与选定身份字段，完整 gzip 保留全部事件和 Flow，解压 SHA 与后端验收原件一致。各域未跨主机对齐，不拼接虚假全局时间线。全局 coverage 仍 unknown，后代进程终态、自然 pipe EOF 等缺口保留。</p><p class="detail-copy">离线 file:// 可下载 gzip，解压后在 Perfetto 官网打开。通过 localhost / HTTPS 打开时可直接校验 SHA 并导入；点击按钮才连接官方查看器。</p></details></section>
+<details id="evidence" class="section evidence"><summary>实验身份、各样本验收状态与原件 SHA</summary><div class="detail-copy"><div id="current-evidence"></div><div id="evidence-list"></div><p><a href="build-receipt.json" download>构建 SHA 清单</a> · <a href="data.json" download>页面安全数据 JSON</a> · <a href="browser-validation.json" download>浏览器验证回执</a></p><p>业务评分、采集、清理与后验查询分别保存；B 组失败和后续尝试不混入本页样本。</p></div></details>
+<footer><span>ARIES · 从全局到细节 · 同轨迹真实执行</span><span>单次实验，不做总体排名。数据日期 2026-10-27</span></footer>
+</main><dialog id="help-dialog"><button id="help-close" class="quiet" aria-label="关闭说明">关闭 ×</button><h2 id="help-title"></h2><div id="help-content"></div></dialog>
+</body></html>

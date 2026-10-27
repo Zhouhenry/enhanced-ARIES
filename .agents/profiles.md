@@ -21,6 +21,9 @@ with verified image digests, never placeholders; do not duplicate the field inve
   and real-cloud acceptance separately in the support matrix.
   Huawei uses its own SDK, adapter, credentials and persistent state; never
   reuse or reset E2B state or silently switch a profile's provider.
+  E2B Sandbox connections use the pinned SDK's public `http_version="1.1"`;
+  preserve Huawei's transport. Record the connection setting separately from
+  observed wire protocol and other SDK calls; do not rewrite historical evidence.
   Original TerminalBench cloud runs stay external and single-task; require a
   task-template binding matching the selected provider. An omitted binding
   provider means E2B; Huawei must be explicit. Preserve original task budgets
@@ -70,9 +73,10 @@ with verified image digests, never placeholders; do not duplicate the field inve
   Default replay to `strict`, comparing the complete request. Explicit
   `model.replay_policy=workload` permits string `content` differences between
   corresponding tool messages. For the pinned Jiuwen main-agent history dialect,
-  it also permits only the native formatter's system date/private runtime path
-  and initial user timestamp differences; compare the actual task content,
-  attachments and all remaining fields. Record prompt-context differences
+  it also permits only the native formatter's system date/private runtime path,
+  Linux kernel version in the exact native Environment OS line, and initial user
+  timestamp differences; keep platform/Shell exact and compare the actual task
+  content, attachments and all remaining fields. Record prompt-context differences
   separately from tool content. All other complete-history fields, IDs, arguments
   and message order stay exact. Preserve placement/version checks, original Tapes,
   real tool results and independent verification; no automatic policy fallback,

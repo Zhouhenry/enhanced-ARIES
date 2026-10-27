@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+	"time"
 
 	"github.com/hyscale-lab/aries/pkg/core"
 	"github.com/hyscale-lab/aries/pkg/performance"
@@ -105,6 +106,55 @@ func TestNativeSpanCollectionFailureKeepsSuccessfulRunAndStop(t *testing.T) {
 	raw, err := os.ReadFile(filepath.Join(e.artifactDir, "native-spans-index.json"))
 	if err != nil || !bytes.Contains(raw, []byte(`"matched_spans": 0`)) || !bytes.Contains(raw, []byte("cgroup fallback required")) {
 		t.Fatal("missing partial/fallback receipt")
+	}
+}
+
+func TestNativeSpanCollectionUsesRemainingCleanupBudget(t *testing.T) {
+	s := &testSandbox{nativeDownloadDelay: 6 * time.Second}
+	e := testEmbedded(t, s, &testNative{})
+	e.options.CleanupTimeout = 12 * time.Second
+	if err := startEmbedded(t, e, s); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := e.Run(context.Background(), "task"); err != nil {
+		t.Fatal(err)
+	}
+	if err := e.Stop(context.Background()); err != nil || !e.isolated {
+		t.Fatalf("stop/isolation: %v", err)
+	}
+	obs, err := e.NativeToolObservation()
+	if err != nil || obs.Status == core.StatusFailed || s.downloadCanceled {
+		t.Fatalf("download within cleanup budget failed: status=%s canceled=%v err=%v", obs.Status, s.downloadCanceled, err)
+	}
+	raw, err := os.ReadFile(filepath.Join(e.artifactDir, "native-spans-index.json"))
+	var index nativeSpanIndex
+	if err != nil || json.Unmarshal(raw, &index) != nil || index.ProducerAudit == nil || index.ProducerAudit.Status != "complete" || len(index.ProducerAudit.Files) != 2 || s.downloadCalls != 5 {
+		t.Fatal("delayed native trace or producer audit was not collected completely")
+	}
+	if s.cleanupCalls != 1 || s.cleanupContextErr != nil || s.cleanupTimeRemaining <= 0 {
+		t.Fatal("private runtime cleanup did not retain its live budget")
+	}
+}
+
+func TestNativeSpanCollectionDeadlinePreservesCleanupReserve(t *testing.T) {
+	s := &testSandbox{nativeDownloadDelay: 2 * time.Second}
+	e := testEmbedded(t, s, &testNative{})
+	e.options.CleanupTimeout = 800 * time.Millisecond
+	if err := startEmbedded(t, e, s); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := e.Run(context.Background(), "task"); err != nil {
+		t.Fatal(err)
+	}
+	if err := e.Stop(context.Background()); err != nil || !e.isolated {
+		t.Fatalf("collection timeout prevented isolation or cleanup: %v", err)
+	}
+	obs, err := e.NativeToolObservation()
+	if err == nil || obs.Status != core.StatusFailed || !s.downloadCanceled {
+		t.Fatal("download deadline was not reported as an observation failure")
+	}
+	if s.cleanupCalls != 1 || s.cleanupContextErr != nil || s.cleanupTimeRemaining <= 0 || s.stopCalls != 1 {
+		t.Fatal("collection exhausted the reserved cleanup budget or bypassed isolation")
 	}
 }
 

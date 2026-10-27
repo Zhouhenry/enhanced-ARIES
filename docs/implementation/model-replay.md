@@ -38,7 +38,7 @@ v2补充固定原生`extract_call_goal`的精确行为：模型响应中的顶�
 
 `aries cloud` 的 `model.mode="replay"` 可设置 `model.replay_policy="workload"`；省略或填 `strict` 保持完整请求严格匹配。录制时不允许设置此字段，独立 `aries-model-replay` CLI 仍使用 Strict。release12已通过[ECS五项工程门禁](../observability/VALIDATION_AND_REPRODUCE.md#workload-replay-release12)，并完成[DB两云Workload](../workload-db-performance-20261026.md)和[SQLite两云Workload](../workload-sqlite-performance-20261026.md)的真实工具、原评分、终态、双Trace及清理验收。DB各原7/7、11工具；SQLite各原3/3、40工具结果。SQLite首轮Snapshot重载失败及华为缺shell配置失败保留，修复后独立新轮通过；不重写历史失败或增加Strict成功数。
 
-Workload 允许双方均为字符串的 `role=tool` 消息正文不同，包括更早历史中的正文；缺字段、null、数组或对象不会因此放行。OpenClaw 的其他字段继续精确匹配。Jiuwen 固定原生上下文的候选扩展见下一节，不改变 Strict 或旧 Tape。调用 ID、名称、参数、顺序、assistant 决策、模型参数和工具 schema 继续精确匹配。录制 Tape、实际请求、真实工具输出与录制模型响应均不改写，失败不会自动切换策略。cached retry 仍按完整实际请求识别，不按去掉正文的请求去重。
+Workload 允许双方均为字符串的 `role=tool` 消息正文不同，包括更早历史中的正文；缺字段、null、数组或对象不会因此放行。OpenClaw 的其他字段继续精确匹配。Jiuwen 固定原生上下文的接入范围及待发布修复见下一节，不改变 Strict 或旧 Tape。调用 ID、名称、参数、顺序、assistant 决策、模型参数和工具 schema 继续精确匹配。录制 Tape、实际请求、真实工具输出与录制模型响应均不改写，失败不会自动切换策略。cached retry 仍按完整实际请求识别，不按去掉正文的请求去重。
 
 `request_matched.tool_content_differences` 记录每个发生差异的 JSON pointer、UTF-8 字节数及双方 SHA-256，不收录工具正文。它描述本次完整历史比较，同一旧结果在后续请求中可重复出现，不能把条目数相加当独立工具数。`model_sessions`、请求边界及索引均记录 `replay_policy`；分析器 v1.8.0 将同一份校验后证据投影到 Perfetto 与 OTLP。历史原件没记录策略时标 `unknown`，不能猜为 Strict；record 标 `not_applicable`。不为没有区间的事件伪造 Span。
 
@@ -52,7 +52,9 @@ Workload 允许双方均为字符串的 `role=tool` 消息正文不同，包括�
 
 任务绑定来自实际首轮 user 题目，而非只相信 profile 名称。Tape 的 placement、Harness 源码/lock、模型、dialect 和分支协议检查继续执行。旧 Tape 的 ToolCall 参数若含旧运行路径，仍原样执行，不重写命令；实际失败输出留证，并由独立 PPT Verifier 判断业务是否完成。
 
-提示例外记录在 `request_matched.prompt_context_differences`，与 `tool_content_differences` 分开。每条保存类别、JSON pointer、UTF-8 长度及双方 SHA-256，不输出正文。分析快照验证后共享给 Perfetto 与 OTLP，不在两个出口各自处理差异。release29 的 ECS 五项发布检查和两份真实 Tape 的首请求检查已通过；真实工具执行、PPT 评分和清理尚需本轮云回放证据，不能用首请求通过替代。[验证与未验范围](../observability/VALIDATION_AND_REPRODUCE.md#jiuwen-workload-release29)。
+提示例外记录在 `request_matched.prompt_context_differences`，与 `tool_content_differences` 分开。每条保存类别、JSON pointer、UTF-8 长度及双方 SHA-256，不输出正文。分析快照验证后共享给 Perfetto 与 OTLP，不在两个出口各自处理差异。release29 的 ECS 五项发布检查和两份真实 Tape 的首请求检查已通过；随后真实云回放为 **3 PASS / 1 FAIL**：华为 A、E2B A 各 78 个真实 ToolCall / 32 条命令，华为 B 80 / 39，命令返回码对账一致、独立 PPT score=1、停止撤权和清理确认。E2B B 首轮因系统提示的真实 Linux 内核版本不同而拒绝，0 Tool / 0 命令、score=0、清理成功。详情见[本轮性能与原件](../jiuwen-pptx-workload-performance-20261027.md)。
+
+**release30 修复契约：ECS 工程与冻结 PASS，B 双云回放功能 PASS；E2B B2 / B3 观测 FAIL。** 仅在显式 Workload、固定 Jiuwen 主 Agent dialect 中，允许原生中/英文 Environment 块的 `OS 版本` / `OS Version` 行里 Linux 内核版本元数据不同；平台、Shell、能力说明及其余静态文字仍相等。沿用 `jiuwen_system_context` 差异摘要，不修改真实 OS、原生提示、命令参数、Tape 或 Strict，不新增变体配置。该例外针对已核验的实际首轮偏离；两 B2 随后均完成同 B Tape 61/61 轮、独立 PPT score=1、停止及清理。华为 B2 的 80 Tool / 39 命令与四项投影通过；E2B B2 的 18,489,919 字节原生 Span 文件下载失败，80 个原生 Tool 精确关联未知、四投影 exit=1。39 条真实 process 的同 ID 返回码对账保留，不能替代缺失的 native 证据；B 的完整性能观测尚未闭环。E2B B3 同版本同 Tape 再次完成 61/61、PPT score=1、停止和清理，但 18,489,969 字节 native 文件再次下载失败，39 条 process 对账不能补齐原生关联。累计七次为六次功能通过、一次首轮失败，两次 E2B B 观测失败保留，底层根因仍未确认。[诊断与验证状态](../observability/VALIDATION_AND_REPRODUCE.md#jiuwen-workload-release30)。
 
 四份 `profiles/cloud/jiuwenswarm-{e2b,huawei}-{external,embedded}-pptx-workload-replay.json` 为独立非 Strict 示例。A 两云使用同一份 A Tape，B 两云使用同一份 B Tape，保留原 SHA。示例 `timing=zero` 去掉回放器计划等待，不代表工具耗时为零；若改用 `recorded`，需作为另一组时序实验报告。示例中的占位 Tape 路径必须替换，不能把配置存在当作已完成回放。
 

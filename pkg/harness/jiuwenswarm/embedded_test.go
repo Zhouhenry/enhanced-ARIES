@@ -38,16 +38,30 @@ type testSandbox struct {
 	resourceCalls                                                          int
 	resourceFails                                                          bool
 	cleanupFails                                                           bool
+	nativeDownloadDelay                                                    time.Duration
+	downloadCanceled                                                       bool
+	cleanupCalls                                                           int
+	cleanupContextErr                                                      error
+	cleanupTimeRemaining                                                   time.Duration
 }
 
 func (*testSandbox) Connectivity() core.HarnessConnectivity         { return core.HarnessConnectivity{} }
 func (*testSandbox) Upload(context.Context, string, string) error   { return nil }
 func (*testSandbox) Download(context.Context, string, string) error { return nil }
-func (s *testSandbox) Exec(_ context.Context, cmd core.Command) (core.CommandResult, error) {
+func (s *testSandbox) Exec(ctx context.Context, cmd core.Command) (core.CommandResult, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	if s.cleanupFails && strings.Contains(cmd.Args[2], "shutil.rmtree(p)") {
-		return core.CommandResult{ExitCode: 1}, nil
+	if strings.Contains(cmd.Args[2], "shutil.rmtree(p)") {
+		s.cleanupCalls++
+		s.cleanupContextErr = ctx.Err()
+		deadline, _ := ctx.Deadline()
+		s.cleanupTimeRemaining = time.Until(deadline)
+		if s.cleanupContextErr != nil {
+			return core.CommandResult{}, s.cleanupContextErr
+		}
+		if s.cleanupFails {
+			return core.CommandResult{ExitCode: 1}, nil
+		}
 	}
 	if cmd.Args[2] == sandboxprocess.ResourceScript {
 		s.resourceCalls++
@@ -135,10 +149,23 @@ func (s *testSandbox) ExecStream(ctx context.Context, _ core.Command, _ io.Reade
 	}
 }
 
-func (s *testSandbox) DownloadLimit(_ context.Context, source, destination string, limit int64) error {
+func (s *testSandbox) DownloadLimit(ctx context.Context, source, destination string, limit int64) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.downloadCalls++
+	if strings.Contains(source, "/aries-traces/") && s.nativeDownloadDelay > 0 {
+		timer := time.NewTimer(s.nativeDownloadDelay)
+		defer timer.Stop()
+		select {
+		case <-timer.C:
+		case <-ctx.Done():
+			s.downloadCanceled = true
+			return ctx.Err()
+		}
+	}
+	if err := ctx.Err(); err != nil {
+		return err
+	}
 	content := s.nativeData
 	if strings.Contains(source, "/aries-process/") {
 		if s.processReadFails {

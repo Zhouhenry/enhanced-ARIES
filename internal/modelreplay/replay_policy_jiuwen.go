@@ -104,6 +104,12 @@ func jiuwenSystemContext(text string) (string, int, bool) {
 	root := ""
 	paths := 0
 	for i := 0; i < len(lines); i++ {
+		if lines[i] == "# 运行环境" || lines[i] == "# Environment" {
+			if !jiuwenLinuxEnvironment(lines, i) {
+				return "", 0, false
+			}
+			lines[i+4] = "{native-linux-kernel}"
+		}
 		if lines[i] == "# 时间说明" || lines[i] == "# Time Description" {
 			if !jiuwenDateBlock(lines, i) {
 				return "", 0, false
@@ -122,6 +128,32 @@ func jiuwenSystemContext(text string) (string, int, bool) {
 		}
 	}
 	return strings.Join(lines, "\n"), paths, true
+}
+
+// Embedded Agents see the provider's real kernel. Only its version in the
+// pinned native environment block is metadata; platform and shell stay exact.
+func jiuwenLinuxEnvironment(lines []string, i int) bool {
+	if i+5 >= len(lines) || lines[i+1] != "" || lines[i+5] != "" {
+		return false
+	}
+	platform, shell, os := "- Current platform: `linux`", "- Shell: ", "- OS Version: Linux "
+	switch lines[i] {
+	case "# 运行环境":
+		platform, shell, os = "- 当前运行平台：`linux`", "- Shell：", "- OS 版本：Linux "
+	case "# Environment":
+	default:
+		return false
+	}
+	kernel, ok := strings.CutPrefix(lines[i+4], os)
+	if lines[i+2] != platform || !strings.HasPrefix(lines[i+3], shell) || lines[i+3] == shell || !ok || kernel == "" {
+		return false
+	}
+	for _, c := range kernel {
+		if !(c >= '0' && c <= '9' || c >= 'a' && c <= 'z' || c >= 'A' && c <= 'Z' || strings.ContainsRune("._+-", c)) {
+			return false
+		}
+	}
+	return true
 }
 
 // Match the actual formatter, including weekday and Monday–Sunday range; do not

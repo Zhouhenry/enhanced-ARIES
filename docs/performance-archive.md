@@ -1,5 +1,11 @@
 # ARIES 性能报告
 
+**新增华为 A recorded 回放已完成：** 同 A Tape、release29、4u8g，Attempt 1065.757 秒、Runtime 1007.439 秒、64 请求 / 72,102 帧、独立五页非空评分及资源清理通过。模型入口累计 961.625 秒包含录制时序等待，32 条 Sandbox 命令累计 11.876 秒属于内部区间，不重复加总。新样本后端查询 UNRUN，global coverage unknown；与原 8 次 zero 尝试分开统计。E2B A recorded 也已成功、评分与清理通过：Attempt 1105.656 秒、Runtime 1034.892 秒，32 条命令 ID / 退出码与华为一致；两云 recorded 各一次单列，加上 E2B B5，本期共 11 次回放尝试、10 次功能成功和 1 次首请求失败。[全局至 Sandbox 的分层数据与 Dashboard](jiuwen-pptx-workload-performance-20261027.md)。
+
+**B5 修复前的 PPT 同 Tape 工作量主表：[本轮性能归档](jiuwen-pptx-workload-performance-20261027.md)。** A 两云使用 release29 和同一份华为 A Tape；B 两云使用 release30 和同一份华为 B Tape。四种组合均已完成真实工具执行、独立五页非空评分及清理，PPT 原件已复制本机。但 E2B B `replay-2` 的原生 Trace 下载失败，80 个原生 Tool Span 未收回、四项离线投影失败；完整 B 跨云观测对比仍待修复复验，不能用文件生成替代观测验收。其余三组限定观测通过，global coverage 仍 unknown。随后 E2B B `replay-3` 再次功能通过、原生 Trace 下载失败；本批 zero 累计 8 次尝试、7 次功能通过 / 1 次首请求失败，两次 E2B B 原生观测失败均保留；Workload 成功不计为 Strict。下表是真实模型录制的历史结果，与回放分开。
+
+**下载与采集预算修复 B5 已真实通过：** release31 五项 ECS 门禁及冻结通过；原 B Tape 61/61、独立评分及清理通过，18,489,897 字节 native Trace 完整，Producer 332/332/332、80 Tool 精确关联、39 命令与四项离线投影通过。B2/B3 的读取失败和 B4 的 5 秒采集超时均保留历史失败；B5 不回填旧样本，不与华为 B30 混作同版本实验。最新已修复这两项采集故障；实际后端查询仍 UNRUN、global coverage unknown，未宣称完整生产观测能力验收。[B5 阶段与证据](jiuwen-pptx-workload-performance-20261027.md)。
+
 **用户 PPT 任务优先按非 Strict 完成端到端交付。四种组合已有结构合格的原件，但观测验收分别列出，不以文件生成掩盖观测失败。** 两云 Sandbox 统一 4 vCPU / 8192 MiB，使用 image8、原生技能及独立五页非空评分。
 
 | 组合及实际运行 | 本机合格原件 | 本次观测结论 |
@@ -11,7 +17,7 @@
 
 所有原件在本机 `runs/jiuwen-pptx-20261027/`，包括不合格中间稿和模板，逐项 SHA 校验。[逐文件结果、八阶段、资源与缺口](jiuwen-pptx-capacity-20261027.md)保存详细证据；[E2B A 最新完整录制](jiuwen-pptx-capacity-20261027.md#release27-e2b-appt完整录制与离线观测通过)已通过，原 57 轮收尾失败另存。以上观测通过范围的 global coverage 仍 unknown，华为评分出网仍 assumed，不升级为全隔离验证的 Goodput。
 
-旧 E2B A 的 Tape 收尾失败、E2B B 的七页 final 与观测缺失、旧华为 A 的 JSON 拒绝均保留在[历史结果](jiuwen-pptx-capacity-20261027.md#release25-真实复测与后续修复)。[华为 B 新复测](jiuwen-pptx-capacity-20261027.md#huawei-b-record4)完成公开路由端口修复的真实闭环，旧失败不改判。这些是独立真实模型录制，仍未完成 PPT 同 Tape 跨云 MockLLM 对照；三组 release27 和新 B `record-4` 均未触发子 Agent/JSON，不能用功能通过证明 JSON 子轨迹云端通过。
+旧 E2B A 的 Tape 收尾失败、E2B B 的七页 final 与观测缺失、旧华为 A 的 JSON 拒绝均保留在[历史结果](jiuwen-pptx-capacity-20261027.md#release25-真实复测与后续修复)。[华为 B 新复测](jiuwen-pptx-capacity-20261027.md#huawei-b-record4)完成公开路由端口修复的真实闭环，旧失败不改判。这些是独立真实模型录制；同 Tape 回放以本页开头的新归档为准。三组 release27 和新 B `record-4` 均未触发子 Agent/JSON，不能用功能通过证明 JSON 子轨迹云端通过。
 
 **最新 Jiuwen 命令进程计时：[release23 双云 A/B 与后端验收](jiuwen-release23-cloud-validation-20261027.md)已完成。** 861 文件冻结组合通过五门禁，四次独立真实模型任务各原评分 12/12；15 个命令进程、105 条事件精确关联并完整收尾，8 个 Sandbox 独立确认删除。报告列出九阶段、逐命令墙钟时间/首输出/退出码与 ToolCall、分对象 CPU/内存；四组各自冻结快照的 Perfetto/Jaeger/Prometheus 实际查询均限定 PASS。[每段时间的定义与请求时间的区别](jiuwen-process-observation-20261027.md)单独说明。整体 integrity=complete / coverage=unknown，华为评分出网仍 assumed；独立模型轨迹不是同 Tape 对照，不作云性能排名，也不新增六例 Strict 成功数。
 

@@ -421,7 +421,7 @@ func (e *Embedded) Stop(ctx context.Context) error {
 	}
 	if !e.nativeCollected && e.sessionID != "" {
 		deadline, _ := cleanup.Deadline()
-		budget := min(5*time.Second, time.Until(deadline)-min(2*time.Second, e.options.CleanupTimeout/4))
+		budget := time.Until(deadline) - min(2*time.Second, e.options.CleanupTimeout/4)
 		collection, stopCollection := context.WithTimeout(cleanup, budget)
 		paths, err := e.collectNativeSpans(collection)
 		stopCollection()

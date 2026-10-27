@@ -6,6 +6,10 @@ import unittest
 
 @unittest.skipUnless(importlib.util.find_spec("e2b"), "pinned SDK not installed")
 class SDKContract(unittest.TestCase):
+    def test_public_http_version_connection_option(self):
+        from e2b.connection_config import ConnectionConfig
+        self.assertEqual(ConnectionConfig(http_version="1.1").http_version, "1.1")
+
     def test_process_missing_uses_pinned_sdk_exception_type(self):
         from connectrpc.code import Code
         from connectrpc.errors import ConnectError

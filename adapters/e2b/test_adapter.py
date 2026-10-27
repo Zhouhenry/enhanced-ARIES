@@ -140,7 +140,9 @@ class Tests(unittest.TestCase):
     def create(self): return self.adapter.create(self.body)
 
     def test_create_policy_live_quota_and_no_retry(self):
-        self.create()
+        created = self.create()
+        self.assertEqual(self.sdk.options["http_version"], "1.1")
+        self.assertEqual(created["sandbox_connection_http_version"], "1.1")
         self.assertEqual(self.sdk.options["network"], {"allow_public_traffic": False})
         self.assertEqual(self.sdk.options["lifecycle"]["on_timeout"], "kill")
         self.assertFalse(self.sdk.options["lifecycle"]["auto_resume"])
@@ -633,6 +635,43 @@ class Tests(unittest.TestCase):
                 response.read()
             finally:
                 connection.close()
+        finally:
+            server.shutdown()
+            worker.join()
+            server.server_close()
+
+    def test_download_failure_keeps_safe_diagnostic_without_retry_or_body(self):
+        secret = "fixture-secret-must-not-appear"
+        error = RuntimeError("https://user:" + secret + "@provider.invalid/private-file?token=" + secret)
+        error.status_code = HTTPStatus.BAD_GATEWAY
+        server = make_server(self.adapter, "t" * 32, ("127.0.0.1", 0))
+        worker = threading.Thread(target=server.serve_forever)
+        worker.start()
+        try:
+            for failure, status, code, provider in [
+                (error, 502, "sdk_operation_failed", 502),
+                (TimeoutError(secret), 502, "sdk_operation_failed", None),
+                (Failure("file_too_large", 413), 413, "file_too_large", None),
+                (ValueError(secret), 400, "invalid_json_request", None),
+            ]:
+                with self.subTest(code=code), patch.object(self.adapter, "dispatch", side_effect=failure) as dispatch, patch("sys.stderr", new_callable=io.StringIO) as log:
+                    connection = http.client.HTTPConnection("127.0.0.1", server.server_port, timeout=5)
+                    try:
+                        connection.request("POST", "/v1/download", json.dumps({"path": "/private-file", "secret": secret}),
+                                           {"Authorization": "Bearer " + "t" * 32})
+                        response = connection.getresponse()
+                        body = response.read()
+                        self.assertEqual((response.status, json.loads(body)["error_code"]), (status, code))
+                        dispatch.assert_called_once()
+                        self.assertEqual(json.loads(log.getvalue()), {
+                            "event": "adapter_download_failed",
+                            "exception_type": type(failure).__module__ + "." + type(failure).__name__,
+                            "provider_http_status": provider, "adapter_http_status": status, "error_code": code})
+                        for private in [secret, "private-file", "provider.invalid", "t" * 32]:
+                            self.assertNotIn(private, log.getvalue())
+                            self.assertNotIn(private.encode(), body)
+                    finally:
+                        connection.close()
         finally:
             server.shutdown()
             worker.join()

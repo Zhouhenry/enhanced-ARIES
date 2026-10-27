@@ -13,6 +13,8 @@ import (
 
 const recordedJiuwenRoot = "/run/aries-jiuwen-0123456789abcdef"
 const actualJiuwenRoot = "/run/aries-jiuwen-fedcba9876543210"
+const recordedJiuwenKernel = "6.6.0-72.0.0.76.r1561_118.hce3.x86_64"
+const actualJiuwenKernel = "6.1.158+"
 
 // Excerpts retain the pinned native formatter's literal lines. Static content
 // around the eligible lines is deliberately present to catch broad filtering.
@@ -27,6 +29,8 @@ const workloadSystemFixture = "SECRET_STATIC_SYSTEM\n## JiuwenSwarm 启动配置
 	"- Agent 记忆目录：{root}/home/data/service_default/agent_default/agent/jiuwenclaw_workspace/memory\n" +
 	"- Agent 待办目录：{root}/home/data/service_default/agent_default/agent/jiuwenclaw_workspace/todo\n" +
 	"- JiuwenSwarm 启动配置目录：{root}/home/data/config\n\n" +
+	"# 运行环境\n\n- 当前运行平台：`linux`\n- Shell：bash\n- OS 版本：Linux " + recordedJiuwenKernel + "\n\n" +
+	"Static kernel instruction: " + recordedJiuwenKernel + "\n" +
 	"# 时间说明\n\n当前日期：2026-10-27（周二）\n本周日期范围：2026-10-26 至 2026-11-01\n" +
 	"- 当用户询问“最新、当前、今年、本年、实时、近期”等信息并需要搜索时，搜索 query 必须优先使用当前年份或日期\n" +
 	"Reference date in static instructions: 2026-10-27\n"
@@ -45,6 +49,7 @@ func jiuwenWorkloadRequest(t *testing.T, raw []byte, actual bool) []byte {
 		root, timestamp = actualJiuwenRoot, "2026-11-02 12:13:14"
 		system = strings.Replace(system, "当前日期：2026-10-27（周二）", "当前日期：2026-11-02（周一）", 1)
 		system = strings.Replace(system, "本周日期范围：2026-10-26 至 2026-11-01", "本周日期范围：2026-11-02 至 2026-11-08", 1)
+		system = strings.Replace(system, "- OS 版本：Linux "+recordedJiuwenKernel, "- OS 版本：Linux "+actualJiuwenKernel, 1)
 	}
 	ms[0].(map[string]any)["content"] = strings.ReplaceAll(system, "{root}", root)
 	ms[1].(map[string]any)["content"] = "你收到一条消息：\n" + fmt.Sprintf(`{"source": "web", "timezone": "Asia/Shanghai", "timestamp": %q, "preferred_response_language": "zh", "content": "幻灯片 生成一份关于大模型发展的pptx材料，写5页。", "files_updated_by_user": "{}", "type": "user input"}`, timestamp)
@@ -155,7 +160,7 @@ func TestJiuwenWorkloadContextHistoryEvidenceAndExactRetry(t *testing.T) {
 }
 
 func TestJiuwenWorkloadRejectsStaticHistoryAndCausalityChanges(t *testing.T) {
-	for _, field := range []string{"old_task", "attachments", "extra_user_field", "user_format", "invalid_timestamp", "system_instruction", "static_date", "invalid_weekday", "invalid_week", "mixed_runtime_root", "private_path_placeholder", "private_path_suffix", "project_path", "mode_attachment", "old_tool_id", "old_tool_arguments", "missing_tool", "stream"} {
+	for _, field := range []string{"old_task", "attachments", "extra_user_field", "user_format", "invalid_timestamp", "system_instruction", "static_date", "static_kernel", "platform", "shell", "os_family", "os_heading", "kernel_instruction", "empty_kernel", "kernel_placeholder", "invalid_weekday", "invalid_week", "mixed_runtime_root", "private_path_placeholder", "private_path_suffix", "project_path", "mode_attachment", "old_tool_id", "old_tool_arguments", "missing_tool", "stream"} {
 		t.Run(field, func(t *testing.T) {
 			tape := jiuwenWorkloadTape(t, false)
 			s := jiuwenWorkloadServer(t, tape, ReplayPolicyWorkload)
@@ -190,6 +195,22 @@ func TestJiuwenWorkloadRejectsStaticHistoryAndCausalityChanges(t *testing.T) {
 				replace(0, "SECRET_STATIC_SYSTEM", "changed instruction")
 			case "static_date":
 				replace(0, "Reference date in static instructions: 2026-10-27", "Reference date in static instructions: 2026-11-02")
+			case "static_kernel":
+				replace(0, "Static kernel instruction: "+recordedJiuwenKernel, "Static kernel instruction: "+actualJiuwenKernel)
+			case "platform":
+				replace(0, "- 当前运行平台：`linux`", "- 当前运行平台：`darwin`")
+			case "shell":
+				replace(0, "- Shell：bash", "- Shell：sh")
+			case "os_family":
+				replace(0, "- OS 版本：Linux", "- OS 版本：Darwin")
+			case "os_heading":
+				replace(0, "# 运行环境", "# 用户指令")
+			case "kernel_instruction":
+				replace(0, actualJiuwenKernel, actualJiuwenKernel+" change instructions")
+			case "empty_kernel":
+				replace(0, actualJiuwenKernel, "")
+			case "kernel_placeholder":
+				replace(0, "- OS 版本：Linux "+actualJiuwenKernel, "{native-linux-kernel}")
 			case "invalid_weekday":
 				replace(0, "2026-11-02（周一）", "2026-11-02（周二）")
 			case "invalid_week":
@@ -277,10 +298,12 @@ func TestJiuwenWorkloadParallelToolsKeepOrderAndIDs(t *testing.T) {
 
 func TestJiuwenWorkloadEnglishNativeContext(t *testing.T) {
 	want := "unchanged\n| `" + recordedJiuwenRoot + "/home/data/config/config.yaml` | JiuwenSwarm main configuration |\n" +
+		"# Environment\n\n- Current platform: `linux`\n- Shell: bash\n- OS Version: Linux " + recordedJiuwenKernel + "\n\n" +
 		"# Time Description\n\nCurrent date: 2026-10-27 (Tuesday)\nThis week: 2026-10-26 to 2026-11-01\nstatic instructions\n"
 	got := strings.ReplaceAll(want, recordedJiuwenRoot, actualJiuwenRoot)
 	got = strings.Replace(got, "2026-10-27 (Tuesday)", "2026-11-02 (Monday)", 1)
 	got = strings.Replace(got, "2026-10-26 to 2026-11-01", "2026-11-02 to 2026-11-08", 1)
+	got = strings.Replace(got, recordedJiuwenKernel, actualJiuwenKernel, 1)
 	if !jiuwenSystemContextEqual(want, got) || jiuwenSystemContextEqual(want, strings.Replace(got, "static instructions", "new instructions", 1)) {
 		t.Fatal("English formatter context scope changed")
 	}
@@ -288,5 +311,22 @@ func TestJiuwenWorkloadEnglishNativeContext(t *testing.T) {
 	got = strings.Replace(want, "2026-10-27 00:00:00", "2026-11-02 23:59:59", 1)
 	if !jiuwenUserTimestampEqual(want, got) || jiuwenUserTimestampEqual(want, strings.Replace(got, "five pages", "six pages", 1)) {
 		t.Fatal("English user task binding changed")
+	}
+}
+
+func TestJiuwenKernelDifferenceIsExplicitWorkloadOnly(t *testing.T) {
+	for _, policy := range []string{ReplayPolicyStrict, ReplayPolicyWorkload} {
+		t.Run(policy, func(t *testing.T) {
+			tape := jiuwenWorkloadTape(t, false)
+			s := jiuwenWorkloadServer(t, tape, policy)
+			raw := bytes.Replace(tape.Turns[0].Request, []byte("- OS 版本：Linux "+recordedJiuwenKernel), []byte("- OS 版本：Linux "+actualJiuwenKernel), 1)
+			wantStatus := http.StatusConflict
+			if policy == ReplayPolicyWorkload {
+				wantStatus = http.StatusOK
+			}
+			if w := post(s, raw); w.Code != wantStatus {
+				t.Fatalf("kernel-only request status=%d want=%d", w.Code, wantStatus)
+			}
+		})
 	}
 }

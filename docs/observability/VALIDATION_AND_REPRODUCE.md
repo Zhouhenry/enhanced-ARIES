@@ -1,5 +1,64 @@
 # 验证与复现归档
 
+<a id="jiuwen-pptx-dashboard-v3"></a>
+
+## Jiuwen PPT 六组 Dashboard v3：交付验收 PASS
+
+[看板](../dashboard/jiuwen-pptx-huawei-a/index.html)与[离线包](../dashboard/jiuwen-pptx-huawei-a/jiuwen-pptx-huawei-a-dashboard-v3.zip)已复制本机。使用两云各一次真实模型录制、同华为 A Tape 的两云去等待回放及两云保留响应节奏回放，共六组；首屏展示八阶段及 Sandbox Worker / 命令分层，时间范围图可按指标高亮，详情始终切换到该组原始数据和 PPT。
+
+供转发的[最小分享包](../dashboard/jiuwen-pptx-dashboard-share.zip)另列，7,118,800 字节，SHA `14484c6fb202163ac8e8216fb820d315c98b32400b2ab3e96f711b409d0847ce`。36 个成员，保留六份 final PPT 与五份完整 Trace 原 gzip；字体子集 216,872 字节，保留许可证，去除开发附件及重复资产。ECS 对新包验证离线入口、六组切换、时间图、下载、字体加载及手机视图，通过后 SCP 逐 SHA 核对；完整 v3 不修改。看板无需开发环境，只有打开 Perfetto 官方网页时需要联网。
+
+ECS 浏览器在 2026-10-27 17:54:40–17:54:55 UTC 完成桌面/手机交互、六组切换、矩阵守恒、grep 实际工具选择、缺失计时及 Perfetto 导入检查，浏览器与临时服务已关闭。此前用文本匹配 grep 的检查误选 bash 命令，修正测试选择方式后通过；原失败记录保留。浏览器后 data 中仅修正第 01 组真实模型的后验 backend_note / receipt / receipt_sha256 / status 四字段，同步调整后验链接和 Trace 专区措辞；逐项静态复核，未宣称再次浏览器验证。
+
+独立只读核对六份原摘要、六份实际 Worker 账本与 PPT，6,798 项零差异。ZIP 的 57 个成员逐 SHA 与交付文件一致；展开 Trace/PPT 内部成员后共 707 项安全扫描，已知凭据及编码变体、通用敏感模式均无命中。最终 ZIP 22,864,526 字节，SHA `ac59398d790f83acff955f16410fc704de232aaeb4c8e5dabd3dbeb47e4ee089`；data SHA `826f39a89e7ed2d0b98f037e6ffb7a10c1819f764b30007c7b435c31c9b7ba6d`。最终审阅回执 `.cache/jiuwen-huawei-a-dashboard-review-1/v3-final-review.json` SHA `3bce1eb2e310641b6f1a21ecfcd93311105f371412a6b113fa244f6048f6286f`。
+
+第 01 / 03 组分别使用各自已完成的实际后端证据，其余组保持 UNRUN；完整 Trace 展示区仅属于第 03 组华为去等待回放。每组 n=1、全链覆盖 unknown、华为出网隔离仍为假设；不把看板验收等同于生产观测全能力验收。复现入口为目录内 `build.py`、`groups.py`、`verify.cjs`，只在 ECS 读取原归档并进行构建与浏览器验证，不触发新的模型或 Sandbox 运行。
+
+<a id="jiuwen-workload-a29-recorded"></a>
+
+## 华为 A29 recorded：同 Tape 时序对照限定 PASS
+
+在 ECS 完成 `jiuwen-huawei-external-pptx-workload-replay-2`，仅将原 A29 zero 的时序改为 recorded，保持同一 Tape、release29、image8、4u8g 和 Workload 策略。64 请求 / 72,102 帧，帧目标与契约无偏离，请求错误及缓存重试均 0；实际发帧调度误差保留。78 个原生 Tool、32 条命令，独立 PPT score=1、停止撤权、两个 Sandbox 不存在及运行资源清理均通过。
+
+本机原件目录 `runs/jiuwen-pptx-20261027/huawei-a-workload-recorded-replay-1/`；summary SHA `312109003ab64d3a75cada1780b5b7ed820144be679df743bb39f6fb0f1e7844`，zero/recorded 对照 SHA `7d50e5ce21ce85bf2ce4500a7940e161f987b532802e84b5947e76a56f0299c3`，postflight SHA `17a9e305c4a756a756cf13f2e39645ddd3660c8e0685484e6191921c93236cbf`。四离线投影 PASS，实际后端查询 UNRUN；不移用以下 zero 的后端证据。期间共享 ECS 有 Dashboard 工作重叠，条件文件保留；这不是随机化重复实验。阶段/模型窗口、资源及 PPT 见[分层性能归档](../jiuwen-pptx-workload-performance-20261027.md)。
+
+对应 E2B A recorded 也已完成，保持同 A Tape、release29、image8 和 4u8g；64 请求 / 72,102 帧、78 ToolCall、32 条命令，独立评分、停止及资源清理均通过，四离线投影 PASS，实际后端查询 UNRUN。本机 `runs/jiuwen-pptx-20261027/e2b-a-workload-recorded-replay-1/`，summary SHA `2dc0d114ac53b3d3e0f418c5296dd3e3c8538ac60d6314bdffdd11bf42c9f5fe`；跨云对照 SHA `6e301e7be54ad69803d5f8693d0db8f11681a33aa1faf985b0b81f62d4f54b91`。命令 ID 一一对应、退出码差异 0，global coverage unknown；不把单次差值推导为云厂商总体排名。
+
+<a id="e2b-native-trace-download"></a>
+
+## E2B 原生 Trace 下载故障：连接配置与采集预算修复
+
+**最新 release31 工程与 B5 真实回归已通过已测范围，旧失败保留。** E2B 连接明确配置公共 `http_version="1.1"`，Embedded 观测采集去除独立 5 秒上限，沿用总 CleanupTimeout 并保留私有目录清理时间。没有增加重试、放宽 Strict 或改动 Tool 输出。旧 5 秒代码在新 6 秒下载夹具中按预期失败，候选在有足够总预算时完整采集；总预算不足仍明确观测失败，停止及清理行为保留。
+
+ECS 上 build / test / test-race / lint / integration 分别 17.299 / 90.156 / 352.742 / 9.387 / 361.404 秒，五项通过。914 文件冻结，source manifest SHA `7a19fb5c672cec6c4d9c8323105a4bc940632a3a36a7783f9e6285286ee06edb`，工程 evidence SHA `04c9724caaefcd8dda943c35064f2124bf398d66f34314771fdccce157a39a11`，freeze SHA `05d81c82e9ce2c829f9eb8c549b57d05317ba2cb5602a95c7b6f4ee76c025e51`；基线、夹具和容器/网络库存核对、清理与锁释放通过。
+
+同原华为 B Tape 的 E2B B5 完成 61/61、独立 PPT score=1；18,489,897 字节 native Trace 完整，SHA `9d5a1b0ce1cb8caf1242e6dfae6ec5761c615a5b03453831f05329125111abb9`。Producer started / ended / exported 为 332 / 332 / 332，missing=0，80 个权威 Tool 精确关联；39 条命令、275 事件、drop=0，按 39 个唯一 ToolCall ID 与华为 B2 对账，退出码差异 0。四项离线投影通过，两个 Sandbox provider NotFound、台账无残留、停止撤权及清理确认。摘要 SHA `048aa9cd1bab6053eea36d89cdf9b6a0fee5fdc1cdb1f1fd746706648744e0bc`。此次后端查询仍 UNRUN，全链 coverage unknown；release31 与华为 B30 的版本差异单列，不回写 B2/B3/B4 历史观测失败。底层传输库的具体协议缺陷仍未证明，已验证的是公开连接配置的实际修复效果。
+
+以下为定位过程与各次原始证据。
+
+E2B B2/B3 原始失败保留。专项 `e2b-native-download-diagnostic-3` 在一个新建、180 秒 TTL 的真实 E2B Sandbox 内，使用相同 SDK 2.58.0、64 MiB 文件限额、96 MiB 响应限额与 30 秒请求超时复现：同一运行目录的合成 JSONL 18,489,919 字节下载成功；改用华为 B2 原始 Trace 内容 18,489,873 字节后，在读取 11,984,896 字节、1.819 秒时发生 `httpx.ReadError`，底层为 `pyqwest.ReadError`。原件及 guest 文件前后 SHA/大小一致，响应均为 `application/octet-stream`、无 Content-Encoding。这次证据排除该次失败由固定文件限额、文件增长、路径扩展名或请求超时触发；尚未证明具体传输根因，也没有恢复此前已删除 Sandbox 的 E2B 原 Trace。
+
+回执：`.cache/e2b-native-download-diagnostic-3/receipt.json` SHA `9e42086ae5d8fa17a6728ce0f78046af9839aecb3bce5c46e54b40ad632c6f84`；详细小证据 SHA `ba0857d117f5c94a99b286701f27c497ee6f1a4a9491f2a558346753e31527aa`。全过程 15.058 秒、无模型调用，Sandbox 删除后 provider NotFound，临时容器、凭据及台账均清理。真实 Trace 内容只用于 ECS 与私有 Sandbox 间的诊断，没有写入公开报告。
+
+下载错误元数据候选只记录异常类型及状态码，保留原 HTTP 错误和单次 SDK 调用；不记录正文、URL、凭据或异常消息，不增加重试。ECS 上 E2B 47 项、华为 17 项适配器测试通过，测试回执 `.cache/e2b-download-error-observation-1/receipt-2.json` SHA `21f7945d37671c303d2727dc648351c59a09c88469360eb07944413bfcc994f2`。它是 release30 冻结后的独立候选，未部署到 B3；日志可诊断不等于下载根因已修复。首轮测试因错误导入镜像内旧模块而失败的证据保留，复验核对实际 import 源码 SHA。退出条件：确定真实读取失败原因、验证最小修复，再用同 B Tape 完成真实回放及完整原生 Trace 对账。
+
+后续 `e2b-native-download-diagnostic-4` 在同一个短生命周期 Sandbox 中，对同一原 Trace 交替进行四次独立读取：SDK 默认配置两次分别在 10,153,984 / 12,562,432 字节中断，显式公共 `http_version="1.1"` 配置两次完整返回 18,489,873 字节且 SHA 相同，耗时 2.087 / 2.043 秒；没有自动重试。回执 SHA `f108b29dd2ffd25719af45bd7940e61752242cae0203e8834b4bb0e788f86967`。只读源码确认 Pyqwest 未填 HTTPX response 的版本扩展，HTTPX 属性的 `HTTP/1.1` 是缺字段时的默认值，**不能据此声称实测了协商协议，也未证明上游 HTTP/2 实现的具体缺陷**。解释回执 SHA `d97cad3e168406b29a588d95a0da05861e6e136013db66e73e8648e97c1a0482`，源码证据 SHA `da6b3fb6fff2ea45b9e672c4f1c372ae52596828250aac1dff9aa0713c5abd67`；所有资源已清理。
+
+最小产品候选对 E2B 创建的 Sandbox 连接明确采用该公开配置，覆盖该连接的文件/命令 API；华为连接及 E2B 类级清理调用保持原实现。`sandbox_connection_http_version` 仅报告配置。新候选 ECS E2B 48 项、华为 17 项测试 PASS，最终回执 SHA `245ba426c755463d663462574240edd2285372131b250431b6fb8b523f79e6b9`；首轮 provider 字符串错误导致的测试失败另存。B4 使用 release30 加单文件候选 overlay 已完成 61/61、score=1 和清理。18,489,986 字节原生 Trace 完整保留，源/保留 SHA 相等；随后 Producer 下载在共享采集窗口第 5 秒被 context deadline 截断，因此整体观测和四投影仍 FAIL。原冻结、旧失败与原 Tape 保留。摘要 SHA `838ce3a8fb62e89dca5b2505d23fda5be41d39c67b3299fe0caa986c6699f77a`，本机 `runs/jiuwen-pptx-20261027/e2b-b-workload-replay-4/evidence/download-timing-evidence.json` 保留原始时序；下一项修复仅去除任意 5 秒上限，沿用现有总 CleanupTimeout 及清理预留。
+
+<a id="jiuwen-workload-a29-backends"></a>
+
+## 华为 A29 Workload：本次 Snapshot 的实际后端验收 PASS
+
+对已有 `jiuwen-huawei-external-pptx-workload-replay-1` 原 Snapshot SHA `d7f7655a68ff68c440a13fc26720143c3a57744fa7a8873d6a4c68b79efd2fe3` 运行离线验证，没有重跑 Sandbox 或模型，没有改写原业务评分和冻结摘要。ECS 原件目录 `/opt/aries-artifacts/jiuwen-pptx-huawei-a-workload-backends-1/`，30 份小回执已 SCP 并逐 SHA 校验到本机同名 `.cache/` 目录。
+
+- Perfetto：Controller 777 区间、272 flow；native 450 区间、449 父子关系、78 个 Tool 精确核对，各域真实时长转换误差 0。64 个模型请求、128 条提示差异及 254 条工具正文差异的 SQL 叶子值共 2,802 项对账通过；不据此拼接未对齐的时钟域。
+- Jaeger：1,547 Span、18,575 项查询检查通过，v3 epoch 起止及 duration 转换误差 0。与 Perfetto 使用同一个已校验 Snapshot。
+- Prometheus：任务、Controller、Agent 三个流分别首次及重复导入后查询，201 / 16 / 459 个读回样本均与各流预期一致；数据值误差 0，时间按毫秒转换的误差绝对值小于 1 ms。两个华为 provider 流因采样时间语义未验证保留未导出状态，未伪造资源点。这个结果不证明线上乱序、持久化或容量。
+- 独立清理检查确认 unit inactive、MainPID=0、自有容器与 14319 / 16688 / 19095 端口不存在，共享锁可重新获取。原 Snapshot SHA 未变。
+
+`evidence.json` SHA `5ba72bf48657dfb09f483e336c2e060e82c08a7d1ad515a20c0ef154e7b7126a`；`metrics-evidence.json` SHA `fc53062ada3129317e06fe638b98df9bfc6c23aebf92a38b06b4e8ccd2a4457d`；独立 `postflight.json` SHA `945701aa1d91c8694529d7470e365ac1fe65c48f3bffd1114e921c5d607caa09`。这次 PASS 只更新华为 A29 的后端验证状态，其余 A/B 样本保持各自状态，global coverage 仍 unknown。
+
 <a id="jiuwen-workload-release29"></a>
 
 ## release29：Jiuwen PPT 显式 Workload 接入
@@ -10,7 +69,19 @@
 
 冻结来源：`/opt/aries-artifacts/release29/`；source manifest SHA `932384701b543d4531476c7a7dbcb20131b45446983639eecdb4b3e9bcbe38f6`，工程 evidence SHA `cd623c814537f73b304045cc93838babd584dc898e5c4d744dd7364a43a339a1`，freeze manifest SHA `71fe8c5a0b493d0d22eef0c7bf7b7c09454cfdf73f5fe13b9c2c255f50bbbeac`。本节及本轮新增结果文档在冻结后整理，不冒称属于编译输入。
 
-真实回放计划按华为 A → 华为 B → E2B A → E2B B 串行执行，`timing=zero`、image8、4 vCPU / 8192 MiB；每轮重新执行真实工具、PPT 评分及清理。A 原 Tape SHA `6a15976b408e008a238c34e60e417006a989963b42e4f4db1ea042bd13df9c17`，B 原 Tape SHA `f31d9799e43b28fafbdb4167234bc65244674aac53121aea2ebcd98a745338f7`，均来自华为 record3，不为不同云替换 Tape。当前尚无此批完整回放 PASS，成功后另追加实际结果；模型游标完成、PPT 功能通过、同工作量资格和观测验收分别报告。工程检查不改历史 Strict 成功数或全局 coverage。
+真实回放计划按华为 A → 华为 B → E2B A → E2B B 串行执行，`timing=zero`、image8、4 vCPU / 8192 MiB；每轮重新执行真实工具、PPT 评分及清理。A 原 Tape SHA `6a15976b408e008a238c34e60e417006a989963b42e4f4db1ea042bd13df9c17`，B 原 Tape SHA `f31d9799e43b28fafbdb4167234bc65244674aac53121aea2ebcd98a745338f7`，均来自华为 record3，不为不同云替换 Tape。实际完成为 **3 PASS / 1 FAIL**：华为 A / E2B A 均 64 轮、78 ToolCall / 32 命令；华为 B 61 轮、80 / 39。三组返回码对账一致、独立 score=1、停止撤权和删除确认，按同 placement / 同 Tape 作本轮工作量对照。E2B B 在首轮系统提示匹配时失败，0 Tool / 0 命令、score=0，停止及清理成功。四组均已生成同源离线投影；华为 A29 原 Snapshot 的实际后端查询已另行 PASS（见上节），其余本次后端 UNRUN。[阶段、资源和原件入口](../jiuwen-pptx-workload-performance-20261027.md)。不改历史 Strict 成功数或全局 coverage。
+
+<a id="jiuwen-workload-release30"></a>
+
+### release30：跨云原生 Linux 环境元数据修复（工程/双云 B 功能 PASS，E2B B2 / B3 观测 FAIL）
+
+失败原件：本机 `runs/jiuwen-pptx-20261027/e2b-b-workload-replay-1/evidence/acceptance-summary.json` SHA `491b45e0bbfb73a3eba9ddb12ae79955ab9cf1cfb16206756928a406bc4803a7`；同目录 `first-request-system-difference.json` SHA `364ecb1bd6e30773157779f780422d97812e179329ba9e3415cd4d5476eada0d`。诊断只在私有内存中将原 Tape system 的已批准运行根路径及唯一 OS 行替换成实际日志值，重建 39,996 字节的完整 SHA 与被拒请求一致；第三条 user 模式附件相同。故确认未允许的差异只有 `/messages/0/content` 中的原生 Linux 内核版本。实际是 0 Tool / 0 命令而非漏采；6 个 SDK Span 完整，独立 score=0，两个 Sandbox 确认删除、cleanup_errors=[]。旧失败原件不改。
+
+修复限定固定中/英文 Environment 块的 Linux 内核版本行，平台/Shell/其他文字继续匹配，沿用 `jiuwen_system_context` 摘要。Strict、默认模式、原 Tape、真实 OS 和原生提示不动，无新配置或框架。当前 **工程验证与冻结 PASS / 两 B2 功能 PASS / E2B B2 观测 FAIL**。ECS build/test/test-race/lint/integration 五项实际耗时分别为 15.646 / 84.201 / 344.019 / 8.832 / 348.598 秒，全部 PASS；914 文件、二进制与源码冻结，容器库存恢复、临时缓存清理、锁释放，本机 Go 文件与冻结 SHA 一致。私有对照 PASS 覆盖原 A 实捕首请求及 E2B B 实际 system 摘要重建；失败的完整 HTTP envelope 没有捕获，不能称其为完整实际请求或端到端验收。
+
+冻结目录 `/opt/aries-artifacts/release30/`：source manifest SHA `00009a103be1ce709c23888a8dd17ca260c72e8f73c49495121628ad9a337c4f`，工程 evidence SHA `0a2b6eeb47d70112cb549d806416f7fae58337b5151fc9cb97d77ca2e97eaaac`，freeze manifest SHA `cff81c3715ef4de5a60708a4c5f1e0ca18349a202ceac0602ff142bf36e26ddb`；本机 `.cache/release30/completion-receipt.json` 保留传回与源码核对。冻结文档中的 PENDING 是封包时状态；本段为冻结后的实际工程回执更新，不回写源码包。后续真实两 B2 均 61/61 模型终态、独立 PPT score=1、停止和清理 PASS。华为 B2 摘要 SHA `fde6345291776bfe3e0bca2cf796f27463b112712de81724198b1170971b82b0`：80 精确 Tool、332 SDK、39 命令 / 275 事件 / drop=0、四项投影通过；E2B B2 摘要 SHA `2076b26ac2c3a7120d4261f9c16e1a0063a42d7e44303cac5e2560f4bb36e03a`：原生 18,489,919 字节文件下载失败，332 Span 已 start/end 但 retained exported=0，80 个 native Tool 关联未知、四投影 exit=1。39 条真实 process 仍有终态，跨云同 ToolCall ID 返回码一致；此小回执不升级 E2B 的观测失败。两组本机目录为 `runs/jiuwen-pptx-20261027/{huawei,e2b}-b-workload-replay-2/`，四份原 PPT 和失败中间文件均保存，后端查询本轮 UNRUN。
+
+本批八次尝试为七次功能 PASS / 一次首轮 FAIL；A29 和 B30 按各自版本对照，不混用华为 B1。E2B B2 的下载底层原因仍在诊断，约 1.95 秒失败后小文件可下载，不能定为 5 秒收集窗口超时。同 release30 / 同 B Tape 的 E2B B3 已完成 61/61、独立 score=1、停止及清理 PASS，但 18,489,969 字节原生文件下载再次失败、80 native Tool 关联未知、四投影失败。39 条 process 与华为 B2 按唯一 ToolCall ID 返回码全部一致，仅证明保留的进程范围；不升级观测。摘要位于 `runs/jiuwen-pptx-20261027/e2b-b-workload-replay-3/evidence/acceptance-summary.json`，SHA `af934e9f3e605c49c01b29b7a4bcceba243f99b714996a34089bcff7c4f0d493`；同目录对账 SHA `61c27e9c9f5101b9d80ca1fe2130a59a68d53fef23380f3c408811957d9ca14d`，复制回执 SHA `f01ebcfa1bf3304e5f431dd5aa211a8fe9e1849022e941220b1b0fb8ff4bfc17`。两次 E2B B 观测失败均保留；底层原因尚未确认，日志元数据增强候选不构成根因修复证据。
 
 **Jiuwen process（ECS release23）限定 PASS：** 861文件冻结组合通过 build/test/test-race/lint/integration；最终新旧镜像 native/worker/bootstrap 回归通过。E2B A/B、华为 A/B 四次真实DeepSeek任务各原12/12，15进程/105事件完整且exact关联，8个Sandbox已独立确认删除。四组各自冻结快照的 Perfetto/Jaeger/Prometheus 实际查询全部通过，后端资源清理确认；整体 integrity=complete / coverage=unknown。华为评分出网仍 assumed，四份独立模型轨迹不作性能排名。原Go夹具超时、B夹具失败及历史记录保留。[逐阶段、命令、资源与原件SHA](../jiuwen-release23-cloud-validation-20261027.md)、[测量定义与原生测试](../jiuwen-process-observation-20261027.md)。
 

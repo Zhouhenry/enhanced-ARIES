@@ -17,6 +17,7 @@ from pathlib import Path
 import re
 import shlex
 import signal
+import sys
 import threading
 import time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -252,11 +253,16 @@ class Adapter:
         return self.sdk_call("sandbox.create", self.sdk.create, template=template, timeout=timeout,
             metadata={"aries_adapter_handle": handle}, allow_internet_access=internet,
             network={"allow_public_traffic": False}, lifecycle={"on_timeout": "kill", "auto_resume": False},
-            request_timeout=self.request_timeout)
+            # The pinned SDK's default transport interrupted real native Trace
+            # downloads; its public HTTP/1.1 connection option completed them.
+            http_version="1.1", request_timeout=self.request_timeout)
 
     def runtime_metadata(self):
-        return {"provider": self.provider, "sdk_version": self.sdk_version,
-                "sdk_pinned_version": self.sdk_pinned_version}
+        metadata = {"provider": self.provider, "sdk_version": self.sdk_version,
+                    "sdk_pinned_version": self.sdk_pinned_version}
+        if self.provider == "e2b-cloud":
+            metadata["sandbox_connection_http_version"] = "1.1"
+        return metadata
 
     def create(self, body):
         handle = string(body.get("sandbox"), 128)
@@ -659,11 +665,25 @@ def make_server(adapter, token, address):
                 result = adapter.dispatch(self.path[4:], body)
                 self.reply(200, result)
             except Failure as error:
+                self.report_download_failure(error, error.status, error.code)
                 self.reply(error.status, {"error_code": error.code})
-            except (ValueError, TypeError, UnicodeError):
+            except (ValueError, TypeError, UnicodeError) as error:
+                self.report_download_failure(error, 400, "invalid_json_request")
                 self.reply(400, {"error_code": "invalid_json_request"})
-            except Exception:
+            except Exception as error:
+                self.report_download_failure(error, 502, "sdk_operation_failed")
                 self.reply(502, {"error_code": "sdk_operation_failed"})
+
+        def report_download_failure(self, error, status, code):
+            if self.path != "/v1/download":
+                return
+            diagnostic = create_failure_diagnostic(error)
+            # Keep transport failures diagnosable without logging the request,
+            # SDK exception message, credential-bearing URLs, or file content.
+            print(json.dumps({"event": "adapter_download_failed",
+                "exception_type": diagnostic["exception_type"],
+                "provider_http_status": diagnostic["http_status"],
+                "adapter_http_status": status, "error_code": code}), file=sys.stderr, flush=True)
 
         def reply(self, status, value):
             value = {**value, "sdk_calls": getattr(adapter.measurements, "calls", [])}
