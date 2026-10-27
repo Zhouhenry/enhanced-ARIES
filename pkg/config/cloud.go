@@ -112,6 +112,9 @@ type CloudHarnessConfig struct {
 
 // ValidateAgent also protects programmatic wiring before credentials or effects.
 func (c CloudConfig) ValidateAgent() error {
+	if c.Model.SessionProtocol != "" && (c.AgentType != "jiuwenswarm" || c.Model.SessionProtocol != "jiuwen-tool-branches-v1") {
+		return errors.New("model.session_protocol requires jiuwen-tool-branches-v1 and agent_type=jiuwenswarm")
+	}
 	switch c.AgentType {
 	case "openclaw":
 		if c.Harness.JiuwenSourceDir != "" || c.Harness.JiuwenPythonPath != "" || c.Harness.JiuwenImage != "" {
@@ -177,6 +180,7 @@ func (h CloudHarnessConfig) ValidateNativeOptions(placement string) error {
 
 type CloudModelConfig struct {
 	Mode                        string        `json:"mode"`
+	SessionProtocol             string        `json:"session_protocol,omitempty"`
 	ReplayPolicy                string        `json:"replay_policy,omitempty"`
 	ToolCallIDDialect           string        `json:"tool_call_id_dialect,omitempty"`
 	TapeFile                    string        `json:"tape_file,omitempty"`

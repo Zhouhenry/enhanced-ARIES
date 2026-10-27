@@ -56,6 +56,7 @@ type modelBoundary struct {
 	HTTPStatus             *int                         `json:"http_status"`
 	Reason                 string                       `json:"reason"`
 	CachedRetry            bool                         `json:"cached_retry"`
+	Branch                 string                       `json:"model_branch"`
 	Target                 *int64                       `json:"target_offset_ns"`
 	Actual                 *int64                       `json:"actual_offset_ns"`
 	Received               *int64                       `json:"received_offset_ns"`
@@ -147,6 +148,9 @@ func (s *AnalysisSnapshot) modelSnapshot(root string, attempt traceAttempt) {
 	var sequence uint64
 	firstEvent, firstInterval := len(s.Events), len(s.Intervals)
 	allowed := map[string]bool{"http_request_received": true, "request_admitted": true, "request_body_read_started": true, "request_body_read": true, "request_parse_started": true, "request_parsed": true, "request_match_started": true, "request_matched": true, "upstream_request_started": true, "upstream_response_headers": true, "upstream_frame_received": true, "upstream_first_sse": true, "upstream_first_content": true, "upstream_first_reasoning": true, "upstream_first_tool_call_delta": true, "frame_flushed": true, "frame_flush_failed": true, "downstream_first_sse": true, "downstream_first_content": true, "downstream_first_reasoning": true, "downstream_first_tool_call_delta": true, "http_request_finished": true}
+	for _, event := range []string{"upstream_json_received", "json_flushed", "json_flush_failed"} {
+		allowed[event] = true
+	}
 	valid := traceLines(data, func(line []byte) bool {
 		var e modelBoundary
 		if json.Unmarshal(line, &e) != nil || e.SchemaVersion != 1 || e.Sequence != sequence+1 || e.Identity.RunID != s.RunID || e.Identity.AttemptID != attempt.AttemptID || e.Identity.SessionID != attempt.ModelSessionID || e.EmitterID != index.EmitterID || e.ClockDomain != clock || e.Offset == nil || *e.Offset < 0 || !validAnalysisIdentity(e.RequestID) || !allowed[e.Event] || e.Location != "model_proxy" || e.Scope == "" {
@@ -163,6 +167,12 @@ func (s *AnalysisSnapshot) modelSnapshot(root string, attempt traceAttempt) {
 		identity := AnalysisIdentity{AttemptID: attempt.AttemptID, ModelSessionID: attempt.ModelSessionID, ModelRequestInstanceID: e.RequestID, Identity: Identity{OccurrenceID: attempt.OccurrenceID}}
 		attributes := map[string]any{"mode": e.Mode, "timing_source": e.Timing, "turn": e.Turn, "frame": e.Frame, "status": e.Status, "http_status": e.HTTPStatus, "cached_retry": e.CachedRetry, "producer_location": e.Location, "route": e.Route}
 		attributes["replay_policy"] = observedReplayPolicy(e.Mode, e.ReplayPolicy)
+		if e.Branch != "" {
+			if !validAnalysisIdentity(e.Branch) {
+				return false
+			}
+			attributes["model_branch"] = e.Branch
+		}
 		if len(e.ToolContentDifferences) > 0 {
 			attributes["tool_content_differences"] = e.ToolContentDifferences
 		}
@@ -196,6 +206,16 @@ func (s *AnalysisSnapshot) modelSnapshot(root string, attempt traceAttempt) {
 		// Repeated frame events are distinguished by their real per-request
 		// frame index, not merely by the writer's global event sequence.
 		switch e.Event {
+		case "upstream_json_received", "json_flushed", "json_flush_failed":
+			if e.Frame != nil || r.receivedFrames != 0 || r.flushedFrames != 0 || r.flushFailed {
+				return false
+			}
+			if e.Event == "json_flush_failed" {
+				r.flushFailed = true
+			}
+			if e.Event == "json_flushed" && (e.Actual == nil || *e.Actual < 0 || (e.Received != nil && *e.Actual < *e.Received) || (e.Target != nil && *e.Actual < *e.Target)) {
+				return false
+			}
 		case "upstream_frame_received":
 			if e.Frame == nil || *e.Frame != r.receivedFrames || r.flushFailed {
 				return false

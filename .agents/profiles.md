@@ -84,6 +84,11 @@ with verified image digests, never placeholders; do not duplicate the field inve
   removal only when checking response-to-history causality; retain original
   requests/SSE and exact execution arguments. Preserve earlier request-tail and
   fixed-tail declarations' meanings and other dialects.
+  Explicit `model.session_protocol=jiuwen-tool-branches-v1` binds native TaskTool
+  IDs to independent histories inside one immutable Tape. Keep JSON completions
+  as original bytes, not synthetic SSE; require all recorded branches to finish.
+  Match the protocol before cloud effects and preserve the default single history.
+  See [branch protocol](../docs/implementation/model-replay.md#jiuwen-子-agent-与非流式-json).
 - For managed SGLang, validate endpoint and measurement settings using full option
   names; reject aliases and abbreviations that bypass those checks, keys containing
   `=`, and scalar values or list items starting with `-` unless numeric. Pass other

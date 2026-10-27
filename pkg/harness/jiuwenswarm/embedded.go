@@ -36,8 +36,12 @@ var nativeAudit string
 //go:embed native_process_extension.py
 var nativeProcessExtension string
 
+//go:embed model_branches.py
+var modelBranchesExtension string
+
 type EmbeddedOptions struct {
 	OutputDir, Workdir, SourceDir, PythonPath, ModelProxyURL string
+	ModelSessionProtocol                                     string
 	ProxyAccessToken                                         []byte
 	GuestEndpoint                                            func(context.Context, runner.Sandbox, int) (string, http.Header, error)
 	StartTimeout, CleanupTimeout                             time.Duration
@@ -98,6 +102,9 @@ func NewEmbedded(options EmbeddedOptions) (*Embedded, error) {
 }
 
 func newNativeRuntime(options EmbeddedOptions) (*nativeRuntime, error) {
+	if options.ModelSessionProtocol != "" && options.ModelSessionProtocol != "jiuwen-tool-branches-v1" {
+		return nil, errors.New("unsupported Jiuwen model session protocol")
+	}
 	for _, value := range []string{options.Workdir, options.SourceDir, options.PythonPath} {
 		if !path.IsAbs(value) || path.Clean(value) != value || value == "/" || strings.ContainsRune(value, 0) {
 			return nil, errors.New("Jiuwen requires clean absolute workspace, source and Python paths")
@@ -195,6 +202,7 @@ func (e *Embedded) Start(ctx context.Context, request core.HarnessRequest) error
 	stage, err := json.Marshal(map[string]any{"source_dir": e.options.SourceDir, "python_path": e.options.PythonPath, "workdir": e.options.Workdir,
 		"model_proxy_url": e.options.ModelProxyURL, "proxy_token": string(e.credentials.Get("proxy")), "model": request.Model.Model, "bootstrap": bootstrap,
 		"native_observation": nativeSpansEnabled(e.options.ObservationLevel), "native_audit": nativeAudit,
+		"model_session_protocol": e.options.ModelSessionProtocol, "model_branches_extension": modelBranchesExtension,
 		"native_process_observation": nativeSpansEnabled(e.options.ObservationLevel), "native_process_extension": nativeProcessExtension,
 		"observation_binding": map[string]any{"schema_version": 1, "run_id": request.RunID, "task_id": request.TaskID}})
 	if err != nil {

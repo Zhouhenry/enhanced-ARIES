@@ -56,6 +56,7 @@ type Server struct {
 	client                     *http.Client
 	mu                         sync.Mutex
 	busy, closing, closed      bool
+	settled                    chan struct{}
 	admissionClosed            bool
 	failed                     string
 	tape                       Tape
@@ -72,6 +73,8 @@ type Server struct {
 	observationError           error
 	legacyIOReportError        error
 	boundaries                 *boundaryRecorder
+	branch                     string
+	recordInParent             bool
 }
 
 // The encoder keeps its original writes and error handling. These counters
@@ -131,6 +134,10 @@ type observation struct {
 }
 
 func New(o Options) (*Server, error) {
+	return newServer(o, false)
+}
+
+func newServer(o Options, bundleRoot bool) (*Server, error) {
 	if err := validateIdentity(o.Identity); err != nil {
 		return nil, err
 	}
@@ -188,12 +195,18 @@ func New(o Options) (*Server, error) {
 		}
 		s.client.CheckRedirect = func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }
 		s.tape = Tape{Version: Version, Identity: o.Identity, ToolCallIDDialect: o.ToolCallIDDialect, HistoryDialect: o.HistoryDialect, Model: o.Model, UpstreamHost: u.Host, StartedAt: time.Now().UTC()}
+		if o.HistoryDialect == JiuwenSubagentHistoryDialect {
+			s.tape.Version = jsonResponseVersion
+		}
 	case "replay":
 		if o.Tape == nil || o.UpstreamURL != "" || len(o.UpstreamKey) != 0 || o.Client != nil {
 			return nil, errors.New("replay requires tape and forbids upstream configuration")
 		}
 		if err := validateTape(*o.Tape); err != nil {
 			return nil, err
+		}
+		if o.Tape.Version == bundleVersion && !bundleRoot {
+			return nil, errors.New("branch tape requires the complete bundle session")
 		}
 		if o.ToolCallIDDialect != o.Tape.ToolCallIDDialect {
 			return nil, errors.New("replay tool-call ID dialect must match tape")
@@ -330,6 +343,9 @@ func (s *Server) observeFirstOutputs(seen *[4]bool, parsed *streamResult, e obse
 
 func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	received := time.Now()
+	if entry, ok := r.Context().Value(requestReceivedKey{}).(time.Time); ok {
+		received = entry
+	}
 	route := "unsupported"
 	if r.Method == http.MethodPost && r.URL.Path == "/v1/chat/completions" && r.URL.RawQuery == "" {
 		route = "chat_completions"
@@ -399,9 +415,10 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 	started := time.Now()
 	s.busy = true
+	s.settled = make(chan struct{})
 	position := s.position
 	s.mu.Unlock()
-	defer func() { s.mu.Lock(); s.busy = false; s.mu.Unlock() }()
+	defer func() { s.mu.Lock(); s.busy = false; close(s.settled); s.mu.Unlock() }()
 	observed.turn = &position
 	observed.emit(boundaryEvent{Event: "request_admitted", Scope: "request_admission"}, started)
 	ctx, cancel := context.WithTimeout(r.Context(), s.options.Timeout)
@@ -444,7 +461,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 	} else {
-		req, err = parseRequest(raw, s.Model())
+		req, err = parseRequestProtocol(raw, s.Model(), s.options.HistoryDialect == JiuwenSubagentHistoryDialect)
 	}
 	parseStatus := "succeeded"
 	if err != nil {
@@ -526,7 +543,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		result = *turn
 		err = s.replay(w, r, result, position, started, observed)
 	} else {
-		result, err = s.record(w, r, raw, position, started, observed)
+		result, err = s.record(w, r, raw, position, started, observed, req["stream"] == true)
 	}
 	if err != nil {
 		reason := "DELIVERY_OR_UPSTREAM_FAILED"
@@ -550,6 +567,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if !retry {
+		s.mu.Lock()
 		if s.options.Mode == "record" {
 			result.SHA256 = turnDigest(result)
 			s.tape.Turns = append(s.tape.Turns, result)
@@ -559,6 +577,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		clone := result
 		s.lastTurn = &clone
 		s.lastToolContentDifferences = toolContentDifferences
+		s.mu.Unlock()
 	}
 	observed.result("succeeded", "", http.StatusOK)
 	observed.legacy(observation{Event: "request_finished", Turn: position, Status: "succeeded", DurationNS: time.Since(started).Nanoseconds()})
@@ -594,7 +613,7 @@ func (s *Server) containsSecret(data []byte) bool {
 	return false
 }
 
-func (s *Server) record(w http.ResponseWriter, r *http.Request, raw []byte, position int, started time.Time, observed *requestObservation) (Turn, error) {
+func (s *Server) record(w http.ResponseWriter, r *http.Request, raw []byte, position int, started time.Time, observed *requestObservation, streaming bool) (Turn, error) {
 	t := Turn{Request: bytes.Clone(raw)}
 	up, err := http.NewRequestWithContext(r.Context(), http.MethodPost, s.upstream, bytes.NewReader(raw))
 	if err != nil {
@@ -602,6 +621,9 @@ func (s *Server) record(w http.ResponseWriter, r *http.Request, raw []byte, posi
 	}
 	up.Header.Set("Content-Type", "application/json")
 	up.Header.Set("Accept", "text/event-stream")
+	if !streaming {
+		up.Header.Set("Accept", "application/json")
+	}
 	up.Header.Set("Accept-Encoding", "identity")
 	up.Header.Set("Authorization", "Bearer "+string(s.options.UpstreamKey))
 	observed.emit(boundaryEvent{Event: "upstream_request_started", Scope: "upstream_http_wait_for_headers"}, time.Now())
@@ -614,6 +636,9 @@ func (s *Server) record(w http.ResponseWriter, r *http.Request, raw []byte, posi
 	observed.emit(boundaryEvent{Event: "upstream_response_headers", Scope: "upstream_http_wait_for_headers", HTTPStatus: response.StatusCode}, time.Now())
 	defer response.Body.Close()
 	t.StatusCode = response.StatusCode
+	if !streaming {
+		return s.recordJSON(w, r, t, response, started, observed)
+	}
 	if response.StatusCode != http.StatusOK || !strings.HasPrefix(response.Header.Get("Content-Type"), "text/event-stream") {
 		failure(w, 502, "UPSTREAM_FAILED", "upstream did not return a successful SSE response")
 		observed.httpStatus = http.StatusBadGateway
@@ -627,6 +652,21 @@ func (s *Server) record(w http.ResponseWriter, r *http.Request, raw []byte, posi
 	var firstFlushed [4]bool
 	var content []byte
 	unsafe := false
+	deferredFrame := -1
+	flush := func(frameIndex int) error {
+		frame := t.Frames[frameIndex]
+		offset := frame.OffsetNS
+		if err := send(w, frame.Data); err != nil {
+			observed.emit(boundaryEvent{Event: "frame_flush_failed", Scope: "downstream_frame_write_and_flush", Frame: &frameIndex, Status: "failed", Reason: "WRITE_OR_FLUSH_FAILED"}, time.Now())
+			return errors.New("record frame write or flush failed")
+		}
+		flushedAt := time.Now()
+		actual := flushedAt.Sub(started).Nanoseconds()
+		observed.emit(boundaryEvent{Event: "frame_flushed", Scope: "downstream_frame_flush_complete", Frame: &frameIndex, Bytes: len(frame.Data), ReceivedNS: &offset, ActualNS: &actual}, flushedAt)
+		observed.firstFlushed(&firstFlushed, &parsed, boundaryEvent{Scope: "downstream_frame_flush_complete", Frame: &frameIndex, ReceivedNS: &offset, ActualNS: &actual}, flushedAt)
+		observed.legacy(observation{Event: "frame_sent", Turn: position, Frame: frameIndex, Bytes: len(frame.Data), ReceivedNS: &offset, ActualNS: &actual})
+		return nil
+	}
 	err = readFrames(response.Body, func(data []byte) error {
 		receivedAt := time.Now()
 		offset := receivedAt.Sub(started).Nanoseconds()
@@ -670,15 +710,14 @@ func (s *Server) record(w http.ResponseWriter, r *http.Request, raw []byte, posi
 			}
 		}
 		s.observeFirstOutputs(&firstOutputs, &parsed, observation{RequestID: observed.id, Turn: position, Frame: len(t.Frames) - 1, ReceivedNS: &offset})
-		if err := send(w, data); err != nil {
-			observed.emit(boundaryEvent{Event: "frame_flush_failed", Scope: "downstream_frame_write_and_flush", Frame: &frameIndex, Status: "failed", Reason: "WRITE_OR_FLUSH_FAILED"}, time.Now())
-			return errors.New("record frame write or flush failed")
+		// Verify the upstream tail before DONE lets a native client close the request.
+		if parsed.done {
+			if deferredFrame < 0 {
+				deferredFrame = frameIndex
+			}
+		} else if err := flush(frameIndex); err != nil {
+			return err
 		}
-		flushedAt := time.Now()
-		actual := flushedAt.Sub(started).Nanoseconds()
-		observed.emit(boundaryEvent{Event: "frame_flushed", Scope: "downstream_frame_flush_complete", Frame: &frameIndex, Bytes: len(data), ReceivedNS: &offset, ActualNS: &actual}, flushedAt)
-		observed.firstFlushed(&firstFlushed, &parsed, boundaryEvent{Scope: "downstream_frame_flush_complete", Frame: &frameIndex, ReceivedNS: &offset, ActualNS: &actual}, flushedAt)
-		observed.legacy(observation{Event: "frame_sent", Turn: position, Frame: len(t.Frames) - 1, Bytes: len(data), ReceivedNS: &offset, ActualNS: &actual})
 		return r.Context().Err()
 	})
 	if err == nil {
@@ -689,6 +728,14 @@ func (s *Server) record(w http.ResponseWriter, r *http.Request, raw []byte, posi
 			return Turn{}, err
 		}
 		return t, err
+	}
+	if err := r.Context().Err(); err != nil {
+		return t, err
+	}
+	for i := deferredFrame; i < len(t.Frames); i++ {
+		if err := flush(i); err != nil {
+			return t, err
+		}
 	}
 	t.Finish = parsed.finish
 	t.Calls = parsed.calls()
@@ -729,6 +776,9 @@ func recordFailureReason(err error) string {
 }
 
 func (s *Server) replay(w http.ResponseWriter, r *http.Request, t Turn, position int, started time.Time, observed *requestObservation) error {
+	if t.ResponseJSON != nil {
+		return s.replayJSON(w, r, t, started, observed)
+	}
 	w.Header().Set("Content-Type", "text/event-stream")
 	w.Header().Set("Cache-Control", "no-cache")
 	var parsed streamResult
@@ -768,7 +818,8 @@ func (s *Server) replay(w http.ResponseWriter, r *http.Request, t Turn, position
 		s.observeFirstOutputs(&firstOutputs, &parsed, observation{RequestID: observed.id, Turn: position, Frame: i, Timing: timingSource, TargetNS: &planned, ActualNS: &actual})
 		observed.legacy(observation{Event: "frame_sent", Turn: position, Frame: i, Timing: timingSource, Bytes: len(frame.Data), TargetNS: &planned, ActualNS: &actual})
 	}
-	return r.Context().Err()
+	// All recorded frames were successfully flushed; a client may now close.
+	return nil
 }
 
 func send(w http.ResponseWriter, data []byte) error {
@@ -809,7 +860,9 @@ func (s *Server) CloseAdmission() {
 	if s.boundaries != nil {
 		s.boundaries.mu.Lock()
 		offset := s.boundaries.offset(at)
-		s.boundaries.index.AdmissionClosedOffsetNS = &offset
+		if s.boundaries.index.AdmissionClosedOffsetNS == nil {
+			s.boundaries.index.AdmissionClosedOffsetNS = &offset
+		}
 		s.boundaries.mu.Unlock()
 	}
 }
@@ -842,11 +895,13 @@ func (s *Server) Close() error {
 		s.tape.Complete = complete
 		s.tape.Failure = s.failed
 		s.tape.SHA256 = tapeDigest(s.tape)
-		data, err := json.MarshalIndent(s.tape, "", "  ")
-		if err == nil {
-			err = writePrivate(filepath.Join(s.options.OutputDir, "tape.json"), data)
+		if !s.recordInParent {
+			data, err := json.MarshalIndent(s.tape, "", "  ")
+			if err == nil {
+				err = writePrivate(filepath.Join(s.options.OutputDir, "tape.json"), data)
+			}
+			outputErr = err
 		}
-		outputErr = err
 	}
 	if s.observations != nil {
 		s.observationMu.Lock()
@@ -873,7 +928,7 @@ func (s *Server) Close() error {
 		s.legacyIOReportError = reportErr
 		s.observationMu.Unlock()
 	}
-	if s.boundaries != nil {
+	if s.boundaries != nil && !s.recordInParent {
 		// Boundary persistence is an independent evidence channel. A failed
 		// writer must be reported through ObservationError without changing a
 		// successfully replayed model session's protocol outcome.

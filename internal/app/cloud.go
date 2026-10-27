@@ -94,7 +94,7 @@ func runCloud(ctx context.Context, profilePath string, stdout io.Writer, depende
 		if err != nil {
 			return err
 		}
-		if tape.Identity.Placement != cfg.Placement || tape.Identity.HarnessVersion != cfg.HarnessVersion() || tape.Model != cfg.Model.ID || tape.ToolCallIDDialect != cfg.Model.ToolCallIDDialect || tape.HistoryDialect != cloudHistoryDialect(cfg) {
+		if tape.Identity.Placement != cfg.Placement || tape.Identity.HarnessVersion != cfg.HarnessVersion() || tape.Model != cfg.Model.ID || tape.ToolCallIDDialect != cfg.Model.ToolCallIDDialect || tape.HistoryDialect != cloudHistoryDialect(cfg) || tape.SessionProtocol() != cfg.Model.SessionProtocol {
 			return errors.New("replay tape must match placement, native harness version, configured model and declared dialects")
 		}
 	}
@@ -231,7 +231,19 @@ func runCloudAttempt(ctx context.Context, cfg config.CloudConfig, runID, root st
 		options.UpstreamURL = cfg.Model.BaseURL
 		options.UpstreamKey, _ = lookup(cfg.Model.APIKeyEnv)
 	}
-	proxy, err := modelreplay.New(options)
+	var proxy interface {
+		http.Handler
+		Close() error
+		CloseAdmission()
+		ObservationError() error
+		ReplayPolicy() string
+	}
+	var err error
+	if cfg.Model.SessionProtocol == modelreplay.BranchProtocol {
+		proxy, err = modelreplay.NewBundle(options)
+	} else {
+		proxy, err = modelreplay.New(options)
+	}
 	clear(options.UpstreamKey)
 	if err != nil {
 		return result, err

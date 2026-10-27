@@ -138,6 +138,10 @@ func (s *streamResult) feed(frame []byte) error {
 	if !ok || c["index"] != json.Number("0") {
 		return errors.New("UNSUPPORTED: choice index")
 	}
+	return s.applyChoice(c)
+}
+
+func (s *streamResult) applyChoice(c map[string]any) error {
 	if reason, ok := c["finish_reason"].(string); ok {
 		if s.finish != "" || reason != "stop" && reason != "tool_calls" {
 			return errors.New("UNSUPPORTED: finish reason")

@@ -1,6 +1,6 @@
 # ARIES 性能报告
 
-**用户 PPT 任务正在复测准备：[容量修复与首次失败](jiuwen-pptx-capacity-20261027.md)。** 两云 image8 模板统一 4 vCPU / 8192 MiB；首次 E2B A 在录制、产物下载和观测收集环节失败，不能计为 PPT 验证通过。该页单列工程回归与真实任务状态，不借用下方编码任务的成功数。
+**用户 PPT 任务：[release27 华为 A 已功能通过](jiuwen-pptx-capacity-20261027.md#release27-华为-a真实-ppt-功能通过)。** 两云 image8 模板统一 4 vCPU / 8192 MiB。华为 A 的五页 `final.pptx` 与三页中间稿均已取回本机；64 轮 Tape 完整，78 个 ToolCall 精确关联，450 个 sampled SDK Span 对账，32 个命令进程/225 条事件已归档。四项离线投影通过，本次后端查询尚未运行；华为 B 正在复测。旧 E2B A 的 Tape 收尾失败、E2B B 的七页 final 与观测缺失、旧华为 A 的 JSON 拒绝均保留在[历史结果](jiuwen-pptx-capacity-20261027.md#release25-真实复测与后续修复)。当前仍未完成 PPT 同 Tape 跨云 MockLLM 对照；本次华为 A 未触发子 Agent，不能用它证明 JSON 子轨迹云端通过。
 
 **最新 Jiuwen 命令进程计时：[release23 双云 A/B 与后端验收](jiuwen-release23-cloud-validation-20261027.md)已完成。** 861 文件冻结组合通过五门禁，四次独立真实模型任务各原评分 12/12；15 个命令进程、105 条事件精确关联并完整收尾，8 个 Sandbox 独立确认删除。报告列出九阶段、逐命令墙钟时间/首输出/退出码与 ToolCall、分对象 CPU/内存；四组各自冻结快照的 Perfetto/Jaeger/Prometheus 实际查询均限定 PASS。[每段时间的定义与请求时间的区别](jiuwen-process-observation-20261027.md)单独说明。整体 integrity=complete / coverage=unknown，华为评分出网仍 assumed；独立模型轨迹不是同 Tape 对照，不作云性能排名，也不新增六例 Strict 成功数。
 

@@ -2,6 +2,26 @@
 
 默认与本文历史成功记录均为 Strict Replay。显式 Workload Replay 是独立模式，工程及真实验收状态见下节，不回填既有 Strict 成功数。
 
+## 终帧交付与正常断开
+
+录制在上游完整 SSE 校验和 HTTP EOF 后才向下游发送原始 `[DONE]` 及其后的合法注释帧；此前内容仍逐帧透传。数据在 DONE 后出现、残缺尾帧、上游读失败或提前取消仍使录制失败。上游收到帧的时间与实际下游 Flush 时间分别保留，不能把等待 EOF 的时间伪装成模型生成时间。
+
+录制、回放和缓存重试在全部原帧写入并 Flush 成功后完成该请求，不因客户端随后正常关闭而反向改判失败。Flush 成功仍仅表示发送端边界，不证明 Agent 已消费；写入/Flush 错误仍失败。旧失败 Tape 不修补、不改判。此修复由 ECS 的 `terminal-delivery-fix-1` 定向、完整包及 race 回归验证，新真实云验收单独记录。
+
+历史单轨迹入口仅支持流式 Chat Completions。PPT 华为 A `record-2` 实测在第六次模型请求触发原生 `task_tool` 子 Agent 的 `stream=false`，被该入口拒绝；原失败记录不改判。
+
+## Jiuwen 子 Agent 与非流式 JSON
+
+云配置显式使用 `model.session_protocol=jiuwen-tool-branches-v1` 时，原生扩展在 `TaskTool.invoke` 的实际 `tool_call_id` 上建立分支，沿异步上下文通过原生 `before_model_http` 事件加入 `X-Aries-Model-Branch` 请求头。主会话为 `main`，子会话为父路径加调用 ID。入口只接受父会话已返回的真实 `task_tool` ID；不按提示词哈希、时间邻近、随机 UUID 或请求内容猜会话。请求头不转发至真实模型，原生任务参数、工具结果和调用方式保持不变。
+
+每条分支有独立历史与回放游标；并行子会话可以交错发送请求。Tape v4 将主轨迹及所有子轨迹封装为一份不可变文件；子轨迹使用支持 SSE/JSON 的 v3 表示。非流式响应保存并交付原始 JSON 字节，使用真实完整响应接收、写入及 Flush 边界，不构造 SSE 帧或 TTFT。Strict 仍比较完整请求，旧历史和工具结果变化仍失败。遗漏录制过的子会话、子会话失败或未终结不能形成完整成功回放；旧 v1/v2 Tape 保持原格式。
+
+该协议的 ECS 定向测试覆盖并行、缓存重试、旧历史偏离、未知或遗漏分支、完整封包与 A/B 应用入口；固定 image8 的原生 TaskTool 和 OpenAI 客户端 HTTP 构造也已通过受控 fixture。release27 合并版本已通过并冻结 build/test/test-race/lint/integration 五门禁，证据位于 `/opt/aries-artifacts/release27/`；定向证据仍在 `/opt/aries-artifacts/jiuwen-model-branches-1/`。
+
+release27 华为 A PPT `record-3` 已完成真实 DeepSeek、Sandbox 工具和独立结构评分，五页 `final.pptx` 通过，Stop/revoke 与清理确认通过。完整 v4 Tape 有 64 个主会话轮次，但子分支和 JSON 完成数均为 0，因此本次通过不构成真实云端 JSON/子 Agent 路径验收，也不是 MockLLM 回放或同 Tape 跨云对照。华为 B 新轮次仍在运行；详见 [PPT 复测报告](../jiuwen-pptx-capacity-20261027.md)。随机提示路径、提示时间及 sticky 子 Agent 跨新调用恢复旧历史等尚未完成跨云验收，不能据此承诺所有原生工作流已可 Strict 回放。
+
+同一 placement 的跨云对照必须引用同一 Tape 文件 SHA-256；各云独立录制不能替代。A/B 使用各自固定的一份 Tape，主会话和子会话不得拆成另选的录制材料。独立 `aries-model-replay` CLI 仍为单轨迹入口；新分支协议当前通过 `aries cloud` 接入。
+
 ## Jiuwen原生历史接入
 
 固定版本Flash实际使用`system,user,user`初始请求，并将最后一条临时user附件移到下一轮新增assistant/tool消息之后。原录制入口不支持这种结构，真实云record3在本地拒绝，未向DeepSeek生成。两组受控请求的附件相同，但record4真实生成后，原生异步runtime state使附件的模式名由`agent`更新为“智能体模式”；旧fixed-tail假设因此再次拒绝。四轮原失败、原评分和清理均保留。

@@ -368,6 +368,10 @@ Chrome flow的`id`是显示用的UInt64十六进制字符串，取Snapshot原始
 | verifier.exec | 实际pytest调用/返回 | 评分进程调用耗时；返回transport错误如实标记 | 测试全通过（需报告解析） |
 | verifier.report | stdout/stderr落盘、结果检查/下载/解析 | 评分证据处理成本 | 模型或原工具运行耗时 |
 
+终帧收尾修复：record 的 `[DONE]` 与合法尾注释等待上游完整 EOF 校验后原样 Flush，其他帧照常流式发送。`upstream_frame_received`/Tape `OffsetNS` 仍是实际接收时点，`frame_flushed` 是实际发送时点；二者之间可能包含 EOF 等待。全部帧 Flush 成功后客户端正常关闭不再使请求反向失败；提前取消、读失败及写入/Flush 失败仍保留。新真实云结果单独验收，旧失败不重写；细节见[模型收尾契约](../implementation/model-replay.md#终帧交付与正常断开)。
+
+非流式 JSON 使用 `upstream_json_received`（完整 HTTP body 已读完）与 `json_flushed`（原始 JSON 写入并 Flush 成功）；没有 SSE 首帧、首 token 或逐 chunk 时序，相关值保持未采集。录制时序只保存真实完整响应偏移，synthetic 仅模拟首次完整交付延迟。`model_branch` 标记精确原生 `task_tool` 因果路径；同一 Attempt 共享 HTTP 请求分母和单调时钟，子分支历史与游标独立。入口路由、等待父请求提交的时间包含在 HTTP handler 区间内，不伪装成上游模型等待。详见[子会话协议](../implementation/model-replay.md#jiuwen-子-agent-与非流式-json)。
+
 Gateway只输出受限opaque ID和受控status，auth/challenge/token/正文不进入事件。B原生host offset属于consumer观测，旧字段名/旧注释不能改变真实边界。
 
 `upstream_first_*`只表示真实上游完整帧接收；`downstream_first_*`在真实写入和Flush成功后记录，record/replay共用此发送侧口径。旧`events.jsonl`中的`first_*`在record与replay的原始位置不同，不能混在一起作同口径首响应比较。A的ResponseOnly客户端有意不选择native事件，此处没有消费观测不是丢失已选择的事件；A原生工具源仍单独标缺测。

@@ -209,7 +209,7 @@ func (p *preparedRun) newAttempt(ctx context.Context, request app.CloudAttempt) 
 				Deployment: transport, Image: p.config.Harness.JiuwenImage, OutputDir: root,
 				APIKeyLookup: a.lookupProxy, Logger: p.logger, CleanupTimeout: cleanupTimeout, AgentTimeout: p.config.Execution.TaskTimeout},
 				Bridge: bridge, Workdir: workdir, SourceDir: p.config.Harness.JiuwenSourceDir, PythonPath: p.config.Harness.JiuwenPythonPath,
-				ModelProxyURL: model.BaseURL, ProxyAccessToken: a.proxyToken, ObservationLevel: level})
+				ModelProxyURL: model.BaseURL, ProxyAccessToken: a.proxyToken, ObservationLevel: level, ModelSessionProtocol: p.config.Model.SessionProtocol})
 			if err != nil {
 				return fail(errors.Join(err, transport.Close()))
 			}
@@ -217,7 +217,7 @@ func (p *preparedRun) newAttempt(ctx context.Context, request app.CloudAttempt) 
 		} else {
 			embedded, err := jiuwenswarm.NewEmbedded(jiuwenswarm.EmbeddedOptions{OutputDir: root, Workdir: workdir,
 				SourceDir: p.config.Harness.JiuwenSourceDir, PythonPath: p.config.Harness.JiuwenPythonPath, ModelProxyURL: model.BaseURL,
-				ProxyAccessToken: a.proxyToken, GuestEndpoint: guestEndpoint, CleanupTimeout: cleanupTimeout, ObservationLevel: level})
+				ProxyAccessToken: a.proxyToken, GuestEndpoint: guestEndpoint, CleanupTimeout: cleanupTimeout, ObservationLevel: level, ModelSessionProtocol: p.config.Model.SessionProtocol})
 			if err != nil {
 				return fail(err)
 			}

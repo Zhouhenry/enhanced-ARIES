@@ -203,6 +203,13 @@ for the new configuration; earlier recordings remain unchanged.
 Use the existing per-attempt model handler with `model.mode=record` or
 `replay`; Jiuwen replay accepts only omitted/default or explicit `strict` policy
 and requires a fresh Jiuwen Tape. Existing OpenClaw tapes are not compatible.
+Set `model.session_protocol=jiuwen-tool-branches-v1` for native `task_tool`
+subagents. This cloud-only protocol uses explicit native ToolCall IDs and one
+immutable v4 Tape containing independent child histories, including nonstreaming
+JSON completions. Both A and B stage the same extension through the native loader.
+Omission preserves the previous single-trajectory contract; a replay profile must
+agree with its Tape. It does not relax Strict matching or fix dynamic prompts.
+See [protocol and acceptance](implementation/model-replay.md#jiuwen-子-agent-与非流式-json).
 The Tape's harness identity contains `jiuwenswarm:<source-revision>:<lock-sha256>`;
 replay rejects a different native source or dependency lock before cloud preparation.
 The native recorder also declares the pinned `jiuwenswarm-e2c9d519-request-tail-call-goal-v2`

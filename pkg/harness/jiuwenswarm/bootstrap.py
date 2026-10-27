@@ -114,11 +114,20 @@ def stage():
     write(runtime / "launch.py", spec.pop("bootstrap"), 0o555, 0)
     audit = spec.pop("native_audit")
     process_extension = spec.pop("native_process_extension", None)
+    model_extension = spec.pop("model_branches_extension", None)
+    branch_protocol = spec.get("model_session_protocol", "")
+    if branch_protocol not in ("", "jiuwen-tool-branches-v1"):
+        raise RuntimeError("unsupported model session protocol")
     remote_sources = spec.pop("remote_sources", {})
-    if spec["native_observation"] or spec.get("remote_binding"):
+    if spec["native_observation"] or spec.get("remote_binding") or branch_protocol:
         extensions = runtime / "extensions"
         extensions.mkdir(mode=0o755)
         extensions.chmod(0o755)
+    if branch_protocol:
+        extension = extensions / "aries_model_branches"
+        extension.mkdir(mode=0o755)
+        extension.chmod(0o755)
+        write(extension / "extension.py", model_extension, 0o444, 0)
     if spec["native_observation"]:
         extension = extensions / "aries_native_audit"
         extension.mkdir(mode=0o755)
@@ -193,7 +202,7 @@ def run():
         sample_rate=1.0 if observation else 0.0,
         redact_prompts=True, redact_completions=True,
         traces_dir=str(data / "aries-traces"), file_retention_days=0)
-    if observation or spec.get("remote_binding"):
+    if observation or spec.get("remote_binding") or spec.get("model_session_protocol"):
         extensions = config.setdefault("extensions", {})
         directories = extensions.get("extension_dirs", "")
         extensions["extension_dirs"] = ";".join(

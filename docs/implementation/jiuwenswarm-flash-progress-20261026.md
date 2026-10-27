@@ -1,12 +1,16 @@
 # JiuwenSwarm Flash 接入：首轮实施与验证
 
-更新至2026-10-27。**当前冻结为 release21：五项 ECS 发布检查、双云 A/B 四组真实解题（各原 12/12）与清理均通过；两云 A 各 11 次调用已精确关联原生 ToolCall→Bridge→worker。** [新四组阶段/资源与 E2B A 实际后端对账](../jiuwen-release21-cloud-validation-20261027.md)、[工程修复与失败记录](../jiuwen-native-runtime-validation-20261027.md)。以下 release19/18 为历史云样本，不覆盖新版本结果；全局 coverage 仍 unknown，尚未宣称生产化全部完成。
+更新至2026-10-27。**已完成的四组云与观测验收见 [release23 实际结果](../jiuwen-release23-cloud-validation-20261027.md)：双云 A/B 原评分各 12/12，15 个命令进程、105 条生命周期事件，以及四组各自快照的 Perfetto/Jaeger/Prometheus 查询均有证据。** 这是 image7、2 CPU / 4096 MB 的编码任务验收，不能替代 PPT 结果；全局 coverage 仍 unknown。
+
+最新 release27 已完成 ECS 五门禁，image8、4 vCPU / 8192 MiB 的 PPT 复测正在推进，状态以 [PPT 修复与逐次验收](../jiuwen-pptx-capacity-20261027.md)为准。下文保留早期接入及失败记录，不回填新版本结果，也不宣称生产化全部完成。
+
+## 历史 release18/19 云样本
 
 **A 已复用官方 SandboxRegistry/SysOperation provider 完成接线，release19五项ECS门禁与实际原生受控夹具通过；E2B/Huawei A record1均完成真实DeepSeek解题、原Verifier12/12、5轮完整Tape及回收确认。** 这是原生Agent的Sandbox适配，不重写Flash或原生工具。两份不同轨迹仅作功能验收，Bridge ToolCall身份仍unavailable；八阶段漏列Bridge注册的真实缺项已单列，见[A云验收与时间对账](../jiuwen-external-cloud-validation-20261027.md)。
 
 B 的release18 E2B record7与华为record2均通过原12/12、score1，完整Tape分别9/7轮；每轮Stop/revoke、两个Sandbox独立删除及cleanup=[]均确认。sampled SDK started/ended/exported分别44/44/44与35/35/35，missing/unexpected均0，专项integrity/coverage complete、global coverage unknown。两份真实模型轨迹不同，仅作双云功能验收，不是同Tape性能对照；华为评分出网仍为显式假设。Strict replay3与record1–5旧失败保留，固定提示变体暂停，历史六例Strict仍3/6。完整B结果见[云验收与八阶段归档](../jiuwen-cloud-validation-20261027.md#release18-native-audit-cloud)，不移作A或全局观测覆盖的证明。
 
-## 最新实际进展
+### 历史验证范围摘要
 
 | 验证范围 | 结果与边界 |
 | --- | --- |
@@ -33,7 +37,7 @@ release19冻结827个源文件，build / test / test-race / lint / integration�
 
 `/opt/aries-artifacts/jiuwen-external-native-3/evidence.json`为 `PASS_NATIVE_EXTERNAL_FIXTURE`，SHA `3bdeee9b2d732b37aa59bcc5e12b0bf95acd43474537feacc17e1f76df3f798b`。真实原生Docker Agent完成两次受控模型请求；工具在独立host worker写入文件，Agent容器同路径文件不存在；后台真实进程在Stop前存活、Stop后group为空，Agent容器与worker监听消失、cleanup=[]、Docker库存恢复。集成夹具耗时41.899秒；它不含云Sandbox、真实DeepSeek解题或原题评分。前两轮数字UID:GID与私有下载临时文件缺陷均已修复，失败原件保留在native-1/native-2。
 
-该夹具导出了原生Span、producer及Bridge记录，但工具总体观测仍标记 `unsupported`，没有宣称完整ToolCall或guest进程计时覆盖。个人版原生ToolCall ID贯通、FlashGlob本地 `.gitignore`、空闲后台interrupt跨进程语义仍开放，见[实际缺口](../observability/OPEN_ISSUES_AND_RESOLUTIONS.md#jiuwen-a-native-gaps)。随后两云A record1均通过真实解题和独立原12/12，SDK审计分别27/27/27、25/25/25；每轮4次Bridge调用的原生ToolCall身份均unavailable，观测全覆盖仍unknown。各2 Sandbox与外置容器/网络均确认回收。R04的Bridge注册计时未入八阶段字段已按原Trace单列，见[A完整归档](../jiuwen-external-cloud-validation-20261027.md)。
+该夹具导出了原生Span、producer及Bridge记录，但工具总体观测仍标记 `unsupported`，没有宣称完整ToolCall或guest进程计时覆盖。当时原生ToolCall ID贯通、FlashGlob本地 `.gitignore`、空闲后台interrupt跨进程语义尚开放，后续修复与验收见[release21 工程记录](../jiuwen-native-runtime-validation-20261027.md)。随后两云A record1均通过真实解题和独立原12/12，SDK审计分别27/27/27、25/25/25；每轮4次Bridge调用的原生ToolCall身份均unavailable，观测全覆盖仍unknown。各2 Sandbox与外置容器/网络均确认回收。R04的Bridge注册计时未入八阶段字段已按原Trace单列，见[A完整归档](../jiuwen-external-cloud-validation-20261027.md)。
 
 ### 云失败、修复与回收
 
@@ -51,9 +55,9 @@ record5使用正式release16，启动49.184秒、Runtime8.136秒、Attempt71.058
 
 后续独立`call-goal-v2`候选已通过ECS定向unit/race/vet与真实record5原件离线因果检查，证据SHA `5629ba36e06770631285062420dc45df7624152a6db054b788ad1fe8622b6f46`。它仅在record/load因果校验中复现固定native移除顶层`call_goal`/`callGoal`的行为，原始SSE、完整请求、Tape与Strict不变。随后release17完整五门禁已通过，新真实云结果已在顶部链接归档；不计为record5修复复测通过，也不覆盖尚未触达的native历史变化。[精确范围](../observability/VALIDATION_AND_REPRODUCE.md#jiuwen-release16-record5)。
 
-### 官方Span真实采集验收
+### 历史官方Span真实采集验收
 
-最新release18云样本为E2B record7与华为record2：分别44/35个官方Span，8/6个authoritative Tool Span；sampled SDK独立审计与实际导出ID/终态集合完全对账，专项complete，global coverage仍unknown。此前release17 E2B record6与华为record1的35/43 Span没有audit，producer分母/flush未知状态不回填。历史record5的11 Span已完成TP/Jaeger与Prometheus独立补验，首轮Metrics失败保留；这些后端结果不移作新样本证据。所有原生Span仍使用未跨机对齐的Unix ns。
+release18云样本为E2B record7与华为record2：分别44/35个官方Span，8/6个authoritative Tool Span；sampled SDK独立审计与实际导出ID/终态集合完全对账，专项complete，global coverage仍unknown。此前release17 E2B record6与华为record1的35/43 Span没有audit，producer分母/flush未知状态不回填。历史record5的11 Span已完成TP/Jaeger与Prometheus独立补验，首轮Metrics失败保留；这些后端结果不移作新样本证据。所有原生Span仍使用未跨机对齐的Unix ns。
 
 新producer审计通过原生extension在fresh进程注册，只保存sampled SDK Span计数/ID/终态及状态。Stop后与实际导出集合对账；即使官方FileExporter吞下`OSError`并返回SUCCESS，缺失导出仍须失败。Go测试覆盖整对start/end缺失、重复、未结束、错误终态及来源篡改；Snapshot仅新增`jiuwen_sampled_sdk_span_exports`范围，整体coverage仍unknown。定向证据和实际bootstrap测试边界见[前置验收](../observability/VALIDATION_AND_REPRODUCE.md#jiuwen-producer-audit-candidate)；后续[release18冻结与两云验收](../observability/VALIDATION_AND_REPRODUCE.md#jiuwen-release18)单列，不回填旧运行。
 
@@ -65,7 +69,7 @@ record5使用正式release16，启动49.184秒、Runtime8.136秒、Attempt71.058
 
 同一冻结快照`snapshot-da4623dadf72ee677341aec4a96d77863ad792bd06a5bccd7ca31868a3c43994`已完成两出口真实后端验收：Perfetto TraceProcessor导入10原生Span、9父flow，误差0ns；Jaeger2.22读回21Span（11控制端、10原生）、19父关系，263项身份/时间/ToolCall/状态检查通过，无猜测的跨域parent。证据`/opt/aries-artifacts/jiuwen-native-backends-2/evidence.json` SHA `c1d036ca545015dccb898a822387fafbf2726c1576805bad0a47f2eba84c5af6`；临时后端已清理。单Runner fixture的绑定来自实际task/session/Timing，没有app调度分母，未生成任务成功Metrics；不能替代云端解题或完整采集覆盖。首次验收脚本属性名称错误的FAIL保留，第二轮未重跑Agent或修改原始Span。
 
-## 已完成
+## 首轮已完成的协议验证
 
 - 新增 `pkg/harness/jiuwenswarm/client.go`：原生健康检查、项目会话创建、HTTP/SSE运行和interrupt请求。保持普通 `mode=agent`，由已确认的Flash YAML选择实现。
 - 一次提交不自动重试；不跟随重定向；检查request/session身份；错误、HITL、断流、无成功终态、截断帧均不能计为成功。原始响应只交给私有证据消费者，计时事件不复制模型和工具正文。
@@ -79,7 +83,7 @@ record5使用正式release16，启动49.184秒、Runtime8.136秒、Attempt71.058
 
 - `embedded.go`、`bootstrap.py`：原生Flash的私有配置、项目、Session与一次任务调用；模型配置走规范 `.env`。B工具保持原生LOCAL执行、后台和并行能力，Agent与工具同处目标Sandbox。
 - `harness/internal/sandboxprocess`：从OpenClaw提取既有UID60000、no_new_privs、root准入锁及cgroup停止机制；OpenClaw和Jiuwen各自保留原生协议。prepare提交失败仍持有group，Stop失败可重试，必须收到`ARIES_GROUP_EMPTY`并join调用。
-- `evidence.go`：工具、最终回答、暂停及终态原帧私有保存；20,000条非工具更新不占工具预算。选择数、实际保留数、日志与回答截断分别报告。观测失败不改原Agent结果；guest进程计时尚无，状态明确`unsupported`。
+- `evidence.go`：工具、最终回答、暂停及终态原帧私有保存；20,000条非工具更新不占工具预算。选择数、实际保留数、日志与回答截断分别报告。观测失败不改原Agent结果；早期样本未采集guest进程计时，状态保留`unsupported`，后续进程计时见顶部release23验收。
 - 独立`agent_type=jiuwenswarm`已支持`placement=embedded/external`，当前开放codingcase；E2B和华为沿用既有adapter。A在release19通过官方provider扩展接入；TerminalBench、Workload Replay及OpenClaw专用选项仍不开放。配置通过与真实云验收分开。
 - 共享模型入口改用实际Harness身份。Jiuwen Tape固定`jiuwenswarm:<源码SHA>:<lock SHA>`；OpenClaw旧值不变。受控record→Strict成功，外来Harness/source/lock均在分配云资源前拒绝。它是模型协议测试，不是Flash真实云Strict验收。
 
@@ -110,7 +114,7 @@ release16冻结798文件，source manifest SHA `149035e8e20b08d2cae8bad4bdb55e49
 - 返回最终回答前，后台PID实际存活，UID为60000且属于本轮cgroup。Harness Stop、Bridge撤权后，独立probe检查文件内容与后台PID消失；cgroup、私有目录、18865/18866/18877监听及临时账户均清理。
 - Runner记录18.520秒，其中启动17.172秒、Runtime 1.187秒、停止撤权0.118秒。它是单次宿主开发fixture；创建/准备由本地夹具提供，不是云创建延迟，独立probe也不是原题Verifier。不能据此做云性能排名。
 
-历史image3的registry manifest digest为`sha256:46e170b16c2f1b227e23dbea483bc42f77884142d8c8fe1bfeea78b0e4bee42c`，发布回执`/opt/aries-artifacts/jiuwen-image-1/publication-2/evidence.json` SHA `6219a8994295b091154bb9829417c835c52fe12bde86d452fb4ebde8bfefdc41`。原导入和权限探测通过，但未覆盖原生复制后的文件模式，故不能作为完整初始化通过证据。当前已被上文image4替代；旧原件及失败均保留。两版镜像均不含任务或私有Verifier。
+历史image3的registry manifest digest为`sha256:46e170b16c2f1b227e23dbea483bc42f77884142d8c8fe1bfeea78b0e4bee42c`，发布回执`/opt/aries-artifacts/jiuwen-image-1/publication-2/evidence.json` SHA `6219a8994295b091154bb9829417c835c52fe12bde86d452fb4ebde8bfefdc41`。原导入和权限探测通过，但未覆盖原生复制后的文件模式，故不能作为完整初始化通过证据。当时由上文image4替代；旧原件及失败均保留。两版镜像均不含任务或私有Verifier。
 
 ## 实测发现并解决的两个启动问题
 
@@ -170,9 +174,8 @@ ECS目录：`/opt/aries-artifacts/jiuwen-integration-1`。
 
 ## 持续推进的下一阶段
 
-1. release19 A两云真实任务、原12/12与清理验收已通过；下一步闭合Bridge注册在阶段汇总中的缺项。B release18及所有历史失败保持原范围，不回填旧结果。
-2. 持续完善接入和观测，优先闭合原生ToolCall关联与已确认的远端工具边界；保留原生后台/并行能力、原有OpenClaw/Hermes及冻结性能样本。
-3. A release19与B release18的sampled SDK producer审计已分别真实对账；该专项一致不代表未插桩行为、进程退出计时、跨机对齐或所有资源完整。A本批后端接收/查询仍UNRUN，不借用旧样本。
-4. 固定提示变体暂停，校验模式留待专题讨论，未扩展Workload Replay或放宽Strict；不同真实Tape不作同工作量性能比较。
+1. 完成 release27 的双云 A/B PPT 真实复测，分别归档原文件、独立评分、主/子会话完整 Tape、观测和清理结果；不借用编码任务的通过结论。
+2. Bridge准备阶段、原生ToolCall关联、命令进程计时和四组离线后端已有release21/23证据；新任务继续核对实际来源。全局覆盖、跨机对时、逐Tool资源及观测扰动仍按未验范围保留。
+3. 固定提示变体暂停，校验模式留待专题讨论，未扩展Workload Replay或放宽Strict；不同真实Tape不作同工作量性能比较。
 
 当前没有宣布P0或生产就绪。既有R01–R18状态继续以[问题台账](../observability/OPEN_ISSUES_AND_RESOLUTIONS.md)为准；上述协议结果不关闭尚未验收的生命周期、身份、资源或跨云项目。

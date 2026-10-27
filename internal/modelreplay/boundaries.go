@@ -45,6 +45,7 @@ type boundaryEvent struct {
 	DurationNS             *int64                  `json:"duration_ns,omitempty"`
 	Bytes                  int                     `json:"bytes,omitempty"`
 	CachedRetry            bool                    `json:"cached_retry,omitempty"`
+	Branch                 string                  `json:"model_branch,omitempty"`
 	TargetNS               *int64                  `json:"target_offset_ns,omitempty"`
 	ActualNS               *int64                  `json:"actual_offset_ns,omitempty"`
 	ReceivedNS             *int64                  `json:"received_offset_ns,omitempty"`
@@ -372,6 +373,7 @@ func (p *requestObservation) emit(event boundaryEvent, at time.Time) {
 	event.Mode, event.Timing, event.Route = p.server.options.Mode, p.timing, p.route
 	event.ReplayPolicy = p.server.options.ReplayPolicy
 	event.CachedRetry = p.retry
+	event.Branch = p.server.branch
 	p.server.boundaries.record(event, at)
 }
 

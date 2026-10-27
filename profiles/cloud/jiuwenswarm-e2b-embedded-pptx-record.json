@@ -16,6 +16,7 @@
   },
   "model": {
     "mode": "record",
+    "session_protocol": "jiuwen-tool-branches-v1",
     "max_turns": 96
   },
   "execution": {

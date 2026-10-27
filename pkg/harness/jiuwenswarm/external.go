@@ -26,6 +26,7 @@ type ExternalOptions struct {
 	Runtime                                       harness.RuntimeOptions
 	Bridge                                        *RemoteBridge
 	Workdir, SourceDir, PythonPath, ModelProxyURL string
+	ModelSessionProtocol                          string
 	ProxyAccessToken                              []byte
 	ObservationLevel                              performance.ObservationLevel
 }
@@ -50,7 +51,8 @@ func NewExternal(options ExternalOptions) (*External, error) {
 	}
 	native, err := newNativeRuntime(EmbeddedOptions{OutputDir: options.Runtime.OutputDir, Workdir: options.Workdir,
 		SourceDir: options.SourceDir, PythonPath: options.PythonPath, ModelProxyURL: options.ModelProxyURL,
-		ProxyAccessToken: options.ProxyAccessToken, ObservationLevel: options.ObservationLevel,
+		ModelSessionProtocol: options.ModelSessionProtocol,
+		ProxyAccessToken:     options.ProxyAccessToken, ObservationLevel: options.ObservationLevel,
 		StartTimeout: options.Runtime.StartTimeout, CleanupTimeout: options.Runtime.CleanupTimeout})
 	if err != nil {
 		return nil, err
@@ -147,6 +149,7 @@ func (e *External) Start(ctx context.Context, request core.HarnessRequest) error
 		"workdir": e.options.Workdir, "model_proxy_url": e.options.ModelProxyURL, "proxy_token": string(e.credentials.Get("proxy")),
 		"model": request.Model.Model, "bootstrap": bootstrap, "native_observation": nativeSpansEnabled(e.options.ObservationLevel),
 		"native_audit": nativeAudit, "observation_binding": map[string]any{"schema_version": 1, "run_id": request.RunID, "task_id": request.TaskID},
+		"model_session_protocol": e.options.ModelSessionProtocol, "model_branches_extension": modelBranchesExtension,
 		"remote_binding": binding, "remote_sources": sources})
 	if err != nil {
 		return err

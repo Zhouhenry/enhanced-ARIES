@@ -1,18 +1,20 @@
 # Jiuwen 原生远端工具与观测验证（2026-10-27）
 
-本页记录 release19 之后的工程增量。**真实 Agent 的 A 模式身份与请求级观测已通过 ECS 组合验证；release21 五门禁、image5 双云 A/B 真实任务和 E2B A 的实际后端对账现均通过。** [四组云结果、阶段、资源与后端验收](jiuwen-release21-cloud-validation-20261027.md)单独归档；下列夹具测试不增加 Agent benchmark 成功数，不改写历史评分或 Strict 结果。
+本页保留 release19→21 的工程修复、夹具与失败证据。后续 [release23 四组真实云验收](jiuwen-release23-cloud-validation-20261027.md)已完成双云 A/B 原评分各 12/12、命令进程计时及四组各自快照的 Perfetto/Jaeger/Prometheus 查询；全局 coverage 仍 unknown，不回填本页历史样本。
+
+最新 release27 已完成 ECS 五门禁，image8、4 vCPU / 8192 MiB 的 PPT 复测正在推进，见 [PPT 当前状态与逐次证据](jiuwen-pptx-capacity-20261027.md)。这些新任务不能继承旧编码任务或下列夹具的通过结论。
 
 ## 接入方式
 
 固定 JiuwenSwarm `e2c9d519498080e249e34f16a80c8c97f0cd1962`、agent-core `3460150aa5f319b0b8f84a4ed10eec0a08b0feb1`。原生已提供 SysOperation SANDBOX 和 Provider 注册接口；ARIES 注册 `aries` 文件/命令 Provider，把原生 Flash 工具接到 Runner 已创建的 Sandbox。Agent Loop、工具定义与原生结果保留。
 
-本次显式原生补丁包括：ToolCall 上下文在调用、流式迭代和取消后准确恢复；Glob 从远端文件接口读取 `.gitignore`；原生 session 取消等待对应远端调用取消后再 ACK。最终隔离仍需确认 Agent、guest 进程组终止并撤销访问，ACK 不代替该证明。
+release21 的显式原生补丁包括：ToolCall 上下文在调用、流式迭代和取消后准确恢复；Glob 从远端文件接口读取 `.gitignore`；原生 session 取消等待对应远端调用取消后再 ACK。最终隔离仍需确认 Agent、guest 进程组终止并撤销访问，ACK 不代替该证明。
 
-## 当前冻结版本
+## 本页历史冻结版本：release21
 
 release21 固定 843 个源文件，在 release19 上叠加本轮 47 个文件。build / test / test-race / lint / integration 分别为 11.211 / 31.880 / 82.665 / 3.431 / 322.465 秒，全部 PASS；源码、基底、原始 fixture 与 Docker 库存核验通过。源码清单 SHA `924deaddf3953bddcb0a03fdb48b177320e6b1307803dd9a1e6d2a745c49c039`，冻结回执 SHA `2fbdbafa778a87487a051f3d97cfb61a419d784f82b89ea9e885e10228eac719`。镜像仍为已发布 image5，不推广未证明必要的 image6。release20 的五门禁 PASS 保留，但其目录解析问题使其未用于新云任务。
 
-## 已完成的验证
+## release21 工程验证
 
 | 范围 | 实际结果 | 不证明什么 |
 | --- | --- | --- |
@@ -38,7 +40,7 @@ release21 固定 843 个源文件，在 release19 上叠加本轮 47 个文件�
 
 worker 区间排除之前的鉴权、JSON/参数解码与 init_cwd，也不含终点后的账本落盘；写入返回不代表客户端已收到。
 
-这些是**同一次功能夹具的观测样本**，不是云厂商性能样本。两层请求时间重叠，不能相加；差值也不能称为网络延迟。worker 返回后台启动结果不代表后台进程结束。spawn、首输出、进程退出和 pipe drain 本轮未补采。
+这些是**同一次功能夹具的观测样本**，不是云厂商性能样本。两层请求时间重叠，不能相加；差值也不能称为网络延迟。worker 返回后台启动结果不代表后台进程结束。spawn、首输出、进程退出和 pipe drain 在这批历史夹具中未补采。
 
 Bridge 使用 Runner 的单调时钟。worker 使用独立单调时钟及本地 Unix 锚点；原生 span 保留原始 wall clock。三个域分别展示，精确 ID 只证明关联，不证明时钟对齐。原生 Tool 到 Bridge 的完整身份边离线验收另见下节。
 
@@ -50,9 +52,9 @@ attempt6 原始分析器为 `aries-analysis-v1.13.0-jiuwen-remote-operations`；
 
 新请求 Histogram 与阶段 Histogram 分开；请求返回成功可能包含命令非零退出码，不能据此计算任务成功率。独立 Verifier 和原失败分母保持不变。这里的历史夹具未验收实际后端；后续 release21 E2B A 真云快照已另行通过 TraceProcessor/Jaeger/Prometheus，不回填夹具结论。
 
-## 失败记录与尚未关闭的问题
+## 历史失败记录与验收边界
 
-| 记录 | 根因与处置 | 当前结论 |
+| 记录 | 根因与处置 | 该次结论 |
 | --- | --- | --- |
 | 完整夹具 attempt4 | 夹具产物根与生产解析目录不一致，且缺 Harness 类型声明；身份/停止断言已到达，最终 Snapshot 拒绝 | 原 FAIL 保留 |
 | 完整夹具 attempt5 | 修夹具时把私有产物目录设成 guest 工作目录的共同父目录，0700 阻断 UID60000；已改为私有 artifacts 与可达 work 并列，attempt6 重跑通过 | 原 FAIL 保留，不冒充通过 |
@@ -60,11 +62,11 @@ attempt6 原始分析器为 `aries-analysis-v1.13.0-jiuwen-remote-operations`；
 | 生产 Bridge 目录 | 云装配写入 occurrence/bridge，新增解析器与夹具误用 occurrence/harness；已修正解析器和夹具，保持原生 span 的 harness 目录不变 | attempt9 按生产目录真实重跑通过：1 Bridge + 1 worker、精确身份，三包 unit/race/vet 通过；release21 两云 A 各 11 Bridge + 11 worker、11 条原生 Tool 身份边通过 |
 | 离线投影首轮 | Go 内存值的 int/json.Number 类型差异导致 DeepEqual 拒绝；改为核对实际序列化输出，原始数据和匹配标准不变 | 第二轮真实离线对账 PASS，首轮 FAIL 保留 |
 
-仅修复 ARIES 对明确 `chat.error` 的识别和留存；任意 Tool 非零退出仍可由 Agent 恢复。未证明必要的 image6 原生补丁已撤回，正式基线保留 image5。反证保存在 `/opt/aries-artifacts/jiuwen-image6-1/review-closeout.json`（SHA `88171ee07630aaeb3a45ee6416fa2f3867be1ff5029abda7eb76236c54c27170`）；原先错误预期导致的测试 FAIL 保留，不改写成 PASS。
+仅修复 ARIES 对明确 `chat.error` 的识别和留存；任意 Tool 非零退出仍可由 Agent 恢复。未证明必要的 image6 原生补丁已撤回，该次发布保留 image5。反证保存在 `/opt/aries-artifacts/jiuwen-image6-1/review-closeout.json`（SHA `88171ee07630aaeb3a45ee6416fa2f3867be1ff5029abda7eb76236c54c27170`）；原先错误预期导致的测试 FAIL 保留，不改写成 PASS。
 
-Agent→Bridge 提交段计时、guest 进程细分、全局覆盖分母和跨机时钟校准仍未完成。新的 `bridge_prepare` 阶段字段已通过成功/失败/取消测试，以及 release21 四组真实云阶段/Attempt 对账；剩余差额明确单列。历史八字段不回填、不改变数值。
+release23 已补充 guest 命令创建、首输出和实际退出计时，不能继续将它们列为全局未实现；自然 EOF、完整后代树计时、Agent→Bridge 提交段计时、全局覆盖分母和跨机时钟校准仍未验收。`bridge_prepare` 阶段字段已通过成功/失败/取消测试，以及 release21 四组真实云阶段/Attempt 对账；剩余差额明确单列。历史八字段不回填、不改变数值。
 
-## 证据索引
+## release21 及前置夹具证据索引
 
 | 证据 | ECS 路径 | SHA-256 |
 | --- | --- | --- |

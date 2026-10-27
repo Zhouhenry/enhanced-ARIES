@@ -18,6 +18,8 @@ import (
 )
 
 const Version = 2
+const jsonResponseVersion = 3
+const bundleVersion = 4
 
 const maxBody = 64 << 20
 const maxFrame = 8 << 20
@@ -55,13 +57,15 @@ type Call struct {
 }
 
 type Turn struct {
-	Request    json.RawMessage `json:"request"`
-	StatusCode int             `json:"status_code"`
-	Frames     []Frame         `json:"frames"`
-	Finish     string          `json:"finish_reason"`
-	Call       *Call           `json:"tool_call,omitempty"`
-	Calls      []Call          `json:"tool_calls,omitempty"`
-	SHA256     string          `json:"sha256"`
+	Request          json.RawMessage `json:"request"`
+	StatusCode       int             `json:"status_code"`
+	Frames           []Frame         `json:"frames"`
+	ResponseJSON     []byte          `json:"response_json,omitempty"`
+	ResponseOffsetNS *int64          `json:"response_offset_ns,omitempty"`
+	Finish           string          `json:"finish_reason"`
+	Call             *Call           `json:"tool_call,omitempty"`
+	Calls            []Call          `json:"tool_calls,omitempty"`
+	SHA256           string          `json:"sha256"`
 }
 
 // Version 1 keeps its original JSON shape and checksum; new recordings use v2.
@@ -73,17 +77,18 @@ func (t Turn) toolCalls() []Call {
 }
 
 type Tape struct {
-	Version           int       `json:"version"`
-	Identity          Identity  `json:"identity"`
-	ToolCallIDDialect string    `json:"tool_call_id_dialect,omitempty"`
-	HistoryDialect    string    `json:"history_dialect,omitempty"`
-	Model             string    `json:"model"`
-	UpstreamHost      string    `json:"upstream_host"`
-	StartedAt         time.Time `json:"started_at"`
-	Complete          bool      `json:"complete"`
-	Failure           string    `json:"failure,omitempty"`
-	Turns             []Turn    `json:"turns"`
-	SHA256            string    `json:"sha256"`
+	Version           int             `json:"version"`
+	Identity          Identity        `json:"identity"`
+	ToolCallIDDialect string          `json:"tool_call_id_dialect,omitempty"`
+	HistoryDialect    string          `json:"history_dialect,omitempty"`
+	Model             string          `json:"model"`
+	UpstreamHost      string          `json:"upstream_host"`
+	StartedAt         time.Time       `json:"started_at"`
+	Complete          bool            `json:"complete"`
+	Failure           string          `json:"failure,omitempty"`
+	Turns             []Turn          `json:"turns"`
+	Children          map[string]Tape `json:"children,omitempty"`
+	SHA256            string          `json:"sha256"`
 }
 
 func digest(value any) string {
@@ -114,6 +119,9 @@ func ValidateToolCallIDDialect(dialect, harnessVersion string) error {
 // display-argument extraction. Requests, SSE and strict matching stay literal.
 const JiuwenHistoryDialect = "jiuwenswarm-e2c9d519-request-tail-call-goal-v2"
 
+// Subagents have their own persistent history and may use JSON completions.
+const JiuwenSubagentHistoryDialect = "jiuwenswarm-e2c9d519-subagent-v1"
+
 const jiuwenRequestTailHistoryDialect = "jiuwenswarm-e2c9d519-request-tail-v1"
 
 // Keep the earlier fixed-tail declaration immutable for existing tapes.
@@ -125,7 +133,7 @@ func ValidateHistoryDialect(dialect, harnessVersion string) error {
 	if dialect == "" {
 		return nil
 	}
-	if (dialect != JiuwenHistoryDialect && dialect != jiuwenRequestTailHistoryDialect && dialect != jiuwenFixedTailHistoryDialect) || harnessVersion != jiuwenFixedTailHarnessVersion {
+	if (dialect != JiuwenHistoryDialect && dialect != JiuwenSubagentHistoryDialect && dialect != jiuwenRequestTailHistoryDialect && dialect != jiuwenFixedTailHistoryDialect) || harnessVersion != jiuwenFixedTailHarnessVersion {
 		return errors.New("history dialect requires the pinned Jiuwen source and dependency lock")
 	}
 	return nil
@@ -159,7 +167,7 @@ func Load(path string) (*Tape, error) {
 }
 
 func validateTape(t Tape) error {
-	if (t.Version != 1 && t.Version != Version) || !t.Complete || len(t.Turns) == 0 || len(t.Turns) > maxTurns || t.Failure != "" {
+	if (t.Version != 1 && t.Version != Version && t.Version != jsonResponseVersion && t.Version != bundleVersion) || !t.Complete || len(t.Turns) == 0 || len(t.Turns) > maxTurns || t.Failure != "" {
 		return errors.New("tape is incomplete or its version is unsupported")
 	}
 	if err := validateIdentity(t.Identity); err != nil {
@@ -179,13 +187,16 @@ func validateTape(t Tape) error {
 	totalFrames := 0
 	for i := range t.Turns {
 		turn := &t.Turns[i]
-		if t.Version == 1 && turn.Calls != nil || t.Version == Version && turn.Call != nil {
+		if t.Version == 1 && turn.Calls != nil || t.Version >= Version && turn.Call != nil {
 			return errors.New("tool metadata does not match tape version")
+		}
+		if t.Version < jsonResponseVersion && (turn.ResponseJSON != nil || turn.ResponseOffsetNS != nil) {
+			return errors.New("JSON response requires tape version 3")
 		}
 		if turn.SHA256 != turnDigest(*turn) || turn.StatusCode != 200 {
 			return fmt.Errorf("turn %d checksum/status mismatch", i)
 		}
-		req, err := parseRequest(turn.Request, t.Model)
+		req, err := parseRequestProtocol(turn.Request, t.Model, t.HistoryDialect == JiuwenSubagentHistoryDialect)
 		if err != nil {
 			return fmt.Errorf("turn %d: %w", i, err)
 		}
@@ -212,6 +223,18 @@ func validateTape(t Tape) error {
 				return err
 			}
 		}
+		if req["stream"] == false {
+			if len(turn.Frames) != 0 || turn.ResponseOffsetNS == nil || *turn.ResponseOffsetNS < 0 || *turn.ResponseOffsetNS > int64(24*time.Hour) || len(turn.ResponseJSON) > maxBody {
+				return errors.New("invalid JSON response representation or timing")
+			}
+			response, err = parseJSONCompletion(turn.ResponseJSON)
+			if err != nil {
+				return err
+			}
+			turnBytes += len(turn.ResponseJSON)
+		} else if turn.ResponseJSON != nil || turn.ResponseOffsetNS != nil {
+			return errors.New("streaming request cannot contain a JSON completion")
+		}
 		if err := response.complete(); err != nil {
 			return err
 		}
@@ -226,6 +249,13 @@ func validateTape(t Tape) error {
 	}
 	if previous.Finish != "stop" {
 		return errors.New("tape has no final model response")
+	}
+	if t.Version == bundleVersion {
+		if err := validateBundleChildren(t); err != nil {
+			return err
+		}
+	} else if len(t.Children) != 0 {
+		return errors.New("child trajectories require tape version 4")
 	}
 	return nil
 }
@@ -312,6 +342,10 @@ func value(d *json.Decoder, depth int) (any, error) {
 }
 
 func parseRequest(raw []byte, model string) (map[string]any, error) {
+	return parseRequestProtocol(raw, model, false)
+}
+
+func parseRequestProtocol(raw []byte, model string, allowJSON bool) (map[string]any, error) {
 	v, err := decode(raw)
 	if err != nil {
 		return nil, err
@@ -320,7 +354,7 @@ func parseRequest(raw []byte, model string) (map[string]any, error) {
 	if !ok {
 		return nil, errors.New("request must be an object")
 	}
-	if m["model"] != model || m["stream"] != true {
+	if m["model"] != model || (m["stream"] != true && !(allowJSON && m["stream"] == false)) {
 		return nil, errors.New("UNSUPPORTED: model must match and stream must be true")
 	}
 	if n, ok := m["n"]; ok && n != json.Number("1") {
@@ -417,7 +451,7 @@ func nextRequest(req map[string]any, previous *Turn, dialect, historyDialect str
 			return err
 		}
 		y, _ := decode([]byte(expectedCall.Arguments))
-		if historyDialect == JiuwenHistoryDialect {
+		if historyDialect == JiuwenHistoryDialect || historyDialect == JiuwenSubagentHistoryDialect {
 			// Native extract_call_goal pops both top-level keys, even nonstrings.
 			// y is freshly decoded for this causal check; stored SSE and requests
 			// are untouched. Nested keys and every execution argument stay exact.
@@ -454,6 +488,13 @@ func nextRequest(req map[string]any, previous *Turn, dialect, historyDialect str
 	var response streamResult
 	for _, frame := range previous.Frames {
 		if err := response.feed(frame.Data); err != nil {
+			return err
+		}
+	}
+	if previous.ResponseJSON != nil {
+		var err error
+		response, err = parseJSONCompletion(previous.ResponseJSON)
+		if err != nil {
 			return err
 		}
 	}

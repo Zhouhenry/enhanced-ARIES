@@ -55,6 +55,11 @@ admission when the actual `Harness.Run` returns; preserve admitted requests and
 their failures, and observe late rejections through teardown. Admission closure
 does not replace confirmed harness stop or bridge revocation. Final model-session
 close drains handlers and seals evidence at the attempt cleanup boundary.
+Model recording validates the complete upstream response before flushing its
+terminal DONE. After every frame has flushed successfully, normal client closure
+does not revoke that request's success; premature cancellation and transport
+errors still fail. Keep receipt and flush clocks distinct; see
+[model completion](../docs/implementation/model-replay.md#终帧交付与正常断开).
 Start shared infrastructure
 after model preflight, before task admission. After task cleanup, remove owned
 shared infrastructure, finalize observation, and close transports before persisting

@@ -22,11 +22,13 @@ import (
 
 func TestJiuwenCloudRecordAndStrictReplayUseNativePins(t *testing.T) {
 	for _, placement := range []string{"embedded", "external"} {
-		t.Run(placement, func(t *testing.T) { testJiuwenCloudRecordAndStrictReplayUseNativePins(t, placement) })
+		for _, protocol := range []string{"", modelreplay.BranchProtocol} {
+			t.Run(placement+"/"+protocol, func(t *testing.T) { testJiuwenCloudRecordAndStrictReplayUseNativePins(t, placement, protocol) })
+		}
 	}
 }
 
-func testJiuwenCloudRecordAndStrictReplayUseNativePins(t *testing.T, placement string) {
+func testJiuwenCloudRecordAndStrictReplayUseNativePins(t *testing.T, placement, protocol string) {
 	t.Helper()
 	var upstreamCalls atomic.Int32
 	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
@@ -38,6 +40,7 @@ func testJiuwenCloudRecordAndStrictReplayUseNativePins(t *testing.T, placement s
 	cfg := config.CloudConfig{AgentType: "jiuwenswarm", Placement: placement,
 		Model:     config.CloudModelConfig{Mode: "record", ID: "test-model", BaseURL: upstream.URL, APIKeyEnv: "TEST_KEY", ProxyPublicURL: "https://proxy.example.test", MaxTurns: 2},
 		Execution: config.CloudExecutionConfig{TaskTimeout: time.Second}}
+	cfg.Model.SessionProtocol = protocol
 	var tape *modelreplay.Tape
 	for _, mode := range []string{"record", "replay"} {
 		cfg.Model.Mode = mode
@@ -55,6 +58,9 @@ func testJiuwenCloudRecordAndStrictReplayUseNativePins(t *testing.T, placement s
 				}})
 				r := httptest.NewRequest(http.MethodPost, "/v1/chat/completions", strings.NewReader(string(body))).WithContext(ctx)
 				r.Header.Set("Authorization", "Bearer "+string(attempt.AccessToken))
+				if protocol != "" {
+					r.Header.Set(modelreplay.BranchHeader, "main")
+				}
 				w := httptest.NewRecorder()
 				proxy.ServeHTTP(w, r)
 				if w.Code != http.StatusOK || !strings.Contains(w.Body.String(), "[DONE]") {
@@ -78,13 +84,16 @@ func testJiuwenCloudRecordAndStrictReplayUseNativePins(t *testing.T, placement s
 			if err != nil {
 				t.Fatal(err)
 			}
-			if tape.Identity.Placement != placement || tape.Identity.HarnessVersion != cfg.HarnessVersion() || tape.ToolCallIDDialect != "" || tape.HistoryDialect != modelreplay.JiuwenHistoryDialect {
+			if tape.Identity.Placement != placement || tape.Identity.HarnessVersion != cfg.HarnessVersion() || tape.ToolCallIDDialect != "" || tape.HistoryDialect != modelreplay.JiuwenHistoryDialect || tape.SessionProtocol() != protocol {
 				t.Fatal("Jiuwen Tape used OpenClaw identity or dialect")
 			}
 		}
 	}
 	if upstreamCalls.Load() != 1 {
 		t.Fatal("strict replay called the upstream model")
+	}
+	if protocol != "" {
+		return
 	}
 
 	for _, wrongVersion := range []string{"2026.7.1", "jiuwenswarm:" + strings.Repeat("0", 40) + ":" + config.JiuwenLockSHA256, "jiuwenswarm:" + config.JiuwenRevision + ":" + strings.Repeat("0", 64)} {
