@@ -251,6 +251,9 @@ func TestResourceProviderPreservesRepeatedAndEmptyReceipts(t *testing.T) {
 		t.Fatal("provider receipts deduplicated or empty RPC hidden")
 	}
 	task, empty := streams[0], streams[1].Samples[0]
+	if got := task.ProviderCounts; got == nil || *got != (ProviderResourceCounts{RPCCount: 2, ReturnedReadingCount: 3, DuplicateReadingCount: 2, UniqueReadingCount: 1}) {
+		t.Fatalf("legacy receipts were mistaken for independent points: %+v", got)
+	}
 	if empty.Status != "no_readings" || len(empty.Values) != 0 || empty.ObservedAtUTC != nil {
 		t.Fatal("empty verifier reading filled with zero")
 	}
@@ -270,6 +273,120 @@ func TestResourceProviderPreservesRepeatedAndEmptyReceipts(t *testing.T) {
 	raw, _ := json.Marshal(snapshot)
 	if strings.Contains(string(raw), "SECRET_") {
 		t.Fatal("arbitrary provider metadata copied")
+	}
+}
+
+func compactProviderRow(owner string, readings ...any) map[string]any {
+	return map[string]any{"schema_version": 2, "run_id": "run", "occurrence_id": "occ", "sandbox_handle": owner, "purpose": "task",
+		"requested_at_utc": summaryAnchor.Add(10 * time.Second), "client_rpc_duration_ns": 1000000,
+		"snapshot": map[string]any{"source": "e2b_sdk", "nominal_interval_seconds": 5, "metrics": readings}}
+}
+
+func compactReadingReference(line uint64, index int) any {
+	return ProviderReadingReference{SourceLine: line, ReadingIndex: index}
+}
+
+func TestResourceProviderSchema2UniqueSamplesAndExactCounts(t *testing.T) {
+	root, directory := resourceFixture(t)
+	a := map[string]any{"timestamp": "2026-10-22T00:00:10Z", "mem_used": 100}
+	changed := map[string]any{"timestamp": "2026-10-22T00:00:10Z", "mem_used": 200}
+	later := map[string]any{"timestamp": "2026-10-22T00:00:11Z", "mem_used": 100}
+	lateArrival := map[string]any{"timestamp": "2026-10-22T00:00:05Z", "mem_used": 300}
+	unkeyed := map[string]any{"mem_used": 100}
+	invalidTime := map[string]any{"timestamp": "invalid", "mem_used": 100}
+	rows := []map[string]any{
+		compactProviderRow("sandbox-a", a, a, unkeyed, invalidTime),
+		compactProviderRow("sandbox-a", nil, changed, later, lateArrival, unkeyed, invalidTime),
+		compactProviderRow("sandbox-b", a),
+		compactProviderRow("sandbox-a", nil, nil),
+		compactProviderRow("sandbox-a"),
+		compactProviderRow("sandbox-a"),
+	}
+	rows[1]["reading_references"] = []any{compactReadingReference(1, 0), nil, nil, nil, nil, nil}
+	rows[3]["reading_references"] = []any{compactReadingReference(1, 0), compactReadingReference(2, 1)}
+	rows[5]["error"] = "provider failed"
+	writeProviderFixture(t, root, rows)
+	snapshot, err := BuildSnapshot(directory)
+	if err != nil {
+		t.Fatal(err)
+	}
+	task, other := snapshot.Resources.Streams[0], snapshot.Resources.Streams[1]
+	want := ProviderResourceCounts{RPCCount: 5, ReturnedReadingCount: 12, DuplicateReadingCount: 4, UniqueReadingCount: 4, UnkeyedReadingCount: 4}
+	if task.ProviderCounts == nil || *task.ProviderCounts != want || len(task.Samples) != 10 {
+		t.Fatalf("compacted evidence miscounted: %+v, samples=%d", task.ProviderCounts, len(task.Samples))
+	}
+	if other.ProviderCounts.UniqueReadingCount != 1 || len(other.Samples) != 1 {
+		t.Fatal("same values from different sandboxes merged")
+	}
+	if task.Samples[0].SourceLine != 1 || task.Samples[0].ReadingIndex != 0 || task.Samples[3].SourceLine != 2 || task.Samples[3].ReadingIndex != 1 ||
+		task.Samples[8].Status != "no_readings" || task.Samples[9].Status != "failed" {
+		t.Fatal("first source, changed reading, empty/error receipt or response order lost")
+	}
+	if task.Samples[5].ProviderTimestamp == nil || string(task.Samples[5].ProviderTimestamp) != `"2026-10-22T00:00:05Z"` {
+		t.Fatal("late-arriving history was discarded or reordered")
+	}
+	raw, _ := json.Marshal(snapshot)
+	path := filepath.Join(root, "compact-snapshot.json")
+	if err := os.WriteFile(path, raw, 0600); err != nil {
+		t.Fatal(err)
+	}
+	loaded, err := LoadSnapshot(path)
+	if err != nil || !reflect.DeepEqual(loaded.Resources, snapshot.Resources) {
+		t.Fatalf("schema-2 resource snapshot roundtrip: %v", err)
+	}
+	loaded.Resources.Streams[0].ProviderCounts.DuplicateReadingCount++
+	loaded.SnapshotID = ""
+	changedCounts, _ := json.Marshal(loaded)
+	loaded.SnapshotID = stableAnalysisID("snapshot", string(changedCounts))
+	if ValidateSnapshot(loaded) == nil {
+		t.Fatal("inconsistent counts accepted even with a recomputed snapshot identity")
+	}
+}
+
+func TestResourceProviderSchema2RejectsInvalidReferences(t *testing.T) {
+	for _, name := range []string{"forward", "same_row", "wrong_index", "negative_index", "missing_index", "missing_reference", "other_owner", "other_source", "unkeyed_original", "failed_original", "reference_chain", "inline_with_reference", "wrong_length", "legacy_reference"} {
+		t.Run(name, func(t *testing.T) {
+			root, directory := resourceFixture(t)
+			value := map[string]any{"timestamp": "2026-10-22T00:00:10Z", "mem_used": 100}
+			rows := []map[string]any{compactProviderRow("sandbox-a", value), compactProviderRow("sandbox-a", nil)}
+			rows[1]["reading_references"] = []any{compactReadingReference(1, 0)}
+			switch name {
+			case "forward":
+				rows[1]["reading_references"] = []any{compactReadingReference(3, 0)}
+			case "same_row":
+				rows[1]["reading_references"] = []any{compactReadingReference(2, 0)}
+			case "wrong_index":
+				rows[1]["reading_references"] = []any{compactReadingReference(1, 1)}
+			case "negative_index":
+				rows[1]["reading_references"] = []any{compactReadingReference(1, -1)}
+			case "missing_index":
+				rows[1]["reading_references"] = []any{map[string]any{"source_line": 1}}
+			case "missing_reference":
+				delete(rows[1], "reading_references")
+			case "other_owner":
+				rows[1]["sandbox_handle"] = "sandbox-b"
+			case "other_source":
+				rows[1]["snapshot"].(map[string]any)["source"] = "agentsphere_gateway_envd_metrics"
+			case "unkeyed_original":
+				delete(value, "timestamp")
+			case "failed_original":
+				rows[0]["error"] = "failed"
+			case "reference_chain":
+				rows = append(rows, compactProviderRow("sandbox-a", nil))
+				rows[2]["reading_references"] = []any{compactReadingReference(2, 0)}
+			case "inline_with_reference":
+				rows[1]["snapshot"].(map[string]any)["metrics"] = []any{value}
+			case "wrong_length":
+				rows[1]["reading_references"] = []any{compactReadingReference(1, 0), nil}
+			case "legacy_reference":
+				rows[1]["schema_version"] = 1
+			}
+			writeProviderFixture(t, root, rows)
+			snapshot, err := BuildSnapshot(directory)
+			if err == nil || snapshot.Resources == nil || snapshot.Resources.Streams[0].IntegrityStatus != "incomplete" {
+				t.Fatal("invalid reference was accepted as observed resource evidence")
+			}
+		})
 	}
 }
 

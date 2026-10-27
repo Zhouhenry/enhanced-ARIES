@@ -129,6 +129,7 @@ def from_summary(key, code, provider, mode, source, expected, out, verified, mod
       'provider_memory_mib':pm['mem_used_mib']['maximum_returned'] if 'mem_used_mib' in pm else pm['mem_used']['maximum_returned']/1048576,
       'provider_cpu_pct':pm['cpu_used_pct']['maximum_returned'],'provider_receipts':cloud['receipt_count'],
       'provider_repeats':cloud['repeated_timestamp_and_value_receipts'],
+      'provider_counts':cloud.get('provider_counts'),
     }
     commands = [x for x in d['observation']['process']['intervals'] if x['name']=='jiuwen.process.command']
     command_ids = {x['tool_call_id']:x for x in commands}

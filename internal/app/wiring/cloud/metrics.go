@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"io"
 	"os"
 	"path/filepath"
 	"sync"
@@ -18,15 +19,20 @@ import (
 // Raw provider gauges do not implement monitor.ResourceSource's CPU counter contract.
 // A snapshot can repeat provider timestamps; it is not an independent sample.
 type metricSnapshot struct {
-	SchemaVersion    int         `json:"schema_version"`
-	RunID            string      `json:"run_id"`
-	OccurrenceID     string      `json:"occurrence_id"`
-	SandboxHandle    string      `json:"sandbox_handle"`
-	Purpose          string      `json:"purpose"`
-	RequestedAt      time.Time   `json:"requested_at_utc"`
-	ClientDurationNS int64       `json:"client_rpc_duration_ns"`
-	Snapshot         e2b.Metrics `json:"snapshot"`
-	Error            string      `json:"error,omitempty"`
+	SchemaVersion     int                                     `json:"schema_version"`
+	RunID             string                                  `json:"run_id"`
+	OccurrenceID      string                                  `json:"occurrence_id"`
+	SandboxHandle     string                                  `json:"sandbox_handle"`
+	Purpose           string                                  `json:"purpose"`
+	RequestedAt       time.Time                               `json:"requested_at_utc"`
+	ClientDurationNS  int64                                   `json:"client_rpc_duration_ns"`
+	Snapshot          e2b.Metrics                             `json:"snapshot"`
+	ReadingReferences []*performance.ProviderReadingReference `json:"reading_references,omitempty"`
+	Error             string                                  `json:"error,omitempty"`
+}
+
+type metricReadingKey struct {
+	owner, source, reading string
 }
 
 type metricFile interface {
@@ -59,6 +65,9 @@ type observedSandboxes struct {
 	path                            string
 	snapshots, readings             int
 	bytes                           int64
+	lines                           uint64
+	readingReferences               map[metricReadingKey]performance.ProviderReadingReference
+	referencesDisabled              bool
 	fileIO                          performance.FileIOCounters
 	err                             error
 	finished                        bool
@@ -183,12 +192,42 @@ func (o *observedSandboxes) writeSample(record *metricSnapshot, err error) {
 	if record == nil {
 		return
 	}
-	content, encodeErr := json.Marshal(record)
 	o.mu.Lock()
 	defer o.mu.Unlock()
 	if o.finished {
 		return
 	}
+	// References only target inline readings from complete, successful writes.
+	// Keep the caller's response intact, including order and same-RPC repeats.
+	stored := *record
+	stored.SchemaVersion = 1
+	if record.Snapshot.Source == "e2b_sdk" {
+		stored.SchemaVersion = 2
+	}
+	stored.ReadingReferences = nil
+	pending := map[metricReadingKey]performance.ProviderReadingReference{}
+	if !o.referencesDisabled && record.Error == "" && record.Snapshot.Source == "e2b_sdk" {
+		if record.Snapshot.Metrics != nil {
+			stored.Snapshot.Metrics = append([]json.RawMessage{}, record.Snapshot.Metrics...)
+		}
+		for index, reading := range record.Snapshot.Metrics {
+			key, ok := performance.E2BMetricReadingKey(reading)
+			if !ok {
+				continue
+			}
+			identity := metricReadingKey{record.SandboxHandle, record.Snapshot.Source, key}
+			if prior, exists := o.readingReferences[identity]; exists {
+				if stored.ReadingReferences == nil {
+					stored.ReadingReferences = make([]*performance.ProviderReadingReference, len(record.Snapshot.Metrics))
+				}
+				stored.ReadingReferences[index] = &prior
+				stored.Snapshot.Metrics[index] = json.RawMessage("null")
+			} else if _, exists := pending[identity]; !exists {
+				pending[identity] = performance.ProviderReadingReference{SourceLine: o.lines + 1, ReadingIndex: index}
+			}
+		}
+	}
+	content, encodeErr := json.Marshal(&stored)
 	if o.err == nil {
 		o.err = errors.Join(err, encodeErr)
 	}
@@ -220,11 +259,27 @@ func (o *observedSandboxes) writeSample(record *metricSnapshot, err error) {
 	}
 	n, writeErr := o.fileIO.Write(o.file, append(content, '\n'))
 	o.bytes += int64(n)
+	if writeErr == nil && n != len(content)+1 {
+		writeErr = io.ErrShortWrite
+	}
 	if writeErr != nil {
+		// A partial line makes subsequent physical line offsets uncertain. Keep
+		// writing original responses, but never issue a reference after this fault.
+		o.referencesDisabled = true
+		o.readingReferences = nil
 		if o.err == nil {
 			o.err = writeErr
 		}
 		return
+	}
+	o.lines++
+	if !o.referencesDisabled {
+		if o.readingReferences == nil {
+			o.readingReferences = map[metricReadingKey]performance.ProviderReadingReference{}
+		}
+		for key, reference := range pending {
+			o.readingReferences[key] = reference
+		}
 	}
 	if err == nil {
 		o.snapshots++

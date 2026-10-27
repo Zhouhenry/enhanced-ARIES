@@ -70,6 +70,7 @@ for key, label, name, expected in specs:
         'provider_cpu_pct': pm['cpu_used_pct']['maximum_returned'],
         'provider_receipts': provider['receipt_count'],
         'provider_repeats': provider['repeated_timestamp_and_value_receipts'],
+        'provider_counts': provider.get('provider_counts'),
         'scope': 'summary aggregates only, no synthetic time series',
     }
     runs.append({'id': key, 'label': label, 'run_id': d['run_id'], 'summary_sha': expected,
@@ -238,6 +239,7 @@ if args.recorded_summary:
         'provider_cpu_pct': rpm['cpu_used_pct']['maximum_returned'],
         'provider_receipts': rp['receipt_count'],
         'provider_repeats': rp['repeated_timestamp_and_value_receipts'],
+        'provider_counts': rp.get('provider_counts'),
     }
     recorded_native = {a['tool_call_id']: a for a in recorded['tool_actions']['actions']}
     recorded_commands = [i for i in recorded['observation']['process']['intervals'] if i['name'] == 'jiuwen.process.command']

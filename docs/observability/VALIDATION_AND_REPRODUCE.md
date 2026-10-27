@@ -1,5 +1,40 @@
 # 验证与复现归档
 
+<a id="e2b-provider-reading-references"></a>
+
+## E2B 累计资源历史重复：release32 工程与真实回归 PASS
+
+根因来自真实采集路径：`adapters/e2b/server.py:metrics_snapshot` 调用固定 E2B SDK 2.58.0 的 `get_metrics()` 时未传 `start`；该 SDK 默认从 Sandbox 创建时返回历史。`observedSandboxes.Start` 的查询仍为 5 秒 ticker。以下是两份历史任务 Sandbox 的真实计数，另各有 2 次评分 Sandbox 查询；不能把返回读数或展开记录数当成查询数或独立样本数。
+
+| 原始回放 | 任务查询次数 | 返回有值读数 | 相同时间戳及完整内容的重复项 | 不同读数 |
+| --- | ---: | ---: | ---: | ---: |
+| E2B A 去等待 | 39 | 703 | 666 | 37 |
+| E2B A 保留录制节奏 | 221 | 24,090 | 23,871 | 219 |
+
+ECS 上使用两份未修改原件进行真实 writer / parser 夹具验收：包含评分流的原 41 / 223 条 RPC 逐行保留；666 / 23,871 个引用展开后，响应内容、数组次序、请求字段、空数组和 null 均与原件一致。新原始文件分别由 151,449 / 4,633,771 字节降至 54,329 / 1,183,742 字节；这是本地归档大小，不是上游网络节省量。任务新分析样本分别为 37 / 219 个不同读数加 2 条真实空响应；legacy 分析的 705 / 24,092 条原样本字段和顺序不变。实际生成的 Prometheus payload 分别含 259 / 1,533 个指标点，所有时间戳与指标值保持一致，指标点数不等于采样时刻数。
+
+首次候选夹具发现 `[]` 被写成 `null`，已修复并重测上述两份原件；原失败保留在 ECS `release32-attempt-1/`，evidence SHA `43e16ad01a65e09590ad978bbc38326861e549ba39e8dda7fcf0cce11fb45d3f`。独立审阅另补齐 schema 2 的 null 读数占位必须携带有效引用，否则标记证据不完整；不得默认为成功的空指标。candidate2 的工程通过记录独立保留于 `release32-attempt-2/`，未用它替代最终源码验收。
+
+最终 914 文件 release32 已在 ECS 完成两 package 定向 / race、两份真实历史 writer / parser 夹具以及五项发布检查。build / test / test-race / lint / integration 分别 7.079 / 37.955 / 115.757 / 3.221 / 344.347 秒，全部 PASS；测试后容器盘点复原、源码和原始输入不变。manifest SHA `228cd89a2f86c5cf70943ce9aa7e797745c0a769d51fd6363f341f9d575325e6`；evidence SHA `7d77871a6712bcbb4eb2b44990a0ac17b906b8e05e27afb30310605c873650f3`；freeze SHA `926fc64cc7e83cfb8aa2e954898e6d017ee4d024c295a47cd101566d0b86ee55`。CLI `aries` SHA `db6f588df9d002f934265bd570f038d1460df3436c35404ad14092c8be2642a4`，分析器 SHA `7720bc99fb87f3da3fec9cd1f7a12b936d39bac2a06b242eb40566c5dd85c3d7`；本机 6 个 Go 文件与最终清单逐 SHA 相等。最终夹具输出的 zero / recorded metrics SHA 为 `d1cb29f343d95357e3710750f93f9aaa129a05efd01eef2d36c39a871f734da8` / `795557775ff9e3df0545e4ff7d162b7a4511393120ea5b750df5960485869348`。
+
+新 E2B A 同 Tape 回放于 2026-10-27 19:05:45 UTC 启动并完成：64 轮 / 78 Tool / 32 命令，PPT score=1、四离线投影、停止隔离和清理通过；两个 provider NotFound、ledger absent、unit PID=0、锁实际取得释放。任务资源 44 次查询 / 904 条返回 / 862 条重复 / 42 个不同读数；评分资源 3 / 4 / 2 / 2，均无 unkeyed、缺引用或时间戳冲突。47 条 schema 2 回执共 66,932 字节，raw SHA `67ef861651c7a78253a3e34631e3fb3edaf4737309ae50972d6612e9829ec545`；新分析不再重复展开。完整耗时、CPU / 内存、PPT 与回执见[性能归档](../jiuwen-pptx-workload-performance-20261027.md#e2b-a32-resource-regression)。summary SHA `f6669ea1e3162bbd374d9f49a8f989a633017ef06148bc82ea541e14fe29ac27`，资源对账 SHA `e7119c8a65e4019b71d76ca855edc27735ab4d34c398895ebc0bfbfd2193a550`。全局 coverage 仍 unknown，本次后端查询 UNRUN；历史 payload 无损对账不冒充这次后端实测。
+
+新 3 个 Dashboard 源文件单独验证，不纳入 Go 冻结包的覆盖声明。ECS 浏览器于 19:11:33.985–19:11:36.406 UTC 实测六组旧数据回退和绑定新真实摘要的内存字段夹具：五类计数正确，CPU / 内存与 Agent 采样不变，无 console/page errors，临时浏览器与服务均关闭。回执 `.cache/release32-dashboard-ui-1/evidence.json` SHA `58a207fe0a873e70adad7b97272acfab233b68258ee07a7c1f97fda339507747`，三截图保留并目视核验。该验证没有重新生成已交付 v3 / 分享 ZIP，也没有改变其六组原始数据。[测量契约](OBSERVABILITY_SCHEMA_AND_MEASUREMENT.md#e2b-provider-reading-references)。
+
+<a id="jiuwen-workload-b5-backends"></a>
+
+## E2B B5：同冻结 Snapshot 的实际后端验收 PASS
+
+仅处理已完成真实运行的原 Snapshot SHA `7823c4220f01694d8d94d38533c4a8eaf510216627b06c8fb35138916806c5be`，使用 release31 `aries-perf`，没有新建 Sandbox 或调用模型。
+
+- Perfetto：Controller 2,905 区间 / 260 flows，Native 332 spans / 80 Tool，39 个命令、121 区间、275 markers；时间对账误差 0 ns。
+- Jaeger：3,358 spans、40,307 项查询检查通过；v3 起止与时长误差 0 ns。
+- Prometheus：Attempt、Controller、任务 E2B、guest cgroup、guest 块设备 5 个流的首次及重复导入实际查询通过，数值误差 0；时间按毫秒截断，误差不超过 0.997 ms。任务 provider 的 1,379 条源读数包含重复；实际导出的 357 个 gauge 点分属 7 条指标序列，不能当作 357 个独立采样时刻。任务另有 2 条时间未验证，评分 Sandbox 无可验证时间的读数仍 NOT_COLLECTED。
+
+首轮临时 Jaeger 接收端拒绝 29,487,006 字节 OTLP 请求（HTTP 400，body too large），失败原件保留。只在新的后验目录将临时 receiver 请求体上限设为 64 MiB，再进行一次明确的新验收；不是发送器自动重试，未改产品、Snapshot 或 Tape。后端临时容器、端口、进程清理确认，锁实际取得并释放，原 Snapshot SHA 不变。
+
+47 个小回执已复制校验到 `.cache/jiuwen-pptx-e2b-b5-workload-backends-2/`。evidence SHA `801ec68668f30833263029721576dd32b2e41c8c02ddf431f1dec8af29dd382d`；metrics SHA `3f4fba3d83cc8d8ea8fb4f64e00ebc2e03525cd31fc66661e630d3dd7615c0e5`；postflight SHA `b90819ad9888959c5a24883a23e644445045ec3f99b61f66d7911196646d9b20`；copy SHA `2578c0a9e73e64b951464d0eec12a51cdfcfd7f3249cdd5979274dd5d97e5954`。原 B5 摘要中的 UNRUN 保持原时点记录，本节为新增独立证据；全局 coverage unknown，不能外推实时、持久化或容量验收。
+
 <a id="jiuwen-pptx-dashboard-v3"></a>
 
 ## Jiuwen PPT 六组 Dashboard v3：交付验收 PASS

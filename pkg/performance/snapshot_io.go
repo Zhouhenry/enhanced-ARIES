@@ -108,5 +108,15 @@ func ValidateSnapshot(snapshot AnalysisSnapshot) error {
 	if err != nil || snapshot.SchemaVersion != AnalysisSchemaVersion || snapshot.SnapshotID != stableAnalysisID("snapshot", string(data)) {
 		return errors.New("invalid analysis snapshot")
 	}
+	if snapshot.Resources != nil {
+		for _, stream := range snapshot.Resources.Streams {
+			c := stream.ProviderCounts
+			if c != nil && (c.UniqueReadingCount > c.ReturnedReadingCount ||
+				c.DuplicateReadingCount > c.ReturnedReadingCount-c.UniqueReadingCount ||
+				c.UnkeyedReadingCount != c.ReturnedReadingCount-c.UniqueReadingCount-c.DuplicateReadingCount) {
+				return errors.New("invalid provider resource reading counts")
+			}
+		}
+	}
 	return nil
 }

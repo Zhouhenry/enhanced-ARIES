@@ -18,7 +18,7 @@ import (
 )
 
 const AnalysisSchemaVersion = 1
-const AnalysisParserVersion = "aries-analysis-v1.17.0-jiuwen-workload-context"
+const AnalysisParserVersion = "aries-analysis-v1.18.0-provider-reading-references"
 
 // AnalysisSnapshot is a detached, deterministic projection of immutable evidence.
 // Exporters consume this value only; they must not reread or rematch source logs.

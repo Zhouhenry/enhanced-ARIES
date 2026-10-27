@@ -13,7 +13,8 @@ import (
 )
 
 // Resources are independent owner streams, not events placed on the Runner's
-// monotonic clock. Empty and repeated provider receipts remain in the snapshot.
+// monotonic clock. Empty receipts remain visible; schema-2 provider evidence
+// retains repeated responses as references rather than independent samples.
 type AnalysisResources struct {
 	SchemaVersion int                      `json:"schema_version"`
 	Streams       []AnalysisResourceStream `json:"streams"`
@@ -34,8 +35,58 @@ type AnalysisResourceStream struct {
 	IntegrityStatus        string                   `json:"integrity_status"`
 	EvidenceRefs           []string                 `json:"evidence_refs"`
 	Samples                []AnalysisResourceSample `json:"samples"`
+	ProviderCounts         *ProviderResourceCounts  `json:"provider_counts,omitempty"`
 	Delta                  []AnalysisResourceValue  `json:"delta,omitempty"`
 	Diagnostics            []string                 `json:"diagnostics"`
+}
+
+// ProviderReadingReference addresses an inline reading in an earlier JSONL row.
+// It never points to a guessed sample identity or another reference.
+type ProviderReadingReference struct {
+	SourceLine   uint64 `json:"source_line"`
+	ReadingIndex int    `json:"reading_index"`
+}
+
+func (r *ProviderReadingReference) UnmarshalJSON(raw []byte) error {
+	type reference ProviderReadingReference
+	var decoded reference
+	if err := decodeDocument(raw, &decoded, "source_line", "reading_index"); err != nil {
+		return err
+	}
+	*r = ProviderReadingReference(decoded)
+	return nil
+}
+
+type ProviderResourceCounts struct {
+	RPCCount              uint64 `json:"rpc_count"`
+	ReturnedReadingCount  uint64 `json:"returned_reading_count"`
+	DuplicateReadingCount uint64 `json:"duplicate_reading_count"`
+	UniqueReadingCount    uint64 `json:"unique_reading_count"`
+	UnkeyedReadingCount   uint64 `json:"unkeyed_reading_count"`
+}
+
+// E2BMetricReadingKey preserves the original timestamp string and every JSON
+// value, including numeric spelling. Only object ordering/whitespace are ignored.
+// Missing/invalid timestamps cannot establish an independent provider sample.
+func E2BMetricReadingKey(raw json.RawMessage) (string, bool) {
+	if !json.Valid(raw) {
+		return "", false
+	}
+	var fields map[string]any
+	decoder := json.NewDecoder(bytes.NewReader(raw))
+	decoder.UseNumber()
+	if decoder.Decode(&fields) != nil || fields == nil {
+		return "", false
+	}
+	stamp, ok := fields["timestamp"].(string)
+	if !ok {
+		return "", false
+	}
+	if _, err := time.Parse(time.RFC3339Nano, stamp); err != nil {
+		return "", false
+	}
+	canonical, err := json.Marshal(fields)
+	return string(canonical), err == nil
 }
 
 type AnalysisResourceSample struct {
@@ -413,14 +464,15 @@ func (s *AnalysisSnapshot) monitorResourceSnapshot(root string, a AnalysisAttemp
 }
 
 type providerResourceEvidence struct {
-	Schema       int       `json:"schema_version"`
-	RunID        string    `json:"run_id"`
-	OccurrenceID string    `json:"occurrence_id"`
-	Owner        string    `json:"sandbox_handle"`
-	Purpose      string    `json:"purpose"`
-	Requested    time.Time `json:"requested_at_utc"`
-	Duration     *int64    `json:"client_rpc_duration_ns"`
-	Snapshot     struct {
+	Schema            int                         `json:"schema_version"`
+	RunID             string                      `json:"run_id"`
+	OccurrenceID      string                      `json:"occurrence_id"`
+	Owner             string                      `json:"sandbox_handle"`
+	Purpose           string                      `json:"purpose"`
+	Requested         time.Time                   `json:"requested_at_utc"`
+	Duration          *int64                      `json:"client_rpc_duration_ns"`
+	ReadingReferences []*ProviderReadingReference `json:"reading_references"`
+	Snapshot          struct {
 		Source                 string            `json:"source"`
 		NominalIntervalSeconds *int              `json:"nominal_interval_seconds"`
 		Metrics                []json.RawMessage `json:"metrics"`
@@ -538,12 +590,20 @@ func (s *AnalysisSnapshot) providerResourceSnapshot(root string, a AnalysisAttem
 	reportOK := reportPresent && decodeDocument(reportData, &report) == nil && (report.SDK.Status == "succeeded" || report.SDK.Status == "not_run")
 	streams := []AnalysisResourceStream{}
 	owners := map[string]int{}
+	type originalReading struct {
+		owner, source, key string
+	}
+	originals := map[ProviderReadingReference]originalReading{}
+	seen := map[string]map[string]bool{}
 	successful := 0
 	var line uint64
 	valid := traceLines(data, func(raw []byte) bool {
 		line++
 		var row providerResourceEvidence
-		if decodeDocument(raw, &row) != nil || row.Schema != 1 || row.RunID != s.RunID || row.OccurrenceID != a.OccurrenceID || !validAnalysisIdentity(row.Owner) || (row.Purpose != "task" && row.Purpose != "evaluation") || row.Duration == nil || *row.Duration < 0 || row.Requested.IsZero() {
+		if decodeDocument(raw, &row) != nil || (row.Schema != 1 && row.Schema != 2) || row.RunID != s.RunID || row.OccurrenceID != a.OccurrenceID || !validAnalysisIdentity(row.Owner) || (row.Purpose != "task" && row.Purpose != "evaluation") || row.Duration == nil || *row.Duration < 0 || row.Requested.IsZero() {
+			return false
+		}
+		if len(row.ReadingReferences) > 0 && (row.Schema != 2 || row.Error != "" || row.Snapshot.Source != "e2b_sdk" || len(row.ReadingReferences) != len(row.Snapshot.Metrics)) {
 			return false
 		}
 		if row.Snapshot.Source != "e2b_sdk" && row.Snapshot.Source != "agentsphere_gateway_envd_metrics" && row.Error == "" {
@@ -560,6 +620,8 @@ func (s *AnalysisSnapshot) providerResourceSnapshot(root string, a AnalysisAttem
 			}
 			stream := resourceStream(s.RunID, row.Snapshot.Source, row.Owner, a.AttemptID, "sandbox_provider", basis)
 			stream.Purpose = row.Purpose
+			stream.ProviderCounts = &ProviderResourceCounts{}
+			seen[key] = map[string]bool{}
 			stream.NominalIntervalSeconds = row.Snapshot.NominalIntervalSeconds
 			stream.EvidenceRefs = []string{ref}
 			if reportPresent {
@@ -577,14 +639,61 @@ func (s *AnalysisSnapshot) providerResourceSnapshot(root string, a AnalysisAttem
 				streams[i].TimeBasis = "provider_timestamp_unit_unverified"
 			}
 		}
-		readings := row.Snapshot.Metrics
-		if row.Error != "" || len(readings) == 0 {
-			readings = []json.RawMessage{nil}
+		counts := streams[i].ProviderCounts
+		counts.RPCCount++
+		if row.Error != "" || len(row.Snapshot.Metrics) == 0 {
+			sample, err := providerResourceSample(ref, line, 0, row, nil)
+			if err != nil {
+				return false
+			}
+			streams[i].Samples = append(streams[i].Samples, sample)
 		}
-		for index, reading := range readings {
+		if row.Error == "" {
+			counts.ReturnedReadingCount += uint64(len(row.Snapshot.Metrics))
+		}
+		for index, reading := range row.Snapshot.Metrics {
+			if row.Error != "" {
+				break
+			}
+			if len(row.ReadingReferences) > 0 && row.ReadingReferences[index] != nil {
+				reference := *row.ReadingReferences[index]
+				original, exists := originals[reference]
+				if !exists || reference.SourceLine == 0 || reference.SourceLine >= line || reference.ReadingIndex < 0 ||
+					original.owner != row.Owner || original.source != row.Snapshot.Source || original.key == "" ||
+					!bytes.Equal(bytes.TrimSpace(reading), []byte("null")) {
+					return false
+				}
+				counts.DuplicateReadingCount++
+				continue
+			}
+			if row.Schema == 2 && row.Snapshot.Source == "e2b_sdk" && bytes.Equal(bytes.TrimSpace(reading), []byte("null")) {
+				return false
+			}
 			sample, err := providerResourceSample(ref, line, index, row, reading)
 			if err != nil {
 				return false
+			}
+			readingKey, keyed := "", false
+			if row.Snapshot.Source == "e2b_sdk" {
+				readingKey, keyed = E2BMetricReadingKey(reading)
+			}
+			duplicate := keyed && seen[row.Owner][readingKey]
+			if !keyed {
+				counts.UnkeyedReadingCount++
+			} else {
+				originals[ProviderReadingReference{SourceLine: line, ReadingIndex: index}] = originalReading{row.Owner, row.Snapshot.Source, readingKey}
+				if duplicate {
+					counts.DuplicateReadingCount++
+				} else {
+					counts.UniqueReadingCount++
+					seen[row.Owner][readingKey] = true
+				}
+			}
+			// Legacy snapshots retain their original receipt-level sample shape.
+			// New evidence emits one sample per confirmed key, including inline
+			// same-RPC duplicates that the writer deliberately did not reference.
+			if row.Schema == 2 && duplicate {
+				continue
 			}
 			streams[i].Samples = append(streams[i].Samples, sample)
 		}

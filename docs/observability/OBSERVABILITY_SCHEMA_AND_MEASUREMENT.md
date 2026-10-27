@@ -1,5 +1,27 @@
 # 观测 Schema 与测量口径
 
+<a id="e2b-provider-reading-references"></a>
+
+## E2B provider 重复读数引用：release32，限定验收通过
+
+分析器为 `aries-analysis-v1.18.0-provider-reading-references`。实际 API 仍按原 5 秒节奏查询，SDK 时间范围和云端读数不改。修复针对 SDK 返回累计历史导致的重复正文和重复展开；它不减少上游 API 的历史响应字节，也不宣称增加采样精度。
+
+新 E2B `sandbox-metrics.jsonl` 使用 schema 2。每行仍是一份真实 RPC 回执，保留请求时间、耗时、原响应读数顺序及空数组 / null 区别。首次读数完整保存；跨 RPC 出现相同有效原 timestamp 与完整指标内容时，该位置保存 null，并由同下标 `reading_references` 的 `{source_line,reading_index}` 指向此前成功写入的同 Sandbox / 同来源的原始内联项。原文件可逐项展开恢复响应；引用不指向其他引用、未来行或失败写入。schema 2 的 E2B 数组内 null 项只允许作为有效引用占位，缺失引用则标记证据不完整；整个数组为空或 null 仍是原样保留的空响应。
+
+判重只忽略 JSON 对象键顺序和格式空白，不改变原 timestamp 字符串或数值。不同时间同值、同时间不同值、晚到的历史点均保留；无有效时间戳不能据相同数值合并。华为仍写 schema 1；旧 schema 1 读取和既有冻结 Snapshot 保持原样。新 schema 2 分析仅输出首次有效读数，全重复 RPC 不伪造成空采样；真正的空响应和错误继续可见。
+
+每个 provider stream 的 `provider_counts` 分开表达：
+
+| 字段 | 含义 |
+| --- | --- |
+| `rpc_count` | 原始 RPC 回执数，包含失败；与仅计成功的 observer `sample_count` 不同 |
+| `returned_reading_count` | 成功 RPC 返回数组中的读数总数，包含重复 |
+| `unique_reading_count` | 按有效原 timestamp 与完整内容确认的不同读数，不代表统计学独立样本 |
+| `duplicate_reading_count` | 与此前已知读数完全相同的重复项，包含同 RPC 内重复 |
+| `unkeyed_reading_count` | 无有效时间戳等无法可靠判重的读数，原样保留 |
+
+计数满足 `returned = unique + duplicate + unkeyed`；冻结快照重载继续校验该关系。不同时间戳的同值仍分别计量，同时间戳不同值仍交给现有出口冲突校验，不能合并成假装可信的时间序列。首次真实历史夹具检测出的 `[]→null` 失败保留。最终源码五门禁、两组真实历史无损对账、新 E2B A 同 Tape 回放及页面计数验证均已通过；新任务 44 次查询 / 904 条返回 / 862 条重复 / 42 个不同读数，评分流独立计数。[验收原件](VALIDATION_AND_REPRODUCE.md#e2b-provider-reading-references)不外推采样精度、全链覆盖或生产容量。
+
 **Jiuwen Workload 提示差异（release29）：** 分析器 `aries-analysis-v1.17.0-jiuwen-workload-context` 在成功的 replay/workload `request_matched` 上接收 `prompt_context_differences`。每条 schema_version=1，含 `/messages/<index>/content`、encoding=utf-8、类别 `jiuwen_system_context` 或 `jiuwen_user_timestamp`，以及完整原始内容双方的字节数/SHA-256；不保存正文。它与 `tool_content_differences` 分开，不把提示变化伪装成工具输出变化。冻结/重载校验类型、路径、类别和摘要，两个 Trace 出口直接使用同一 Snapshot。cached retry 沿用原实际请求及其差异回执，不新增模型决策；失败匹配不输出 accepted 差异。此扩展不创造时间区间、身份或资源指标。[契约与资格](../implementation/model-replay.md#jiuwen-原生-ppt-的非-strict-接入)、[验证状态](VALIDATION_AND_REPRODUCE.md#jiuwen-workload-release29)。
 
 **release30 增量：工程与冻结 PASS，双云 B 功能通过，E2B B2 / B3 native 下载失败。** E2B B 首轮真实偏离被定位到原生 Environment 的 Linux 内核版本行；失败不产生 accepted 提示差异回执。修复只在显式 Jiuwen Workload 中接纳该限定元数据差异，复用现有 `jiuwen_system_context` 全字符串字节数/SHA 结构，不增加时间区间或更改 Snapshot Schema。原生平台、Shell、真实 OS 和 Strict 不变；五项 ECS 工程检查与两 B2 实际回放已通过相应功能范围；各 61 个成功匹配请求有真实提示差异回执。E2B B2 丢失原生导出导致整体 integrity/coverage=incomplete、四投影 exit=1；它保留的 39 条 process marker 及 275 事件不是完整 native 关联，也不能借华为的 80 Tool / 332 SDK 补齐。同 release30 / 同 Tape 的 E2B B3 再次通过 61 轮和独立评分，但 18,489,969 字节原生文件下载失败；其 39 条 process 不能升级 native 完整性。两次独立评分成功与观测失败同时保留，不把缺失填零，也不由重跑推定根因已修复。[失败证据与退出条件](VALIDATION_AND_REPRODUCE.md#jiuwen-workload-release30)。

@@ -1,6 +1,7 @@
 package cloud
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
@@ -8,6 +9,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"reflect"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -18,6 +20,154 @@ import (
 	"github.com/hyscale-lab/aries/pkg/performance"
 	"github.com/hyscale-lab/aries/pkg/sandbox/e2b"
 )
+
+func metricEvidenceRecord(owner, source string, readings ...json.RawMessage) *metricSnapshot {
+	return &metricSnapshot{SchemaVersion: 2, RunID: "run", OccurrenceID: "occ", SandboxHandle: owner, Purpose: "task",
+		RequestedAt: time.Date(2026, 10, 27, 0, 0, 0, 0, time.UTC), ClientDurationNS: 123,
+		Snapshot: e2b.Metrics{Source: source, Metrics: readings}}
+}
+
+func TestSDKMetricsSchema2PreservesEmptyAndNilResponseArrays(t *testing.T) {
+	observer := newObservedSandboxes(nil, "run", "occ", t.TempDir(), performance.ObservationL1)
+	for _, readings := range [][]json.RawMessage{{}, nil} {
+		observer.writeSample(metricEvidenceRecord("sandbox-a", "e2b_sdk", readings...), nil)
+	}
+	report, err := observer.finish()
+	if err != nil || report.SampleCount != 2 || report.Status != core.StatusNotRun {
+		t.Fatalf("empty RPC receipts changed: %+v %v", report, err)
+	}
+	raw, err := os.ReadFile(report.LogPaths[0])
+	if err != nil {
+		t.Fatal(err)
+	}
+	lines := bytes.Split(bytes.TrimSpace(raw), []byte{'\n'})
+	if len(lines) != 2 {
+		t.Fatal("empty RPC receipt omitted")
+	}
+	for i, want := range []string{"[]", "null"} {
+		var row struct {
+			Snapshot struct {
+				Metrics json.RawMessage `json:"metrics"`
+			} `json:"snapshot"`
+		}
+		if err := json.Unmarshal(lines[i], &row); err != nil {
+			t.Fatal(err)
+		}
+		if string(row.Snapshot.Metrics) != want {
+			t.Fatalf("response array shape changed: got %s want %s", row.Snapshot.Metrics, want)
+		}
+	}
+}
+
+func TestSDKMetricsSchema2ReferencesPreserveResponseOrderAndOwners(t *testing.T) {
+	a := json.RawMessage(`{"timestamp":"2026-10-27T00:00:10Z","cpu_used_pct":1,"mem_used":100}`)
+	reordered := json.RawMessage(`{"mem_used":100,"cpu_used_pct":1,"timestamp":"2026-10-27T00:00:10Z"}`)
+	changed := json.RawMessage(`{"timestamp":"2026-10-27T00:00:10Z","cpu_used_pct":2,"mem_used":100}`)
+	later := json.RawMessage(`{"timestamp":"2026-10-27T00:00:11Z","cpu_used_pct":1,"mem_used":100}`)
+	lateArrival := json.RawMessage(`{"timestamp":"2026-10-27T00:00:05Z","cpu_used_pct":3,"mem_used":100}`)
+	unkeyed := json.RawMessage(`{"cpu_used_pct":1}`)
+	invalidTime := json.RawMessage(`{"timestamp":"not-a-time","cpu_used_pct":1}`)
+	rows := []*metricSnapshot{
+		metricEvidenceRecord("sandbox-a", "e2b_sdk", a, a, unkeyed, invalidTime),
+		metricEvidenceRecord("sandbox-a", "e2b_sdk", reordered, changed, later, lateArrival, unkeyed, invalidTime),
+		metricEvidenceRecord("sandbox-b", "e2b_sdk", a),
+		metricEvidenceRecord("sandbox-c", "agentsphere_gateway_envd_metrics", a),
+		metricEvidenceRecord("sandbox-c", "agentsphere_gateway_envd_metrics", a),
+		metricEvidenceRecord("sandbox-a", "e2b_sdk", a, changed, later, lateArrival, unkeyed, invalidTime),
+	}
+	before, _ := json.Marshal(rows)
+	observer := newObservedSandboxes(nil, "run", "occ", t.TempDir(), performance.ObservationL1)
+	for _, row := range rows {
+		observer.writeSample(row, nil)
+	}
+	report, err := observer.finish()
+	if err != nil || report.SampleCount != len(rows) || report.Status != core.StatusSucceeded {
+		t.Fatalf("RPC count/outcome changed: %+v %v", report, err)
+	}
+	after, _ := json.Marshal(rows)
+	if !bytes.Equal(before, after) {
+		t.Fatal("raw input response was rewritten")
+	}
+	raw, err := os.ReadFile(report.LogPaths[0])
+	if err != nil {
+		t.Fatal(err)
+	}
+	lines := bytes.Split(bytes.TrimSpace(raw), []byte{'\n'})
+	if len(lines) != len(rows) {
+		t.Fatal("RPC receipts were removed")
+	}
+	var stored []metricSnapshot
+	for i, line := range lines {
+		var row metricSnapshot
+		if err := json.Unmarshal(line, &row); err != nil {
+			t.Fatal(err)
+		}
+		wantSchema := 1
+		if rows[i].Snapshot.Source == "e2b_sdk" {
+			wantSchema = 2
+		}
+		if row.SchemaVersion != wantSchema || row.RequestedAt != rows[i].RequestedAt || row.ClientDurationNS != 123 || len(row.Snapshot.Metrics) != len(rows[i].Snapshot.Metrics) {
+			t.Fatal("response timing or ordered denominator lost")
+		}
+		stored = append(stored, row)
+	}
+	if stored[0].ReadingReferences != nil || stored[2].ReadingReferences != nil || stored[3].ReadingReferences != nil || stored[4].ReadingReferences != nil {
+		t.Fatal("same-RPC, different-owner or non-E2B rows were incorrectly referenced")
+	}
+	ref := stored[1].ReadingReferences[0]
+	if ref == nil || ref.SourceLine != 1 || ref.ReadingIndex != 0 || string(stored[1].Snapshot.Metrics[0]) != "null" {
+		t.Fatal("repeat did not reference the first committed inline reading")
+	}
+	for i := 1; i < len(stored[1].Snapshot.Metrics); i++ {
+		if stored[1].ReadingReferences[i] != nil || !bytes.Equal(stored[1].Snapshot.Metrics[i], rows[1].Snapshot.Metrics[i]) {
+			t.Fatal("changed, late-arriving or unkeyed reading was discarded")
+		}
+	}
+	want := []*performance.ProviderReadingReference{{SourceLine: 1, ReadingIndex: 0}, {SourceLine: 2, ReadingIndex: 1}, {SourceLine: 2, ReadingIndex: 2}, {SourceLine: 2, ReadingIndex: 3}, nil, nil}
+	if !reflect.DeepEqual(stored[5].ReadingReferences, want) {
+		t.Fatalf("final reading points to a reference or wrong ordered source: %+v", stored[5].ReadingReferences)
+	}
+}
+
+type metricPartialWriteFile struct {
+	*os.File
+	calls [][]byte
+}
+
+func (f *metricPartialWriteFile) Write(data []byte) (int, error) {
+	f.calls = append(f.calls, append([]byte(nil), data...))
+	if len(f.calls) == 2 {
+		n, _ := f.File.Write(data[:len(data)/2])
+		return n, errors.New("partial metric write")
+	}
+	return f.File.Write(data)
+}
+
+func TestSDKMetricsSchema2WriteFailureNeverPublishesReferences(t *testing.T) {
+	observer := newObservedSandboxes(nil, "run", "occ", t.TempDir(), performance.ObservationL1)
+	file, err := os.CreateTemp(observer.outputRoot, "metrics-")
+	if err != nil {
+		t.Fatal(err)
+	}
+	fault := &metricPartialWriteFile{File: file}
+	observer.file, observer.path = fault, file.Name()
+	a := json.RawMessage(`{"timestamp":"2026-10-27T00:00:10Z","mem_used":100}`)
+	b := json.RawMessage(`{"timestamp":"2026-10-27T00:00:11Z","mem_used":200}`)
+	observer.writeSample(metricEvidenceRecord("sandbox-a", "e2b_sdk", a), nil)
+	observer.writeSample(metricEvidenceRecord("sandbox-a", "e2b_sdk", b), nil)
+	observer.writeSample(metricEvidenceRecord("sandbox-a", "e2b_sdk", a, b), nil)
+	var final metricSnapshot
+	if err := json.Unmarshal(fault.calls[2], &final); err != nil {
+		t.Fatal(err)
+	}
+	if final.ReadingReferences != nil || !bytes.Equal(final.Snapshot.Metrics[0], a) || !bytes.Equal(final.Snapshot.Metrics[1], b) || !observer.referencesDisabled {
+		t.Fatal("write failure leaked a reference with an uncertain physical line")
+	}
+	report, err := observer.finish()
+	if err == nil || report.Status != core.StatusFailed || report.SampleCount != 2 {
+		t.Fatal("partial write failure or successful RPC write denominator lost")
+	}
+}
 
 type metricGateFile struct {
 	*os.File

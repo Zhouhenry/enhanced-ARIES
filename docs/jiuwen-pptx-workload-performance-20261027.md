@@ -1,6 +1,6 @@
 # Jiuwen PPT 工作量回放：本轮性能归档（2026-10-27）
 
-本页主表选用 **A29 双云、B30 双云** 的同 placement / 同 Tape zero 样本。四种组合均已完成 Workload 回放和独立 PPT 评分；另完成两云 A 各一次保留模型响应节奏的回放。**新增 E2B B5 已用 release31 完成下载与采集预算修复的真实回归**：大 Trace、Producer 审计、80 个 Tool 的精确关联及四项离线投影通过，PPT 评分和清理通过。B5 单列，不混入 B30 主表；B2/B3 下载失败、B4 审计超时的三次观测失败保留。本轮共 9 次 zero、2 次 recorded，即 11 次回放尝试、10 次功能成功、1 次首轮失败。所有回放均为 Workload，不是 Strict Replay；后端查询和全链覆盖状态分别记录。
+本页主表选用 **A29 双云、B30 双云** 的同 placement / 同 Tape zero 样本。四种组合均已完成 Workload 回放和独立 PPT 评分；另完成两云 A 各一次保留模型响应节奏的回放。**E2B B5 已用 release31 完成下载与采集预算修复的真实回归；新增 E2B A3 已用 release32 完成重复资源读数修复的真实回归。** 两次均有独立 PPT 评分、四项离线投影及清理证据，作为修复样本单列，不混入旧主表；B2/B3 下载失败、B4 审计超时的三次观测失败保留。本轮共 10 次 zero、2 次 recorded，即 12 次回放尝试、11 次功能成功、1 次首轮失败。所有回放均为 Workload，不是 Strict Replay；后端查询和全链覆盖状态分别记录。
 
 汇报视图已交付：[最小分享 ZIP（7.12 MB）](dashboard/jiuwen-pptx-dashboard-share.zip)，解压后双击 `index.html`，无需安装开发环境；[本机 Dashboard](dashboard/jiuwen-pptx-huawei-a/index.html)和[完整归档 ZIP](dashboard/jiuwen-pptx-huawei-a/jiuwen-pptx-huawei-a-dashboard-v3.zip)也保留。首屏依次展示全局八阶段对比和 Sandbox 工具耗时；随后用可点击高亮的时间范围图解释包含关系，再按组查看模型、工具动作、CPU / 内存和 PPT。完整 Trace 专区固定展示第 03 组华为去等待回放。六组均已完成，样本与口径如下。
 
@@ -276,7 +276,44 @@ Controller 是执行器/MockLLM 所在的共享进程；其边界采样包含本
 
 这些云端数字只表示平台返回值。华为的采样时间语义未核实，内存值也没有证明与 E2B 的 cache/used 定义相同，不能把 7,737 MiB 对 535 MiB 解读为 PPT 工作负载内存相差十几倍。本轮 CPU/内存分析优先用上表同范围的 ECS 或 guest/cgroup 数据；云端口径缺口不否定已经量出的任务时延。
 
-E2B A 返回了 703 条带值记录，但有 666 条相同时间戳和值的重复回执，不能声称取得了 703 个独立采样点。E2B B2 的 1,176 条带值回执中也有 1,128 条相同时间戳和值的重复。两次 E2B 评分 Sandbox 的查询都没有返回资源读数，应记“未采集”，不是零用量。华为评分 Sandbox 虽有返回值，仍有时间语义未核实的限制。
+E2B A zero 的 **39 次任务资源查询**返回了 **703 条带值读数，其中只有 37 个不同时间戳与完整指标内容的点，666 条重复**。另有评分 Sandbox 的 2 次查询，所以原 observer 的 `sample_count=41` 是查询成功次数，不是独立采样点数。对应 recorded 运行有 221 次任务查询、24,090 条带值读数、219 个不同点、23,871 条重复；另加 2 次评分查询，observer 为 223。两组最初各有 2 次空响应，空响应没有新增资源点。
+
+根因已定位：采集器仍使用本机 **5 秒 ticker**；E2B SDK 2.58.0 的 `get_metrics()` 未传 `start` 时，默认每次从 Sandbox 创建时返回全部历史。zero 的 `703 = 1 + 2 + … + 37`，recorded 的 `24,090 = 1 + 2 + … + 219`，是累积历史重复展开，不是高频忙循环。当前 OTel Metrics 出口已合并同时间同值，重复膨胀发生在原始归档和分析样本；原始 API 查询耗时与次数仍真实保留。
+
+**该重复归档与统计问题已在 release32 修复并通过真实回归。** 新归档中的重复指标正文使用可核验引用，分别计查询次数、返回读数、不同读数、重复读数及无有效时间戳读数；不同读数不等于统计学独立样本。保持 5 秒查询、原时间戳、真实指标和旧原件不变，不同时间同值、同时间不同值均保留。历史 703/666 不改写；[修复契约](observability/OBSERVABILITY_SCHEMA_AND_MEASUREMENT.md#e2b-provider-reading-references)与[完整验收](observability/VALIDATION_AND_REPRODUCE.md#e2b-provider-reading-references)保留工程、真实回放及页面证据。
+
+<a id="e2b-a32-resource-regression"></a>
+
+### 新 E2B A3：资源计数修复回归，独立于原六组比较
+
+同华为 A3 Tape、image8、4u8g、去等待 Workload 回放，使用 release32：64/64 模型轮完成、78 Tool 精确关联、32 个命令 / 225 条进程事件 / drop=0；450 个 SDK Span 的 started / ended / exported 对账一致。四项离线投影、独立 PPT score=1、停止与撤权及两个 Sandbox 删除确认均通过。final.pptx 为 5 页且非空；3 页 content.pptx 仍是未通过页数要求的中间稿，两份均已复制本机。实际后端查询本次 UNRUN，全链 coverage unknown，不把本次改版回归与 release29 旧样本拼成性能排名。
+
+| 资源流 | 实际查询次数 | 返回读数 | 重复项 | 不同读数 | 无法判重 |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| 任务 Sandbox | 44 | 904 | 862 | 42 | 0 |
+| 独立评分 Sandbox | 3 | 4 | 2 | 2 | 0 |
+
+47 条查询回执完整保留，864 个重复项使用引用；原始资源文件为 66,932 字节。新分析仅展开 42 / 2 个不同读数，任务最初 2 条真实空响应另计；不是把重复项删掉后假称没有收到它们。没有无引用占位或同时间戳异值冲突。任务云端 CPU 返回最大值 12.77%、内存返回最大值 502.32 MiB，均保留平台含义；ECS Agent 183 次采样，首末 CPU 增量 131.396 CPU 秒、采样内存最大值 660.19 MiB。Controller CPU 增量 20.738 CPU 秒、生命周期 RSS 628.05 MiB；不同 owner 不互相求和。
+
+| 本次完整任务阶段 | 秒 |
+| --- | ---: |
+| 任务 Sandbox 创建 | 1.732 |
+| 工作区准备 | 1.721 |
+| Bridge 准备 | 14.925 |
+| Harness 启动 | 41.489 |
+| Runtime 执行 | 140.071 |
+| 停止与撤权 | 3.405 |
+| 独立验证 | 8.670 |
+| 清理 | 1.853 |
+| 八阶段合计 | 213.864 |
+| Attempt 内未分配余量 | 6.377 |
+| 完整 Attempt | 220.242 |
+
+排队 11.646 μs 在 Attempt 外，driver 253.458 秒。32 个命令累计 29.478 秒属于内部区间，不与八阶段相加。此处只证明修复后一次真实任务及观测通过，不把与旧样本的差额归因于去重开销。
+
+本机[运行归档](../runs/jiuwen-pptx-20261027/e2b-a-workload-replay-3/)包含 PPT、小回执和原资源文件。summary SHA `f6669ea1e3162bbd374d9f49a8f989a633017ef06148bc82ea541e14fe29ac27`；资源对账 SHA `e7119c8a65e4019b71d76ca855edc27735ab4d34c398895ebc0bfbfd2193a550`；postflight SHA `0542d420302f6160c7f7455b185ada94f2b37489891920da8c5472a56830cbf1`；copy SHA `7368c08df18469960350cee8a8dd1ad473471bd1af61a74bef48be6a9cc02866`。新的页面逻辑已在 ECS 浏览器验证五类计数和旧数据回退；已交付 v3 / 分享 ZIP 保留原版，未暗中替换六组数据。
+
+旧主表 E2B B2 的 1,176 条带值读数中也有 1,128 条相同时间戳和值的重复。旧 E2B A29 / B30-2 的评分 Sandbox 查询都没有返回资源读数，应记“未采集”，不是零用量；新 A32 评分流的两个不同读数只属于新运行。华为评分 Sandbox 虽有返回值，仍有时间语义未核实的限制。
 
 华为 B2 guest cgroup 还返回块设备 I/O：`254:0` 的读取计数从 167,284,736 到 429,449,216 字节，写入计数为 0；另一个设备也有独立回执。它们是进程组设备计数，不能把可能重叠的设备求和，也不能把写计数 0 当成没有写 PPT（页缓存等会影响口径）。本轮没有每 Tool 的 CPU/内存或任务级 Network 字节；`disk_used` 是空间占用，不能冒充读写 I/O 字节。
 
@@ -308,7 +345,7 @@ SDK 原生 Span、Controller、guest 进程各有自己的时钟泳道。guest c
 
 ## 8. 本轮结论及保留的失败
 
-### 九次 zero 尝试：功能和观测分开
+### 十次 zero 尝试：功能和观测分开
 
 | 样本 | 版本 | PPT 功能 | 原生采集 / 离线投影 | 在主表中的用途 |
 | --- | --- | --- | --- | --- |
@@ -321,8 +358,9 @@ SDK 原生 Span、Controller、guest 进程各有自己的时钟泳道。guest c
 | [E2B B3](../runs/jiuwen-pptx-20261027/e2b-b-workload-replay-3/evidence/acceptance-summary.json) | release30 | PASS | **FAIL：native 下载再次失败、四投影 exit=1** | 同版本同 Tape 复测；保留失败，不替换主表 |
 | [E2B B4](../runs/jiuwen-pptx-20261027/e2b-b-workload-replay-4/evidence/acceptance-summary.json) | release30 + HTTP/1.1 配置候选 | PASS | **大 Trace 完整；Producer 审计采集超时，四投影仍 FAIL** | 下载修复真实回归；新采集预算问题单列，不替换主表 |
 | [E2B B5](../runs/jiuwen-pptx-20261027/e2b-b-workload-replay-5/evidence/acceptance-summary.json) | release31 | PASS | **大 Trace、Producer、80 Tool 精确关联及四投影 PASS；global coverage unknown** | 下载及采集预算修复回归，版本不同于 B30，单列 |
+| [E2B A3](../runs/jiuwen-pptx-20261027/e2b-a-workload-replay-3/evidence/acceptance-summary.json) | release32 | PASS | **资源引用与计数、78 Tool 精确关联及四投影 PASS；global coverage unknown** | 资源修复回归，版本不同于 A29，单列 |
 
-选定四组合功能已齐；9 次 zero 尝试是 8 功能 PASS / 1 功能 FAIL，另有两云 A 各 1 次 recorded 功能 PASS，分开统计。E2B B2、B3、B4 三次整体观测 FAIL；B5 修复了这两项已定位采集故障，但不代表全链观测或生产能力全部验收。E2B B2 的 18,489,919 字节原生 Span 文件下载失败，332 个 SDK Span 已 start/end，但 retained exported=0，80 个原生 Tool 的精确关联未知。39 命令 / 275 事件 / drop=0 的实际 process 数据仍保留，不用 B5 或华为 B2 的完整原生数据回填旧缺口。
+选定四组合功能已齐；截至 B5 的 9 次 zero 尝试是 8 功能 PASS / 1 功能 FAIL，另有两云 A 各 1 次 recorded 功能 PASS。随后 A32 资源修复回归另增 1 次 zero 功能 PASS，当前合计 12 次回放、11 次功能成功，原失败保留。E2B B2、B3、B4 三次整体观测 FAIL；B5 修复了这两项已定位采集故障，但不代表全链观测或生产能力全部验收。E2B B2 的 18,489,919 字节原生 Span 文件下载失败，332 个 SDK Span 已 start/end，但 retained exported=0，80 个原生 Tool 的精确关联未知。39 命令 / 275 事件 / drop=0 的实际 process 数据仍保留，不用 B5 或华为 B2 的完整原生数据回填旧缺口。
 
 原 B2 下载失败约 1.95 秒结束，之后小文件仍可下载；它不是后续 B4 的 5 秒采集截止问题。同 release30 / 同 B Tape 的 E2B B3 再次完成 61/61 轮、PPT score=1、停止及清理，但 18,489,969 字节 native 文件下载失败，80 个 native Tool 关联未知、四投影失败。其 Runtime 为 191.772 秒、Attempt 为 258.548 秒；39 条真实 process 与华为 B2 同 ID 返回码一致，不能替代 native 观测。后续同文件交替实验已确认公开 HTTP/1.1 连接配置能够完整下载，B4 也真实通过大文件回收；底层传输实现的具体缺陷未证明。B2 的阶段时间为真实记录，Runtime 华为 108.636 秒、E2B 186.679 秒；cmd 累计 12.258 / 14.921 秒仅表示已保留进程区间，不用于补齐完整 native 性能解释。
 
@@ -334,7 +372,7 @@ B4 Runtime 187.994 秒、Attempt 268.165 秒，39 条真实命令的 ToolCall ID
 
 ### B5：大 Trace 与 Producer 审计已共同通过真实回归
 
-release31 在 ECS 通过五项发布检查及冻结后，使用原华为 B Tape、image8、4u8g 完成新的 E2B B 回放：61/61 模型轮、80 个权威 Tool 精确关联、39 个命令 / 275 条事件、drop=0；命令逐 ID 对华为 B2 的退出码差异为 0。18,489,897 字节 native Trace 完整，Producer started / ended / exported 均为 332、missing=0，四项同源离线投影通过。实际后端查询仍 UNRUN，全链 coverage unknown；不能用“观测修复通过”代替未验证范围。
+release31 在 ECS 通过五项发布检查及冻结后，使用原华为 B Tape、image8、4u8g 完成新的 E2B B 回放：61/61 模型轮、80 个权威 Tool 精确关联、39 个命令 / 275 条事件、drop=0；命令逐 ID 对华为 B2 的退出码差异为 0。18,489,897 字节 native Trace 完整，Producer started / ended / exported 均为 332、missing=0，四项同源离线投影通过。原运行摘要保留当时后端 UNRUN；随后使用同一冻结 Snapshot 完成 Perfetto / Jaeger / Prometheus 实际查询，[独立后验已通过](observability/VALIDATION_AND_REPRODUCE.md#jiuwen-workload-b5-backends)。全链 coverage 仍 unknown，未验证范围不升级。
 
 | B5 全局阶段 | 秒 |
 | --- | ---: |
