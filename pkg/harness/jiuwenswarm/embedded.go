@@ -239,11 +239,7 @@ func (e *Embedded) Start(ctx context.Context, request core.HarnessRequest) error
 	if err != nil || parsed.Scheme != "https" || parsed.Hostname() == "" || parsed.User != nil || parsed.RawQuery != "" || parsed.Fragment != "" || len(headers) == 0 {
 		return errors.New("Jiuwen guest endpoint must use HTTPS with provider access headers")
 	}
-	for name, values := range headers {
-		for i, value := range values {
-			e.credentials.Set(fmt.Sprintf("guest:%s:%d", name, i), []byte(value))
-		}
-	}
+	e.credentials.AddGuestHeaders(headers)
 	e.client, err = e.newClient(endpoint, headers)
 	if err != nil {
 		return e.credentials.RedactErr(err)

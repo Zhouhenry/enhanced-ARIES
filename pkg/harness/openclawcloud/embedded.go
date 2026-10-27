@@ -237,11 +237,7 @@ func (e *Embedded) Start(ctx context.Context, request core.HarnessRequest) error
 	if err != nil || parsed.Scheme != "https" || parsed.Hostname() == "" || parsed.User != nil || parsed.RawQuery != "" || parsed.Fragment != "" || len(headers) == 0 {
 		return errors.New("cloud Gateway endpoint must use HTTPS with provider access headers")
 	}
-	for name, values := range headers {
-		for index, value := range values {
-			e.credentials.Set(fmt.Sprintf("guest:%s:%d", name, index), []byte(value))
-		}
-	}
+	e.credentials.AddGuestHeaders(headers)
 	parsed.Scheme = "wss"
 	device, err := gateway.NewDeviceIdentity()
 	if err != nil {

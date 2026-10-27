@@ -5,8 +5,10 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"net/http"
 	"os"
 	"slices"
+	"strings"
 
 	"github.com/hyscale-lab/aries/pkg/core"
 	"github.com/hyscale-lab/aries/pkg/harness/internal/privatefiles"
@@ -60,6 +62,21 @@ func (c *Credentials) Set(name string, value []byte) {
 	c.values[name] = copied
 	if !exists {
 		c.order = append(c.order, name)
+	}
+}
+
+// AddGuestHeaders retains provider header values for redaction. The public
+// routing port is not a credential; treating it as one corrupts unrelated trace
+// IDs, timestamps and output containing the same digits. Unknown headers retain
+// the existing credential treatment.
+func (c *Credentials) AddGuestHeaders(headers http.Header) {
+	for name, values := range headers {
+		if strings.EqualFold(name, "e2b-sandbox-port") {
+			continue
+		}
+		for i, value := range values {
+			c.Set(fmt.Sprintf("guest:%s:%d", name, i), []byte(value))
+		}
 	}
 }
 

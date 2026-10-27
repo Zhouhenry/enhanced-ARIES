@@ -18,7 +18,7 @@
 
 该协议的 ECS 定向测试覆盖并行、缓存重试、旧历史偏离、未知或遗漏分支、完整封包与 A/B 应用入口；固定 image8 的原生 TaskTool 和 OpenAI 客户端 HTTP 构造也已通过受控 fixture。release27 合并版本已通过并冻结 build/test/test-race/lint/integration 五门禁，证据位于 `/opt/aries-artifacts/release27/`；定向证据仍在 `/opt/aries-artifacts/jiuwen-model-branches-1/`。
 
-release27 华为 A PPT `record-3` 已完成真实 DeepSeek、Sandbox 工具和独立结构评分，五页 `final.pptx` 通过，Stop/revoke 与清理确认通过。完整 v4 Tape 有 64 个主会话轮次，但子分支和 JSON 完成数均为 0，因此本次通过不构成真实云端 JSON/子 Agent 路径验收，也不是 MockLLM 回放或同 Tape 跨云对照。华为 B 新轮次仍在运行；详见 [PPT 复测报告](../jiuwen-pptx-capacity-20261027.md)。随机提示路径、提示时间及 sticky 子 Agent 跨新调用恢复旧历史等尚未完成跨云验收，不能据此承诺所有原生工作流已可 Strict 回放。
+release27 华为 A/B PPT `record-3` 均已完成真实 DeepSeek、Sandbox 工具和独立结构评分，五页 `final.pptx` 通过，Stop/revoke 与清理确认通过。两份完整 v4 Tape 分别有 64/61 个主会话轮次，子分支和 JSON 完成数均为 0，因此这两次通过不构成真实云端 JSON/子 Agent 路径验收，也不是 MockLLM 回放或同 Tape 跨云对照。B 的 Trace 另有公开端口误脱敏导致的观测失败，不影响上述录制状态；详见 [PPT 复测报告](../jiuwen-pptx-capacity-20261027.md)。随机提示路径、提示时间及 sticky 子 Agent 跨新调用恢复旧历史等尚未完成跨云验收，不能据此承诺所有原生工作流已可 Strict 回放。
 
 同一 placement 的跨云对照必须引用同一 Tape 文件 SHA-256；各云独立录制不能替代。A/B 使用各自固定的一份 Tape，主会话和子会话不得拆成另选的录制材料。独立 `aries-model-replay` CLI 仍为单轨迹入口；新分支协议当前通过 `aries cloud` 接入。
 

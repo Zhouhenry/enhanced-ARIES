@@ -2,7 +2,7 @@
 
 更新至2026-10-27。**已完成的四组云与观测验收见 [release23 实际结果](../jiuwen-release23-cloud-validation-20261027.md)：双云 A/B 原评分各 12/12，15 个命令进程、105 条生命周期事件，以及四组各自快照的 Perfetto/Jaeger/Prometheus 查询均有证据。** 这是 image7、2 CPU / 4096 MB 的编码任务验收，不能替代 PPT 结果；全局 coverage 仍 unknown。
 
-最新 release27 已完成 ECS 五门禁，image8、4 vCPU / 8192 MiB 的 PPT 复测正在推进，状态以 [PPT 修复与逐次验收](../jiuwen-pptx-capacity-20261027.md)为准。下文保留早期接入及失败记录，不回填新版本结果，也不宣称生产化全部完成。
+最新 release27 已完成 ECS 五门禁；image8、4 vCPU / 8192 MiB 的华为 A/B PPT 均通过独立结构评分，原件已取回。A 的 Perfetto/Jaeger/Prometheus 后端对账通过；B 因公开路由端口误登记为凭据导致 Trace 误脱敏，观测仍失败，修复另验。详见 [PPT 修复与逐次验收](../jiuwen-pptx-capacity-20261027.md)。下文保留早期接入及失败记录，不回填新版本结果，也不宣称生产化全部完成。
 
 ## 历史 release18/19 云样本
 

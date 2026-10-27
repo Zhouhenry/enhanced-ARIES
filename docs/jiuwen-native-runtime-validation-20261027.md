@@ -2,7 +2,7 @@
 
 本页保留 release19→21 的工程修复、夹具与失败证据。后续 [release23 四组真实云验收](jiuwen-release23-cloud-validation-20261027.md)已完成双云 A/B 原评分各 12/12、命令进程计时及四组各自快照的 Perfetto/Jaeger/Prometheus 查询；全局 coverage 仍 unknown，不回填本页历史样本。
 
-最新 release27 已完成 ECS 五门禁，image8、4 vCPU / 8192 MiB 的 PPT 复测正在推进，见 [PPT 当前状态与逐次证据](jiuwen-pptx-capacity-20261027.md)。这些新任务不能继承旧编码任务或下列夹具的通过结论。
+最新 release27 已完成 ECS 五门禁；image8、4 vCPU / 8192 MiB 的华为 A/B PPT 均通过独立结构评分并取回原件。A 的三项观测后端对账通过；B 的公开端口误脱敏使本轮观测失败，修复另验。见 [PPT 当前状态与逐次证据](jiuwen-pptx-capacity-20261027.md)。这些新任务不能继承旧编码任务或下列夹具的通过结论。
 
 ## 接入方式
 

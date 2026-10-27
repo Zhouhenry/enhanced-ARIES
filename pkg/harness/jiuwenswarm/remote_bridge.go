@@ -221,11 +221,7 @@ func (b *RemoteBridge) Start(ctx context.Context, sandbox runner.Sandbox) (core.
 	}
 	b.guestURL = strings.TrimRight(b.guestURL, "/")
 	b.guestHeaders = b.guestHeaders.Clone()
-	for name, values := range b.guestHeaders {
-		for i, value := range values {
-			b.credentials.Set(fmt.Sprintf("guest:%s:%d", name, i), []byte(value))
-		}
-	}
+	b.credentials.AddGuestHeaders(b.guestHeaders)
 	if err := b.waitWorker(start); err != nil {
 		return core.ToolEndpoint{}, err
 	}
