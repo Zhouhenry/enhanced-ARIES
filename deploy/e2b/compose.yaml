@@ -1,0 +1,113 @@
+name: aries-e2b
+
+services:
+  e2b-adapter:
+    image: aries-e2b-adapter:local
+    build:
+      context: ../../adapters/e2b
+      dockerfile: Dockerfile
+    init: true
+    restart: "no"
+    user: "10001:10001"
+    environment:
+      E2B_API_KEY: "${E2B_API_KEY:-}"
+      E2B_TEMPLATE_ID: "${E2B_TEMPLATE_ID:-}"
+      ARIES_E2B_ADAPTER_TOKEN: "${ARIES_E2B_ADAPTER_TOKEN:-}"
+      PYTHONDONTWRITEBYTECODE: "1"
+      PYTHONUNBUFFERED: "1"
+    command:
+      - --max-sandboxes
+      - "${ARIES_MAX_SANDBOXES:-4}"
+      - --max-timeout
+      - "${ARIES_SANDBOX_TIMEOUT_SECONDS:-600}"
+    ports:
+      - "127.0.0.1:8787:8787"
+    volumes:
+      - adapter-state:/state
+    read_only: true
+    tmpfs:
+      - /tmp:mode=1777
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+    stop_grace_period: 300s
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - >-
+          import json,os,urllib.request;
+          r=urllib.request.Request('http://127.0.0.1:8787/v1/health',data=b'{}',headers={'Content-Type':'application/json','Authorization':'Bearer '+os.environ['ARIES_E2B_ADAPTER_TOKEN']});
+          d=json.load(urllib.request.urlopen(r,timeout=3));
+          assert d['schema']==1 and not d['stopping']
+      interval: 10s
+      timeout: 5s
+      start_period: 60s
+      retries: 30
+
+  caddy:
+    image: caddy:2.11.7-alpine
+    network_mode: host
+    restart: "no"
+    environment:
+      ARIES_MODEL_PROXY_PUBLIC_URL: "${ARIES_MODEL_PROXY_PUBLIC_URL:-}"
+      ARIES_MODEL_PROXY_TLS_NAME: "${ARIES_MODEL_PROXY_TLS_NAME:-localhost}"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+    read_only: true
+    tmpfs:
+      - /tmp:mode=1777
+    cap_drop: [ALL]
+    cap_add: [NET_BIND_SERVICE]
+    security_opt: ["no-new-privileges:true"]
+    stop_grace_period: 30s
+
+  runner:
+    image: aries-e2b-runner:local
+    build:
+      context: ../..
+      dockerfile: deploy/e2b/Runner.Dockerfile
+    profiles: [experiment]
+    network_mode: host
+    init: true
+    restart: "no"
+    working_dir: /app
+    depends_on:
+      e2b-adapter:
+        condition: service_healthy
+      caddy:
+        condition: service_started
+    environment:
+      DEEPSEEK_API_KEY: "${DEEPSEEK_API_KEY:-}"
+      DEEPSEEK_BASE_URL: "${DEEPSEEK_BASE_URL:-https://api.deepseek.com}"
+      DEEPSEEK_MODEL: "${DEEPSEEK_MODEL:-}"
+      E2B_TEMPLATE_ID: "${E2B_TEMPLATE_ID:-}"
+      ARIES_E2B_ADAPTER_TOKEN: "${ARIES_E2B_ADAPTER_TOKEN:-}"
+      ARIES_E2B_ADAPTER_URL: "http://127.0.0.1:8787"
+      ARIES_ECS_PRIVATE_IP: "${ARIES_ECS_PRIVATE_IP:-}"
+      ARIES_MODEL_PROXY_PUBLIC_URL: "${ARIES_MODEL_PROXY_PUBLIC_URL:-}"
+      ARIES_MAX_CONCURRENCY: "${ARIES_MAX_CONCURRENCY:-1}"
+      ARIES_MAX_ATTEMPTS: "${ARIES_MAX_ATTEMPTS:-2}"
+      ARIES_SANDBOX_TIMEOUT_SECONDS: "${ARIES_SANDBOX_TIMEOUT_SECONDS:-600}"
+      ARIES_GOODPUT_DEADLINE_SECONDS: "${ARIES_GOODPUT_DEADLINE_SECONDS:-}"
+    volumes:
+      - ../../runs:/app/runs
+      - /var/run/docker.sock:/var/run/docker.sock
+    read_only: true
+    tmpfs:
+      - /tmp:mode=0700
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+    stop_grace_period: 120s
+
+volumes:
+  # Fixed names preserve ownership records and creation counts across deployments.
+  # Keep this volume so uncertain allocations remain available for reconciliation.
+  adapter-state:
+    name: aries-e2b-adapter-state
+  caddy-data:
+    name: aries-e2b-caddy-data
+  caddy-config:
+    name: aries-e2b-caddy-config

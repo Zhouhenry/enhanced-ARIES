@@ -32,6 +32,24 @@ func TestArtifactPrivateAndImmutable(t *testing.T) {
 	}
 }
 
+func TestLargeObservationArtifactRemainsReadableAndImmutable(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "native-spans.jsonl")
+	content := bytes.Repeat([]byte("x"), 18<<20)
+	if err := WriteArtifact(path, content); err != nil {
+		t.Fatal(err)
+	}
+	got, err := Read(path, 0o600)
+	if err != nil || !bytes.Equal(got, content) {
+		t.Fatal("large observation bytes changed or became unreadable", err)
+	}
+	if err := WriteArtifact(path, content); err != nil {
+		t.Fatal("identical large artifact retry failed", err)
+	}
+	if err := WriteArtifact(path, []byte("replacement")); err == nil {
+		t.Fatal("large evidence overwritten")
+	}
+}
+
 func TestPrivateFileRejectsUnsafeSources(t *testing.T) {
 	root := t.TempDir()
 	original := filepath.Join(root, "key")

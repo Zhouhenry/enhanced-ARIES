@@ -3,6 +3,7 @@ package ssh
 import (
 	"bytes"
 	"context"
+	"crypto/rand"
 	"crypto/sha256"
 	"encoding/hex"
 	"errors"
@@ -15,6 +16,7 @@ import (
 	"unicode/utf8"
 
 	"github.com/hyscale-lab/aries/pkg/core"
+	"github.com/hyscale-lab/aries/pkg/performance"
 	gossh "golang.org/x/crypto/ssh"
 )
 
@@ -95,9 +97,12 @@ func (session *bridgeSession) execute(ctx context.Context, channel gossh.Channel
 	stderr := &byteCounter{writer: channel.Stderr()}
 	var result core.CommandResult
 	var err error
+	var executionID string
 	if prepared.Action == DrainOnly {
 		_, err = io.Copy(io.Discard, stdin)
 	} else {
+		executionID = rand.Text()
+		ctx = performance.WithExecutionID(ctx, executionID)
 		result, err = session.sandbox.ExecStream(ctx, prepared.Command, stdin, stdout, stderr)
 	}
 	exitCode := result.ExitCode
@@ -118,7 +123,9 @@ func (session *bridgeSession) execute(ctx context.Context, channel gossh.Channel
 		return exitCode
 	}
 	session.writeRecord(toolCallRecord{
-		ContainerID: session.sandbox.ContainerID(), ContainerName: session.sandbox.ContainerName(),
+		NativeIdentity: audit.identity,
+		ExecutionID:    executionID,
+		ContainerID:    session.sandbox.ContainerID(), ContainerName: session.sandbox.ContainerName(),
 		OperationClass: prepared.OperationClass, Path: prepared.Command.Path, Workdir: prepared.Command.Dir,
 		CommandHash: commandHash(prepared.HashInput),
 		Command:     prepared.Display, WorkspaceHome: prepared.WorkspaceHome, Environment: prepared.Environment,
@@ -141,7 +148,8 @@ func (session *bridgeSession) logRejected(audit requestAudit, kind string) {
 // decoded far enough to classify.
 func (session *bridgeSession) logRequestFailure(audit requestAudit, kind, status, message string) {
 	session.writeRecord(toolCallRecord{
-		ContainerID: session.sandbox.ContainerID(), ContainerName: session.sandbox.ContainerName(),
+		NativeIdentity: audit.identity,
+		ContainerID:    session.sandbox.ContainerID(), ContainerName: session.sandbox.ContainerName(),
 		OperationClass: kind, CommandHash: commandHash(audit.remoteCommand),
 		StdinEncoding: "utf-8",
 		// The request never ran, so the record must not carry the exit code of
@@ -161,6 +169,10 @@ func rawRecord(audit requestAudit, stdinBytes int64, stdin []byte, status string
 }
 
 func (session *bridgeSession) writeRecord(record toolCallRecord, raw rawSSHRecord) {
+	record.IdentityStatus = "unlinked"
+	if record.NativeIdentity != nil {
+		record.IdentityStatus = "exact_channel"
+	}
 	record.SandboxID = session.sandboxID
 	raw.SandboxID = session.sandboxID
 	record.RunID = session.sandbox.RunID()

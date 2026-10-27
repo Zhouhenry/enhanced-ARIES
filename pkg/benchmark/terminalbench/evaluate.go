@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/hyscale-lab/aries/pkg/core"
+	"github.com/hyscale-lab/aries/pkg/performance"
 	"github.com/hyscale-lab/aries/pkg/runner"
 )
 
@@ -20,7 +21,9 @@ import (
 func (b *Benchmark) Evaluate(ctx context.Context, task core.Task, sandbox runner.Sandbox, _ runner.EvaluationSandboxes) (core.Evaluation, error) {
 	started := time.Now()
 	evaluation := core.Evaluation{Status: core.StatusFailed, VerifierStatus: core.StatusFailed}
+	var phase *performance.Span
 	finish := func(err error) (core.Evaluation, error) {
+		phase.End(err)
 		evaluation.Duration = time.Since(started)
 		if err != nil {
 			evaluation.Error = err.Error()
@@ -40,6 +43,7 @@ func (b *Benchmark) Evaluate(ctx context.Context, task core.Task, sandbox runner
 	if err := VerifyRevision(ctx, b.root, b.revision); err != nil {
 		return finish(fmt.Errorf("reverify terminalbench checkout before evaluation: %w", err))
 	}
+	phaseCtx, phase := performance.Begin(ctx, "verifier.prepare")
 
 	artifactDir := filepath.Join(b.outputDir, task.ID, "evaluation")
 	if err := os.MkdirAll(artifactDir, 0o700); err != nil {
@@ -56,7 +60,7 @@ func (b *Benchmark) Evaluate(ctx context.Context, task core.Task, sandbox runner
 		}
 	}
 
-	resetResult, err := sandbox.Exec(ctx, core.Command{
+	resetResult, err := sandbox.Exec(phaseCtx, core.Command{
 		Path: "/bin/rm",
 		Args: []string{"-rf", "--", testsPath, verifierLogPath},
 	})
@@ -77,7 +81,7 @@ func (b *Benchmark) Evaluate(ctx context.Context, task core.Task, sandbox runner
 		}
 	}
 	slices.Sort(directories[2:])
-	createResult, err := sandbox.Exec(ctx, core.Command{
+	createResult, err := sandbox.Exec(phaseCtx, core.Command{
 		Path: "/bin/mkdir",
 		Args: append([]string{"-p", "--"}, directories...),
 	})
@@ -88,17 +92,25 @@ func (b *Benchmark) Evaluate(ctx context.Context, task core.Task, sandbox runner
 		return finish(fmt.Errorf("create clean verifier directories: exit code %d", createResult.ExitCode))
 	}
 	for _, file := range details.verifierFiles {
-		if err := sandbox.Upload(ctx, file.source, file.destination); err != nil {
+		if err := sandbox.Upload(phaseCtx, file.source, file.destination); err != nil {
 			return finish(fmt.Errorf("inject private verifier file %q: %w", file.name, err))
 		}
 	}
+	phase.End(nil)
 
-	commandResult, commandErr := sandbox.Exec(ctx, core.Command{
+	phaseCtx, phase = performance.Begin(ctx, "verifier.exec")
+	commandResult, commandErr := sandbox.Exec(phaseCtx, core.Command{
 		Path:    "/bin/bash",
 		Args:    []string{filepath.Join(testsPath, "test.sh")},
 		Env:     cloneMap(details.verifierEnv),
 		Timeout: details.timeout,
 	})
+	execErr := commandErr
+	if commandResult.ExitCode != 0 {
+		execErr = errors.Join(execErr, fmt.Errorf("verifier exit code %d", commandResult.ExitCode))
+	}
+	phase.End(execErr)
+	phaseCtx, phase = performance.Begin(ctx, "verifier.report")
 	var artifactErrors []error
 	if err := os.WriteFile(stdoutPath, []byte(commandResult.Stdout), 0o600); err != nil {
 		artifactErrors = append(artifactErrors, fmt.Errorf("write verifier stdout: %w", err))
@@ -106,10 +118,10 @@ func (b *Benchmark) Evaluate(ctx context.Context, task core.Task, sandbox runner
 	if err := os.WriteFile(stderrPath, []byte(commandResult.Stderr), 0o600); err != nil {
 		artifactErrors = append(artifactErrors, fmt.Errorf("write verifier stderr: %w", err))
 	}
-	if err := sandbox.Download(ctx, filepath.Join(verifierLogPath, "ctrf.json"), ctrfPath); err != nil {
+	if err := sandbox.Download(phaseCtx, filepath.Join(verifierLogPath, "ctrf.json"), ctrfPath); err != nil {
 		artifactErrors = append(artifactErrors, fmt.Errorf("download verifier CTRF: %w", err))
 	}
-	if err := sandbox.Download(ctx, filepath.Join(verifierLogPath, "reward.txt"), rewardPath); err != nil {
+	if err := sandbox.Download(phaseCtx, filepath.Join(verifierLogPath, "reward.txt"), rewardPath); err != nil {
 		artifactErrors = append(artifactErrors, fmt.Errorf("download verifier reward: %w", err))
 	}
 

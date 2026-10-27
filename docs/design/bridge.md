@@ -27,6 +27,11 @@ confirms revocation. It leaves other sessions, the shared runtime, and the sandb
 alive. A failed release or evidence collection prevents that task's evaluation;
 cleanup remains retryable. Every attempted start is followed by Stop.
 
+Failed SSH startup still closes its listener and audit writers, but preserves
+the caller-owned output directory and existing evidence. Cloud external wiring
+places each occurrence's logs under `<run>/<occurrence>/bridge/`; repeating a
+task must not reuse another occurrence's audit files.
+
 The service and sandbox deployment are separate dependencies. Wiring supplies
 an explicit [launch specification](../../pkg/bridge/launch.go), provider access,
 and runtime metadata. Common bridge code does not choose a provider, discover

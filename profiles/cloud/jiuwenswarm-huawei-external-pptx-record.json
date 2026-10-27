@@ -1,0 +1,29 @@
+{
+  "name": "jiuwenswarm-huawei-external-pptx-record",
+  "agent_type": "jiuwenswarm",
+  "placement": "external",
+  "sandbox_backend": "huawei-agentsphere",
+  "workload": "llm-development-pptx-v1",
+  "versions_file": "../../configs/versions.json",
+  "output_dir": "runs",
+  "sandbox": {
+    "template": "d0b4522b-9da2-48a0-9702-5362165b4dfd:cf1c7428-d508-4400-90f5-1fe190495447",
+    "timeout_seconds": 2100
+  },
+  "harness": {
+    "jiuwen_image": "swr.cn-southwest-2.myhuaweicloud.com/benchmark-zhoutao/aries-jiuwenswarm:0.2.3-e2c9d519-image8-presentation1@sha256:c6eca9c7caeb67f544148df444b5bfb0e1f2be2250090e530d0e619ec83a33dd",
+    "jiuwen_source_dir": "/opt/jiuwenswarm",
+    "jiuwen_python_path": "/opt/jiuwenswarm/.venv/bin/python",
+    "docker_socket": "unix:///var/run/docker.sock"
+  },
+  "model": {
+    "mode": "record",
+    "max_turns": 96
+  },
+  "execution": {
+    "concurrency": 1,
+    "attempts": 1,
+    "task_timeout": "25m",
+    "verifier_timeout": "2m"
+  }
+}

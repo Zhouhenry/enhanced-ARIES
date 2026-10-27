@@ -259,6 +259,9 @@ func (manager *Manager) Validate(ctx context.Context, id string, request deploym
 	if request.Workdir != "" && container.WorkingDir != request.Workdir {
 		return errors.New("deployment workdir differs from request")
 	}
+	if request.Hostname != "" && pod.Spec.Hostname != request.Hostname {
+		return errors.New("deployment hostname differs from request")
+	}
 	if request.NoNewPrivileges && (container.SecurityContext == nil || container.SecurityContext.AllowPrivilegeEscalation == nil || *container.SecurityContext.AllowPrivilegeEscalation) {
 		return errors.New("deployment no-new-privileges is not enabled")
 	}

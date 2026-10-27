@@ -1,0 +1,31 @@
+{
+  "name": "openclaw-e2b-a-db-wal-recovery-record",
+  "agent_type": "openclaw",
+  "placement": "external",
+  "sandbox_backend": "e2b-cloud",
+  "versions_file": "../../../configs/versions.json",
+  "output_dir": "runs",
+  "benchmark": {
+    "type": "terminalbench2",
+    "root": "../../../.cache/terminal-bench-2-1",
+    "task_id": "db-wal-recovery"
+  },
+  "sandbox": {
+    "binding_file": "../../../.cache/tb2-e2b/db-wal-recovery/binding.json",
+    "timeout_seconds": 2400
+  },
+  "harness": {
+    "openclaw_path": "/usr/local/bin/openclaw",
+    "openclaw_version": "2026.7.1",
+    "ssh_client_path": "../../../bin/aries-ssh-client"
+  },
+  "model": {
+    "mode": "record",
+    "tool_call_id_dialect": "openclaw-2026.7.1",
+    "max_turns": 128
+  },
+  "execution": {
+    "concurrency": 1,
+    "attempts": 1
+  }
+}

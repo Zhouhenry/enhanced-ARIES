@@ -95,7 +95,9 @@ func decodeManifest(t *testing.T, raw []byte) map[string]any {
 
 func TestPodManifestGatesTheRequestedCommand(t *testing.T) {
 	manager, _ := newTestManager(t, Options{NodeSelector: map[string]string{"loader-nodetype": "worker"}, ImagePullSecret: "registry"})
-	raw, err := manager.podManifest(testRequest())
+	request := testRequest()
+	request.Hostname = "aries-workload"
+	raw, err := manager.podManifest(request)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -110,6 +112,9 @@ func TestPodManifestGatesTheRequestedCommand(t *testing.T) {
 		t.Fatalf("annotations = %v", annotations)
 	}
 	spec := manifest["spec"].(map[string]any)
+	if spec["hostname"] != request.Hostname {
+		t.Fatalf("hostname = %v", spec["hostname"])
+	}
 	if spec["restartPolicy"] != "Never" || spec["automountServiceAccountToken"] != false || spec["enableServiceLinks"] != false {
 		t.Fatalf("spec = %v", spec)
 	}
@@ -165,6 +170,7 @@ func TestValidateRequestRejectsWhatTheProviderCannotHonor(t *testing.T) {
 	manager, _ := newTestManager(t, Options{})
 	for name, mutate := range map[string]func(*deployment.Request){
 		"name":      func(r *deployment.Request) { r.Name = "Aries_Task" },
+		"hostname":  func(r *deployment.Request) { r.Hostname = "invalid_host" },
 		"placement": func(r *deployment.Request) { r.Placement.AttachmentID = "other" },
 		"host mount": func(r *deployment.Request) {
 			r.Mounts = []deployment.Mount{{Source: "/var/run/docker.sock", Target: "/var/run/docker.sock"}}
@@ -243,6 +249,7 @@ func podJSON(t *testing.T, manager *Manager, request deployment.Request, edit fu
 func TestValidateChecksIdentityIsolationAndSecrets(t *testing.T) {
 	manager, fake := newTestManager(t, Options{})
 	request := testRequest()
+	request.Hostname = "aries-workload"
 	serve := func(pod string) {
 		fake.respond = func(_ context.Context, _ []string, _ []byte, stdout, _ io.Writer) error {
 			_, _ = io.WriteString(stdout, pod)
@@ -269,6 +276,7 @@ func TestValidateChecksIdentityIsolationAndSecrets(t *testing.T) {
 			container(m)["securityContext"] = map[string]any{"allowPrivilegeEscalation": true}
 		},
 		"host network": func(m map[string]any) { m["spec"].(map[string]any)["hostNetwork"] = true },
+		"hostname":     func(m map[string]any) { m["spec"].(map[string]any)["hostname"] = "other-host" },
 		"host path": func(m map[string]any) {
 			m["spec"].(map[string]any)["volumes"] = []any{map[string]any{"name": "h", "hostPath": map[string]any{"path": "/"}}}
 		},

@@ -1,7 +1,9 @@
 package client
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -11,14 +13,16 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/hyscale-lab/aries/pkg/bridge/ssh/execidentity"
 	gossh "golang.org/x/crypto/ssh"
 )
 
 // Config supplies an already validated destination.
 // Invocation/config-file policy belongs to the adapter, not the SSH transport.
 type Config struct {
-	Address string
-	User    string
+	Address  string
+	User     string
+	Identity *execidentity.Metadata
 }
 
 // Run forwards remote verbatim; it never interprets or executes shell syntax.
@@ -32,6 +36,22 @@ func Run(ctx context.Context, configuration Config, remote string, stdin io.Read
 	defer stdin.Close()
 	if configuration.User == "" {
 		return 255, errors.New("SSH user is required")
+	}
+	var identityPayload []byte
+	if configuration.Identity != nil {
+		if err := configuration.Identity.Validate(); err != nil {
+			return 255, err
+		}
+		var payload bytes.Buffer
+		encoder := json.NewEncoder(&payload)
+		encoder.SetEscapeHTML(false)
+		if err := encoder.Encode(configuration.Identity); err != nil {
+			return 255, err
+		}
+		identityPayload = payload.Bytes()
+		if len(identityPayload) > execidentity.MaxPayload {
+			return 255, errors.New("SSH tool identity payload exceeds limit")
+		}
 	}
 	address := configuration.Address
 	dialer := net.Dialer{Timeout: lockedConnectTimeout}
@@ -62,6 +82,15 @@ func Run(ctx context.Context, configuration Config, remote string, stdin io.Read
 		return 255, fmt.Errorf("open SSH session: %w", err)
 	}
 	defer session.Close()
+	if identityPayload != nil {
+		// Never send stdin or exec when the same channel has not accepted identity.
+		_ = connection.SetDeadline(time.Now().Add(lockedConnectTimeout))
+		accepted, err := session.SendRequest(execidentity.RequestType, true, identityPayload)
+		_ = connection.SetDeadline(time.Time{})
+		if err != nil || !accepted {
+			return 255, errors.New("SSH tool identity was not accepted")
+		}
+	}
 	input, err := session.StdinPipe()
 	if err != nil {
 		return 255, fmt.Errorf("open SSH input: %w", err)

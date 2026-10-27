@@ -27,6 +27,12 @@ An empty create response alone does not prove absence. A download returns
 runtime and transfer failures remain distinguishable. Harness readiness verifies
 effective permissions after private archive staging.
 
+An optional `Request.Hostname` fixes the guest-visible hostname using Docker's
+container hostname or Kubernetes' Pod hostname. Validation checks the requested
+value. Runtime names and ownership remain unique. Cloud external OpenClaw uses
+this to keep its native model prompt stable across fresh replay attempts; an
+empty value preserves provider defaults. This does not control E2B guest hostnames.
+
 ## TaskEnvironment operations and ownership
 
 `RunEnvironment.Start` prepares shared connectivity and returns an opaque

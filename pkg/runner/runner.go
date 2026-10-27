@@ -2,14 +2,17 @@ package runner
 
 import (
 	"context"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"maps"
 	"slices"
+	"strings"
 	"sync"
 	"time"
 
 	"github.com/hyscale-lab/aries/pkg/core"
+	"github.com/hyscale-lab/aries/pkg/performance"
 	"github.com/sirupsen/logrus"
 )
 
@@ -125,8 +128,11 @@ func (r *Runner) runTask(ctx context.Context, task core.Task) (core.TaskResult, 
 	originalTask := task
 	sandboxEnvironment, harnessCPU, harnessMemory, harnessTimeout := effectiveRuntime(task, r.runtimeOverrides)
 	started := time.Now()
+	ctx = performance.WithIdentity(ctx, performance.Identity{OccurrenceID: task.ID, Purpose: "task"})
+	ctx, taskSpan := performance.Begin(ctx, "task.e2e")
 	result := newTaskResult(task.ID)
 	result.StartedAt = started
+	result.Timing = &core.TaskTiming{}
 	r.logger.WithContext(ctx).WithField("task_id", task.ID).Info("task started")
 
 	var (
@@ -153,6 +159,7 @@ func (r *Runner) runTask(ctx context.Context, task core.Task) (core.TaskResult, 
 		return cleanupCtx
 	}
 	finish := func() (core.TaskResult, error) {
+		cleanupStarted := time.Now()
 		cleanup := ensureCleanupContext()
 		if evaluation.active() {
 			cleanupUsed = true
@@ -162,7 +169,10 @@ func (r *Runner) runTask(ctx context.Context, task core.Task) (core.TaskResult, 
 		}
 		if harnessActive {
 			cleanupUsed = true
-			if err := r.harness.Stop(cleanup); err != nil {
+			stageCtx, stage := performance.Begin(cleanup, "harness.stop")
+			err := r.harness.Stop(stageCtx)
+			stage.End(err)
+			if err != nil {
 				cleanupErrors = append(cleanupErrors, fmt.Errorf("cleanup harness: %w", err))
 			} else {
 				harnessActive = false
@@ -170,7 +180,10 @@ func (r *Runner) runTask(ctx context.Context, task core.Task) (core.TaskResult, 
 		}
 		if bridgeActive {
 			cleanupUsed = true
-			if err := r.bridge.Stop(cleanup); err != nil {
+			stageCtx, stage := performance.Begin(cleanup, "bridge.revoke")
+			err := r.bridge.Stop(stageCtx)
+			stage.End(err)
+			if err != nil {
 				cleanupErrors = append(cleanupErrors, fmt.Errorf("cleanup bridge: %w", err))
 			} else {
 				bridgeActive = false
@@ -178,7 +191,10 @@ func (r *Runner) runTask(ctx context.Context, task core.Task) (core.TaskResult, 
 		}
 		if sandboxActive {
 			cleanupUsed = true
-			if err := r.toolSandbox.Stop(cleanup, sandbox); err != nil {
+			stageCtx, stage := performance.Begin(cleanup, "sandbox.stop")
+			err := r.toolSandbox.Stop(stageCtx, sandbox)
+			stage.End(err)
+			if err != nil {
 				cleanupErrors = append(cleanupErrors, fmt.Errorf("cleanup sandbox: %w", err))
 			} else {
 				sandboxActive = false
@@ -193,11 +209,18 @@ func (r *Runner) runTask(ctx context.Context, task core.Task) (core.TaskResult, 
 			result.Cleanup.Error = errors.Join(cleanupErrors...).Error()
 			allErrors = append(allErrors, cleanupErrors...)
 		}
+		if cleanupUsed {
+			cleanupFinished := time.Now()
+			cleanupDuration := cleanupFinished.Sub(cleanupStarted)
+			result.Timing.CleanupFinishedAt = &cleanupFinished
+			result.Timing.CleanupDuration = &cleanupDuration
+		}
 		if runContextErr := ctx.Err(); runContextErr != nil && !errors.Is(errors.Join(allErrors...), runContextErr) {
 			allErrors = append(allErrors, fmt.Errorf("run context: %w", runContextErr))
 		}
 		result.Duration = time.Since(started)
 		taskErr := errors.Join(allErrors...)
+		taskSpan.End(taskErr)
 		entry := r.logger.WithContext(context.WithoutCancel(ctx)).WithFields(logrus.Fields{
 			"task_id": task.ID, "harness_status": result.Harness.Status,
 			"evaluation_status": result.Evaluation.Status, "cleanup_status": result.Cleanup.Status,
@@ -211,26 +234,52 @@ func (r *Runner) runTask(ctx context.Context, task core.Task) (core.TaskResult, 
 	}
 
 	var err error
-	sandbox, err = r.toolSandbox.Start(ctx, core.SandboxRequest{
+	stageCtx, stage := performance.Begin(ctx, "sandbox.start")
+	createStarted := time.Now()
+	result.Timing.SandboxCreateStartedAt = &createStarted
+	sandbox, err = r.toolSandbox.Start(stageCtx, core.SandboxRequest{
 		RunID:       r.runID,
 		TaskID:      task.ID,
 		Environment: sandboxEnvironment,
 	})
+	createFinished := time.Now()
+	createDuration := createFinished.Sub(createStarted)
+	result.Timing.SandboxCreateDuration = &createDuration
 	if err != nil {
+		stage.End(err)
 		allErrors = append(allErrors, fmt.Errorf("start sandbox: %w", err))
 		return finish()
 	}
 	if sandbox == nil {
-		allErrors = append(allErrors, errors.New("start sandbox: returned a nil sandbox"))
+		err = errors.New("start sandbox: returned a nil sandbox")
+		stage.End(err)
+		allErrors = append(allErrors, err)
 		return finish()
 	}
+	stage.End(nil)
+	result.Timing.SandboxReadyAt = &createFinished
 	sandboxActive = true
-	if err := r.benchmark.PrepareSandbox(ctx, task, sandbox); err != nil {
+	stageCtx, stage = performance.Begin(ctx, "sandbox.prepare")
+	prepareStarted := time.Now()
+	err = r.benchmark.PrepareSandbox(stageCtx, task, sandbox)
+	prepareFinished := time.Now()
+	prepareDuration := prepareFinished.Sub(prepareStarted)
+	result.Timing.SandboxPrepareDuration = &prepareDuration
+	stage.End(err)
+	if err != nil {
 		allErrors = append(allErrors, fmt.Errorf("prepare sandbox: %w", err))
 		return finish()
 	}
+	result.Timing.SandboxPreparedAt = &prepareFinished
 
-	endpoint, err := r.bridge.Start(ctx, sandbox)
+	stageCtx, stage = performance.Begin(ctx, "bridge.register")
+	bridgeStarted := time.Now()
+	result.Timing.BridgePrepareStartedAt = &bridgeStarted
+	endpoint, err := r.bridge.Start(stageCtx, sandbox)
+	bridgeFinished := time.Now()
+	bridgeDuration := bridgeFinished.Sub(bridgeStarted)
+	result.Timing.BridgePrepareDuration = &bridgeDuration
+	stage.End(err)
 	// Start may fail after allocating task-local resources or after its internal
 	// rollback fails. Stop is idempotent, so every Start attempt must be followed
 	// by a positive revocation confirmation before sandbox cleanup.
@@ -239,6 +288,7 @@ func (r *Runner) runTask(ctx context.Context, task core.Task) (core.TaskResult, 
 		allErrors = append(allErrors, fmt.Errorf("start bridge: %w", err))
 		return finish()
 	}
+	result.Timing.BridgeReadyAt = &bridgeFinished
 	result.ToolLogPaths = append([]string(nil), endpoint.LogPaths...)
 
 	request := core.HarnessRequest{
@@ -253,7 +303,13 @@ func (r *Runner) runTask(ctx context.Context, task core.Task) (core.TaskResult, 
 		OutputDir:    r.outputDir,
 	}
 	request.NoSandboxTools = task.NoSandboxTools
-	err = r.harness.Start(ctx, request)
+	stageCtx, stage = performance.Begin(ctx, "harness.start")
+	harnessStart := time.Now()
+	err = r.harness.Start(stageCtx, request)
+	harnessReady := time.Now()
+	harnessStartDuration := harnessReady.Sub(harnessStart)
+	result.Timing.HarnessStartDuration = &harnessStartDuration
+	stage.End(err)
 	// Start may fail after allocating task-local resources. Stop is idempotent,
 	// so every Start attempt must be followed by a positive stop confirmation
 	// before the evaluator can inspect the sandbox.
@@ -263,8 +319,16 @@ func (r *Runner) runTask(ctx context.Context, task core.Task) (core.TaskResult, 
 		result.Harness.Error = err.Error()
 		allErrors = append(allErrors, fmt.Errorf("start harness: %w", err))
 	} else {
-		harnessResult, runErr := r.harness.Run(ctx, task.Instruction)
+		result.Timing.HarnessReadyAt = &harnessReady
+		stageCtx, stage = performance.Begin(ctx, "agent.run")
+		harnessInvoked := time.Now()
+		result.Timing.HarnessRunInvokedAt = &harnessInvoked
+		harnessResult, runErr := r.harness.Run(stageCtx, task.Instruction)
+		harnessReturned := time.Now()
+		result.Timing.HarnessRunReturnedAt = &harnessReturned
+		stage.End(runErr)
 		result.Harness = harnessResult
+		copyRuntimeTiming(result.Timing, harnessResult)
 		if runErr == nil {
 			if result.Harness.Status == "" {
 				result.Harness.Status = core.StatusSucceeded
@@ -278,19 +342,29 @@ func (r *Runner) runTask(ctx context.Context, task core.Task) (core.TaskResult, 
 
 	isolationErrors := make([]error, 0, 2)
 	isolationCtx, cancelIsolation := context.WithTimeout(context.WithoutCancel(ctx), r.cleanupTimeout)
-	if err := r.harness.Stop(isolationCtx); err != nil {
+	isolationStarted := time.Now()
+	stageCtx, stage = performance.Begin(isolationCtx, "harness.stop")
+	err = r.harness.Stop(stageCtx)
+	stage.End(err)
+	if err != nil {
 		isolationErrors = append(isolationErrors, fmt.Errorf("confirm harness stopped: %w", err))
 	} else {
 		harnessActive = false
 		result.Isolation.HarnessStopped = true
 	}
-	if err := r.bridge.Stop(isolationCtx); err != nil {
+	stageCtx, stage = performance.Begin(isolationCtx, "bridge.revoke")
+	err = r.bridge.Stop(stageCtx)
+	stage.End(err)
+	if err != nil {
 		isolationErrors = append(isolationErrors, fmt.Errorf("confirm bridge revoked: %w", err))
 	} else {
 		bridgeActive = false
 		result.Isolation.BridgeRevoked = true
 	}
 	cancelIsolation()
+	isolationFinished := time.Now()
+	isolationDuration := isolationFinished.Sub(isolationStarted)
+	result.Timing.StopRevokeDuration = &isolationDuration
 
 	if len(isolationErrors) != 0 {
 		isolationErr := errors.Join(isolationErrors...)
@@ -303,8 +377,25 @@ func (r *Runner) runTask(ctx context.Context, task core.Task) (core.TaskResult, 
 	}
 
 	result.Isolation.Status = core.StatusConfirmed
-	taskEvaluation, evaluationErr := r.benchmark.Evaluate(ctx, originalTask, sandbox, evaluation)
+	result.Timing.IsolationFinishedAt = &isolationFinished
+	stageCtx, stage = performance.Begin(ctx, "benchmark.evaluate")
+	evaluationStarted := time.Now()
+	taskEvaluation, evaluationErr := r.benchmark.Evaluate(stageCtx, originalTask, sandbox, evaluation)
+	evaluationFinished := time.Now()
+	evaluationDuration := evaluationFinished.Sub(evaluationStarted)
+	result.Timing.VerifierDuration = &evaluationDuration
+	stage.End(evaluationErr)
 	result.Evaluation = taskEvaluation
+	if validArtifactTiming(taskEvaluation.Artifact, started, evaluationFinished) {
+		ready := taskEvaluation.Artifact.ObservedAt
+		result.Timing.ArtifactReadyAt = &ready
+	}
+	// Several benchmarks initialize VerifierStatus to failed before they run
+	// any tests. An evaluation error alone cannot prove verifier completion.
+	if evaluationErr == nil && taskEvaluation.Status != core.StatusBlockedIsolation &&
+		(taskEvaluation.VerifierStatus == core.StatusSucceeded || taskEvaluation.VerifierStatus == core.StatusFailed) {
+		result.Timing.VerifierFinishedAt = &evaluationFinished
+	}
 	if evaluationErr == nil {
 		if result.Evaluation.Status == "" {
 			result.Evaluation.Status = core.StatusSucceeded
@@ -316,6 +407,29 @@ func (r *Runner) runTask(ctx context.Context, task core.Task) (core.TaskResult, 
 	}
 
 	return finish()
+}
+
+func copyRuntimeTiming(timing *core.TaskTiming, result core.HarnessResult) {
+	if result.RuntimeStartedAt != nil && !result.RuntimeStartedAt.IsZero() {
+		observed := *result.RuntimeStartedAt
+		timing.AgentStartedAt = &observed
+	}
+	if result.RuntimeFinishedAt != nil && !result.RuntimeFinishedAt.IsZero() {
+		observed := *result.RuntimeFinishedAt
+		timing.AgentFinishedAt = &observed
+	}
+	if result.RuntimeExecutionDuration != nil && *result.RuntimeExecutionDuration >= 0 {
+		duration := *result.RuntimeExecutionDuration
+		timing.RuntimeExecutionDuration = &duration
+	}
+}
+
+func validArtifactTiming(artifact *core.ArtifactEvidence, started, finished time.Time) bool {
+	if artifact == nil || artifact.ObservedAt.IsZero() || artifact.ObservedAt.Before(started) || artifact.ObservedAt.After(finished) || strings.TrimSpace(artifact.Path) == "" {
+		return false
+	}
+	digest, err := hex.DecodeString(artifact.SHA256)
+	return err == nil && len(digest) == 32
 }
 
 func cloneRuntimeOverrides(overrides RuntimeOverrides) RuntimeOverrides {
@@ -439,15 +553,21 @@ type evaluationSandboxes struct {
 }
 
 func (e *evaluationSandboxes) Start(ctx context.Context, environment core.Environment) (Sandbox, error) {
+	ctx = performance.WithIdentity(ctx, performance.Identity{Purpose: core.SandboxPurposeEvaluation})
+	ctx, span := performance.Begin(ctx, "sandbox.start")
 	sandbox, err := e.toolSandbox.Start(ctx, core.SandboxRequest{
 		RunID: e.runID, TaskID: e.taskID, Purpose: core.SandboxPurposeEvaluation, Environment: environment,
 	})
 	if err != nil {
+		span.End(err)
 		return nil, err
 	}
 	if sandbox == nil {
-		return nil, errors.New("start evaluation sandbox: returned a nil sandbox")
+		err = errors.New("start evaluation sandbox: returned a nil sandbox")
+		span.End(err)
+		return nil, err
 	}
+	span.End(nil)
 	e.mu.Lock()
 	e.started = append(e.started, sandbox)
 	e.mu.Unlock()
@@ -465,8 +585,12 @@ func (e *evaluationSandboxes) stop(ctx context.Context) error {
 	defer e.mu.Unlock()
 	var errs []error
 	var remaining []Sandbox
+	ctx = performance.WithIdentity(ctx, performance.Identity{Purpose: core.SandboxPurposeEvaluation})
 	for index := len(e.started) - 1; index >= 0; index-- {
-		if err := e.toolSandbox.Stop(ctx, e.started[index]); err != nil {
+		stageCtx, stage := performance.Begin(ctx, "sandbox.stop")
+		err := e.toolSandbox.Stop(stageCtx, e.started[index])
+		stage.End(err)
+		if err != nil {
 			errs = append(errs, err)
 			remaining = append(remaining, e.started[index])
 		}

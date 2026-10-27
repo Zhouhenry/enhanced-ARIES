@@ -1,0 +1,126 @@
+{
+  "schema_version": 1,
+  "variant_id": "custom-memory-heap-crash-terminal-result-v3",
+  "classification": "approved_independent_benchmark_interaction_variant",
+  "status": {
+    "materials": "CONSTRUCTED_STATIC_CHECKED",
+    "agent_recording": "UNRUN",
+    "strict_replay": "UNRUN",
+    "cross_cloud_comparison": "UNRUN",
+    "native_protocol_validation": "INHERITED_TERMINAL_RESULT_V1_NO_PROTOCOL_CHANGE",
+    "release10": "REUSE_EXISTING_RELEASE10_NO_BUILD_REQUIRED"
+  },
+  "original_task_id": "custom-memory-heap-crash",
+  "source": {
+    "repository": "https://github.com/harbor-framework/terminal-bench-2-1",
+    "revision": "7131e4375048a0e408a8fb404b5f499d726b695b",
+    "task_path": "tasks/custom-memory-heap-crash",
+    "license": "Apache-2.0",
+    "original_content_unchanged": true,
+    "source_manifest": "../../../revision-3-source-manifest.json"
+  },
+  "prompt": {
+    "original_file": "../../public/instruction.md",
+    "original_file_sha256": "53c68ae14a3c3af9a97c40bfd9bdc30a5d98b37eaa2f69f763475745f70f108d",
+    "original_task_instruction_sha256": "8a2759f4d28bdb5a2e3ba67fd7bbaf3c6e193c304ee3c6d9a4e0c27c81c75e8b",
+    "appendix_file": "instruction-appendix.md",
+    "appendix_file_sha256": "7fae98659041edf2600c81f7e78d3a2036cae7ff3b536d4f59f9d3102789cccc",
+    "effective_instruction_file": "effective-instruction.txt",
+    "effective_instruction_sha256": "4d651f0a71de8618062cd0c2ba9cd3cbdc819b73b0d50266a65642b1abdbec12",
+    "composition": "UTF-8 original Task.Instruction (upstream trim) + two LF + exact appendix file bytes; appendix is not trimmed",
+    "diff_file": "prompt.diff",
+    "diff_sha256": "d845d69957839f649c3044556f259ffc5918f70ef99f3da9d3b6f1663c36759e"
+  },
+  "original_case_files_unchanged": {
+    "public/instruction.md": "53c68ae14a3c3af9a97c40bfd9bdc30a5d98b37eaa2f69f763475745f70f108d",
+    "task.toml": "ed474be1983e212913aa8866ebb66216acbe36aef2339ac375d232aa46617481",
+    "environment/Dockerfile": "6ee81e5a4fa2540443d7f27d577ba840728fc6aab9f301ab7919103673c78080",
+    "environment/patches/locale_classes.tcc.patch": "16951f4a4df6bf253886ac75f5a39fdbc328e415194493f63cb7589a364aa817",
+    "environment/patches/locale_init.cc.patch": "e97f133ceebd86f8881f972e0e45b0ec0a13a9bfa428d8032008707683d54292",
+    "environment/program/main.cpp": "b94538c76887cc2b2ab739b5ac4731cddd0faa8f4a9892a6265c062bbbeede14",
+    "environment/program/user.cpp": "92b203786fed1bf0b3aa1675c9cd2d82b2651170675064da8ffee73b98ef14f9",
+    "environment/program/user.h": "f43d155995a56c22b9cd1417daef7c3b5a976cdc662a98eef0feb438ae1eee77",
+    "private/tests/test.sh": "70a2b55f0c5757f6b123a216dfd202be4a646680bced28dddcd31fd8959a058f",
+    "private/tests/test_outputs.py": "4e1cb33f777fa7fb5e1536f9bea9eace6deccd515c67d4f87570adbe692914ba"
+  },
+  "preserved": {
+    "agent_timeout_seconds": 1800,
+    "verifier_timeout_seconds": 1800,
+    "cpu": 1,
+    "memory_mb": 2048,
+    "storage_mb": 10240,
+    "gpus": 0,
+    "allow_network": true,
+    "original_scoring_method": true,
+    "reference_solution_included": false,
+    "fixed_solution_commands": false,
+    "original_test_functions": 6
+  },
+  "harness": {
+    "placement": "external",
+    "native_default_modified": false,
+    "replay_tool_protocol": "terminal-result-v1",
+    "tool_result_filtering": false,
+    "native_observation_protocol": "aries-ssh-identity-v1",
+    "tool_output_renderer": "stdout-stderr-v1"
+  },
+  "private_verifier": {
+    "location": "../../private/tests",
+    "distribution": "controller-only; inject after confirmed stop and bridge revocation"
+  },
+  "environment_preparation": {
+    "binding": "/opt/aries-artifacts/tb-huawei-cpp-initial-mtime-1/binding.json",
+    "native_image": "swr.cn-southwest-2.myhuaweicloud.com/benchmark-zhoutao/aries-openclaw:2026.7.1-terminal-result-v1-observer-e040654efde8@sha256:e040654efde8adde910583291b547fb9d5fc94e565b2f4dc8bad29abcc423041",
+    "first_provider": "huawei-agentsphere; original 4200-second sandbox window retained; E2B project 1-hour limit remains a separate unresolved restriction",
+    "binding_sha256": "85fccbbb08f96aeeb92f5f46ad1c03c3d6aa6727d6f3214feb1c91cc80d55913",
+    "initial_directory_mtime_unix_ns": {
+      "/": 1704067200000000000
+    }
+  },
+  "acceptance": [
+    "fresh autonomous real Agent recording passes original independent verifier",
+    "same new Tape replays with full request/history Strict matching and real tools on both E2B and Huawei",
+    "same CPU/memory, placement, variant, Tape and native version; disclose disk differences",
+    "stop/revocation, original private scoring and confirmed owned Sandbox cleanup remain required",
+    "preserve all original failures and failed variant attempts; never rewrite Tape or relax matcher"
+  ],
+  "limits": [
+    "not an unchanged official benchmark score",
+    "public instructions do not guarantee compliance or byte-identical future results; Strict matcher remains unchanged",
+    "native poll/log/kill/PTY remain available; necessary dynamic output and genuine cancellation or failure remain visible",
+    "finite work is directed to omit optional per-wait timeout; original task deadline/cancellation apply, and genuinely stuck work is not declared completed",
+    "same CPU/memory, placement, variant and Tape are required for controlled comparison; report disk differences",
+    "E2B original 4200-second allocation remains blocked by the recorded project one-hour limit; Huawei evidence does not fix that E2B restriction",
+    "necessary crash/debugging/error diagnostics must be read unchanged even if dynamic or reordered; Strict replay can still legitimately fail",
+    "the success of a log-reading command or trailing pipeline stage must not substitute for the underlying command status",
+    "workspace log retention does not automatically archive all logs; no collector or I/O framework is added",
+    "v3 changes public instructions and real log I/O/model context; use a new qualified real Tape, preserve old v1/v2 results separately"
+  ],
+  "profile": "../../../../../../profiles/cloud/terminalbench/variants/openclaw-huawei-a-custom-memory-heap-crash-terminal-result-v3-record.json",
+  "profile_sha256": "cd1cb8b26ec8caf1d7f225fe4778a800e3876d15a47a4dc106a201c4d44f8495",
+  "observed_motivation": {
+    "scope": "previous real v2 Huawei replay; no new v3 run",
+    "run_root": "/opt/aries-artifacts/tb-repro-cpp-v2-huawei-replay-1",
+    "status": "FAIL_STRICT_REPLAY",
+    "model_request_ordinal": 6,
+    "turn_index": 5,
+    "tool_call_id": "call_00_wMYrddcSIOQ0iohF67eF1088",
+    "difference": "Two unchanged libthread_db notifications moved within guest command stdout already merged by 2>&1; equal line contents/counts do not imply equal order. This is not native renderer reordering or an initial-mtime difference.",
+    "source_document": "../../../../../../docs/repro-variants-performance-20261026.md#cpp-v2-huawei-replay-1"
+  },
+  "revision_provenance": {
+    "previous_variant_id": "custom-memory-heap-crash-terminal-result-v2",
+    "previous_manifest": "../terminal-result-v2/variant.json",
+    "previous_manifest_sha256": "6063238e4e226fb5249a086612bf29c39e028ff929353ebd3a1233001fc42681",
+    "previous_appendix_sha256": "0a7859d75d23a4497ce17a894c2b7b1fe5a3fff968cb1db931c0ea6cdf619c05",
+    "shared_public_appendix": "../../../sqlite-with-gcov/variants/terminal-result-v3/instruction-appendix.md",
+    "shared_appendix_sha256": "7fae98659041edf2600c81f7e78d3a2036cae7ff3b536d4f59f9d3102789cccc",
+    "shared_appendix_byte_identical": true,
+    "scope": "Only v2 -> v3 appendix heading and the approved generic third-party verbose-log paragraph after the metadata paragraph; all other appendix bytes unchanged. No gdb-specific instructions, solution steps, sorting or filtering.",
+    "added_paragraph_sha256": "9c97e79307edbf0bc07c4c366101105f1fec5639f4b2243fbc75882e50864fb4",
+    "original_task_private_verifier_and_budgets_unchanged": true,
+    "old_materials_and_failed_attempts_unchanged": true,
+    "reference_answer_added": false,
+    "native_protocol_or_toolresult_changed": false
+  }
+}

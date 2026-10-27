@@ -21,6 +21,9 @@ Obtain agreement before changing an invariant; proceed with aligned work.
 - Withhold verifiers until harness stop and bridge revocation are confirmed.
   Evaluate independently of harness success using the benchmark's original
   methodology; record harness and evaluation outcomes separately.
+  Explicit operator configuration may assume Huawei verifier egress isolation;
+  label this assumption without claiming enforcement. It does not waive stop,
+  revocation, independent evaluation, or cleanup.
 - Cleanup reverses ownership, including partial starts and cancellation, and
   confirms owned-runtime absence. Borrowed-command cancellation closes transport
   without guaranteeing command termination.

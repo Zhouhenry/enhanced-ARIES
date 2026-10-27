@@ -10,10 +10,12 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	bridgessh "github.com/hyscale-lab/aries/pkg/bridge/ssh"
 	"github.com/hyscale-lab/aries/pkg/bridge/ssh/internal/testfixture"
 	"github.com/hyscale-lab/aries/pkg/core"
+	"github.com/hyscale-lab/aries/pkg/performance"
 )
 
 // The local fixture substitutes only the fixed alias destination so unit tests
@@ -22,10 +24,14 @@ type workspaceExecutor struct {
 	recordingExecutor
 	workdir, alias string
 	calls          int
+	checkContext   func(context.Context)
 }
 
 func (s *workspaceExecutor) Workdir() string { return s.workdir }
 func (s *workspaceExecutor) ExecStream(ctx context.Context, c core.Command, input io.Reader, stdout, stderr io.Writer) (core.CommandResult, error) {
+	if s.checkContext != nil {
+		s.checkContext(ctx)
+	}
 	s.calls++
 	if c.Path != remoteShell || c.User != "0:0" || c.Dir != "/" || !matchesExactArgv(c.Args, "-c", prepareWorkspaceScript, "aries-openclaw-workspace", s.workdir, virtualWorkspace) {
 		return core.CommandResult{}, errors.New("unexpected workspace setup command")
@@ -38,6 +44,32 @@ func (s *workspaceExecutor) ExecStream(ctx context.Context, c core.Command, inpu
 		return core.CommandResult{ExitCode: exit.ExitCode()}, nil
 	}
 	return core.CommandResult{}, err
+}
+
+func TestWorkspaceStartupClearsNativeContext(t *testing.T) {
+	workdir := t.TempDir()
+	deadline := time.Now().Add(5 * time.Second)
+	ctx, cancel := context.WithDeadline(context.Background(), deadline)
+	defer cancel()
+	identity := performance.NativeToolIdentity{SchemaVersion: 1, ScopeID: "foreign-scope", AgentSessionID: "foreign-session", ToolCallID: "foreign-tool", NativeInvocationID: "foreign-invocation", SSHRequestID: "foreign-request"}
+	ctx = performance.WithNativeToolIdentity(performance.WithExecutionID(ctx, "foreign-execution"), identity)
+	executor := &workspaceExecutor{workdir: workdir, alias: filepath.Join(t.TempDir(), "runtime", "workspace"), checkContext: func(got context.Context) {
+		if _, ok := performance.NativeToolIdentityFromContext(got); ok || performance.ExecutionID(got) != "" {
+			t.Error("workspace preparation inherited tool identity")
+		}
+		if actual, ok := got.Deadline(); !ok || !actual.Equal(deadline) {
+			t.Error("clearing identity lost caller deadline")
+		}
+	}}
+	dialect := &Dialect{}
+	fixture := testfixture.New(t, bridgessh.Options{Dialect: dialect, OutputDir: t.TempDir()})
+	server := &Server{manager: fixture.Manager, dialect: dialect}
+	if _, err := server.StartTarget(ctx, executor); err != nil {
+		t.Fatal(err)
+	}
+	if executor.calls != 1 {
+		t.Fatal("workspace preparation not executed")
+	}
 }
 
 func TestWorkspaceStartupAndRevocation(t *testing.T) {

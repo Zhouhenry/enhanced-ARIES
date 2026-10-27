@@ -2,13 +2,18 @@ package gateway
 
 import (
 	"context"
+	"crypto/rand"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"sort"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
+
+	"github.com/hyscale-lab/aries/pkg/performance"
 )
 
 const (
@@ -19,6 +24,9 @@ const (
 	maxMessageBytes          = 64 << 20
 	defaultEventQueueSize    = 2048
 	defaultEventQueueBytes   = 16 << 20
+	nativeClientID           = "gateway-client"
+	nativeClientMode         = "backend"
+	nativeClientPlatform     = "go"
 )
 
 var defaultScopes = []string{"operator.write"}
@@ -40,11 +48,15 @@ const (
 )
 
 type Client struct {
-	dial             DialFunc
-	role             string
-	scopes           []string
-	token            string
-	eventDisposition EventDisposition
+	observationID       string
+	observationSequence atomic.Uint64
+	dial                DialFunc
+	role                string
+	scopes              []string
+	token               string
+	device              *DeviceIdentity
+	eventDisposition    EventDisposition
+	toolEvents          bool
 
 	mu             sync.Mutex
 	transport      Transport
@@ -64,12 +76,18 @@ type Client struct {
 }
 
 type Options struct {
-	Role             string
-	Scopes           []string
-	Token            string
+	Role   string
+	Scopes []string
+	Token  string
+	// Device optionally binds native authentication to an attempt-owned identity.
+	// The owner destroys it after the last connection; closing Client does not.
+	Device           *DeviceIdentity
 	EventQueueSize   int
 	EventQueueBytes  int
 	EventDisposition EventDisposition
+	// ToolEvents requests the native tool-events capability. The caller must
+	// continuously drain RecvEvent; bounded queue overflow remains fatal.
+	ToolEvents bool
 }
 
 type ConnectOptions struct {
@@ -95,14 +113,16 @@ func (summary ConnectSummary) HasScope(want string) bool {
 }
 
 type responseDelivery struct {
-	frame Frame
-	err   error
+	observationID string
+	frame         Frame
+	err           error
 }
 
 type eventDelivery struct {
-	frame      Frame
-	bytes      int
-	generation uint64
+	observationID string
+	frame         Frame
+	bytes         int
+	generation    uint64
 }
 
 func New(dial DialFunc, options Options) (*Client, error) {
@@ -128,9 +148,18 @@ func New(dial DialFunc, options Options) (*Client, error) {
 	if options.EventDisposition != EventDispositionDelivery && options.EventDisposition != EventDispositionResponseOnly {
 		return nil, errors.New("gateway event disposition is invalid")
 	}
+	if options.ToolEvents && options.EventDisposition == EventDispositionResponseOnly {
+		return nil, errors.New("gateway tool events require event delivery")
+	}
+	var observationID [16]byte
+	if _, err := rand.Read(observationID[:]); err != nil {
+		return nil, err
+	}
 	return &Client{
-		dial: dial, role: role, scopes: scopes, token: options.Token,
+		observationID: hex.EncodeToString(observationID[:]),
+		dial:          dial, role: role, scopes: scopes, token: options.Token, device: options.Device,
 		eventDisposition: options.EventDisposition,
+		toolEvents:       options.ToolEvents,
 		pending:          make(map[string]chan responseDelivery), eventCh: make(chan eventDelivery, size), eventByteMax: queueBytes,
 		readerFailed: make(chan struct{}),
 	}, nil
@@ -179,7 +208,7 @@ func (client *Client) connectOnce(ctx context.Context, challengeTimeout time.Dur
 	if err != nil {
 		return nil, err
 	}
-	readerCtx, cancel := context.WithCancel(context.Background())
+	readerCtx, cancel := context.WithCancel(performance.WithoutParent(context.WithoutCancel(ctx)))
 	client.mu.Lock()
 	client.transport = transport
 	client.generation++
@@ -217,10 +246,20 @@ func (client *Client) finishConnect(ctx context.Context, challenge Frame) (Conne
 	}
 	params := map[string]any{
 		"minProtocol": 3, "maxProtocol": 4,
-		"client": map[string]any{"id": "gateway-client", "version": "0.1", "platform": "go", "mode": "backend"},
+		"client": map[string]any{"id": nativeClientID, "version": "0.1", "platform": nativeClientPlatform, "mode": nativeClientMode},
 		"role":   client.role, "scopes": append([]string(nil), client.scopes...),
 		"caps": []any{}, "commands": []any{}, "permissions": map[string]any{},
 		"auth": map[string]any{"token": client.token}, "locale": "en-US", "userAgent": "gateway-client/aries/0.1",
+	}
+	if client.toolEvents {
+		params["caps"] = []any{"tool-events"}
+	}
+	if client.device != nil {
+		proof, err := client.device.proof(client.role, client.scopes, client.token, nonce, time.Now().UnixMilli())
+		if err != nil {
+			return ConnectSummary{}, err
+		}
+		params["device"] = proof
 	}
 	response, err := client.Call(ctx, "connect", params)
 	if err != nil {
@@ -243,7 +282,7 @@ func (client *Client) finishConnect(ctx context.Context, challenge Frame) (Conne
 		return summary, nil
 	}
 	if pairingRequired(response) {
-		return ConnectSummary{}, errors.New("connect failed: gateway pairing is required")
+		return ConnectSummary{}, pairingError(response)
 	}
 	return ConnectSummary{}, errors.New("connect failed: gateway rejected authentication")
 }
@@ -316,6 +355,7 @@ func (client *Client) RecvEvent(ctx context.Context) (Frame, error) {
 			if err != nil {
 				return nil, err
 			}
+			client.observeFrame(ctx, "gateway.event.consumed", frame, delivery.observationID, time.Now())
 			return frame, nil
 		default:
 		}
@@ -331,6 +371,7 @@ func (client *Client) RecvEvent(ctx context.Context) (Frame, error) {
 			if err != nil {
 				return nil, err
 			}
+			client.observeFrame(ctx, "gateway.event.consumed", frame, delivery.observationID, time.Now())
 			return frame, nil
 		case <-readerFailed:
 			// A normal EOF can race with the event that preceded it. Loop once
@@ -402,6 +443,7 @@ func (client *Client) readLoop(ctx context.Context, transport Transport) {
 func (client *Client) readConnection(ctx context.Context, transport Transport, generation uint64) {
 	for {
 		content, err := transport.Receive(ctx)
+		received := time.Now()
 		if err != nil {
 			readerErr := fmt.Errorf("gateway reader stopped: %w", err)
 			if isWebSocketProtocolError(err) {
@@ -420,17 +462,20 @@ func (client *Client) readConnection(ctx context.Context, transport Transport, g
 			client.failTransportFatal(transport, errors.New("gateway returned malformed JSON"))
 			return
 		}
+		deliveryID := fmt.Sprintf("%s:%d", client.observationID, client.observationSequence.Add(1))
 		if frame.String("type") == "res" {
 			client.mu.Lock()
 			if client.transport != transport || client.generation != generation {
 				client.mu.Unlock()
 				return
 			}
+			client.observeFrame(ctx, "gateway.frame.received", frame, deliveryID, received)
 			if id := frame.String("id"); id != "" {
 				reply := client.pending[id]
 				if reply != nil {
+					client.observeFrame(ctx, "gateway.response.enqueue_offer", frame, deliveryID, time.Now())
 					select {
-					case reply <- responseDelivery{frame: frame}:
+					case reply <- responseDelivery{frame: frame, observationID: deliveryID}:
 						client.mu.Unlock()
 					default:
 						termination, ok := client.terminateConnectionLocked(transport, errors.New("gateway response queue overflow"), true)
@@ -467,6 +512,9 @@ func (client *Client) readConnection(ctx context.Context, transport Transport, g
 			client.mu.Unlock()
 			continue
 		}
+		// Response-only clients deliberately do not deliver native events. The
+		// delivery observer must not call those absent consumers lost records.
+		client.observeFrame(ctx, "gateway.frame.received", frame, deliveryID, received)
 		if client.eventCount >= cap(client.eventCh) || client.eventBytes+len(content) > client.eventByteMax {
 			termination, ok := client.terminateConnectionLocked(transport, errors.New("gateway event queue overflow"), true)
 			client.mu.Unlock()
@@ -476,7 +524,8 @@ func (client *Client) readConnection(ctx context.Context, transport Transport, g
 			return
 		}
 		eventCh := client.eventCh
-		delivery := eventDelivery{frame: frame, bytes: len(content), generation: generation}
+		delivery := eventDelivery{frame: frame, bytes: len(content), generation: generation, observationID: deliveryID}
+		client.observeFrame(ctx, "gateway.event.enqueue_offer", frame, deliveryID, time.Now())
 		select {
 		case eventCh <- delivery:
 			client.eventCount++

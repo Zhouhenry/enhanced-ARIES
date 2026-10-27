@@ -1,0 +1,39 @@
+{
+  "name": "openclaw-e2b-a-sqlite-with-gcov-terminal-result-v3-record",
+  "agent_type": "openclaw",
+  "placement": "external",
+  "sandbox_backend": "e2b-cloud",
+  "versions_file": "../../../../configs/versions-terminal-result-v1.json",
+  "output_dir": "runs/repro-workload",
+  "benchmark": {
+    "type": "terminalbench2",
+    "root": "../../../../.cache/terminal-bench-2-1",
+    "task_id": "sqlite-with-gcov",
+    "variant": {
+      "id": "sqlite-with-gcov-terminal-result-v3",
+      "instruction_appendix_file": "../../../../cases/sandbox-runtime-v1/agent-cases/sqlite-with-gcov/variants/terminal-result-v3/instruction-appendix.md",
+      "appendix_sha256": "7fae98659041edf2600c81f7e78d3a2036cae7ff3b536d4f59f9d3102789cccc"
+    }
+  },
+  "sandbox": {
+    "binding_file": "../../../../.cache/tb2-e2b/sqlite-with-gcov/binding.json",
+    "timeout_seconds": 2400
+  },
+  "harness": {
+    "openclaw_path": "/usr/local/bin/openclaw",
+    "openclaw_version": "2026.7.1",
+    "ssh_client_path": "../../../../bin/aries-ssh-client",
+    "native_observation_protocol": "aries-ssh-identity-v1",
+    "tool_output_renderer": "stdout-stderr-v1",
+    "replay_tool_protocol": "terminal-result-v1"
+  },
+  "model": {
+    "mode": "record",
+    "tool_call_id_dialect": "openclaw-2026.7.1",
+    "max_turns": 128
+  },
+  "execution": {
+    "concurrency": 1,
+    "attempts": 1
+  }
+}

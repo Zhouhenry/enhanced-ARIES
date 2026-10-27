@@ -75,7 +75,7 @@ type Runtime struct {
 }
 
 func NewRuntime(label string, options RuntimeOptions) (*Runtime, error) {
-	if err := containerimage.ValidatePinnedTagOnly(options.Image); err != nil {
+	if err := containerimage.ValidatePinnedTag(options.Image); err != nil {
 		return nil, fmt.Errorf("%s image: %w", label, err)
 	}
 	if strings.TrimSpace(options.OutputDir) == "" {

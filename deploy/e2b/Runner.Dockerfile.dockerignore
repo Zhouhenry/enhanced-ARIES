@@ -1,0 +1,26 @@
+# Deny by default: never send the repository's .env, runs or cached inputs.
+**
+!go.mod
+!go.sum
+!cmd/
+!cmd/**
+!internal/
+!internal/**
+!pkg/
+!pkg/**
+!profiles/
+!profiles/cloud/
+!profiles/cloud/*.json
+!configs/
+!configs/versions.json
+**/*_test.go
+**/testdata
+**/testdata/**
+**/.env
+**/.env.*
+**/*.key
+**/*.pem
+**/.cache
+**/runs
+**/private
+**/private/**

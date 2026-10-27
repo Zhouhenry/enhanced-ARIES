@@ -42,6 +42,9 @@ func TestScrubberFilesAndErrors(t *testing.T) {
 	if err := os.WriteFile(path, []byte("Bearer ghp_exampletoken123\n"), 0o640); err != nil {
 		t.Fatal(err)
 	}
+	if err := os.Chmod(path, 0o640); err != nil {
+		t.Fatal(err)
+	}
 	if err := scrub.file(path); err != nil {
 		t.Fatal(err)
 	}

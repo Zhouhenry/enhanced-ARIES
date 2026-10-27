@@ -76,41 +76,51 @@ func terminalFrame(id, runID, status string, payloads []any) Frame {
 }
 
 func TestAgentSendsOnceAndCorrelatesAcceptedAndTerminal(t *testing.T) {
-	transport := newFakeTransport()
-	client := connectedAgentClient(t, transport, "operator.write")
-	defer client.Close()
-	done := make(chan struct {
-		result AgentResult
-		err    error
-	}, 1)
-	go func() {
-		result, err := client.Agent(context.Background(), validAgentRequest())
-		done <- struct {
-			result AgentResult
-			err    error
-		}{result, err}
-	}()
-	sent := transport.nextSent(t)
-	params := sent.Map("params")
-	if sent.String("method") != "agent" || params["message"] != "repair" || params["sessionKey"] != "agent:main:aries-fix-git" || params["idempotencyKey"] != "stable-key" || params["thinking"] != "off" {
-		t.Fatalf("agent request = %#v", sent)
-	}
-	if _, ok := params["timeoutMs"]; ok {
-		t.Fatalf("v2026.7.1 agent schema rejects timeoutMs: %#v", params)
-	}
-	id := sent.String("id")
-	transport.deliver(Frame{"type": "event", "event": "chat", "payload": map[string]any{"runId": "other"}})
-	transport.deliver(Frame{"type": "res", "id": "other-id", "ok": true, "payload": map[string]any{"status": "ok", "runId": "other"}})
-	transport.deliver(acceptedFrame(id, "run-1"))
-	transport.deliver(terminalFrame(id, "run-1", "ok", []any{map[string]any{"text": "first"}, map[string]any{"text": ""}, map[string]any{"text": "second"}}))
-	got := <-done
-	if got.err != nil || got.result.RunID != "run-1" || got.result.Text != "first\nsecond" {
-		t.Fatalf("Agent = %#v, %v", got.result, got.err)
-	}
-	select {
-	case extra := <-transport.out:
-		t.Fatalf("agent request was resubmitted: %s", extra)
-	default:
+	for _, sessionID := range []string{"", "8ad5eb11-e541-4cbf-8ae0-1f9e2822c342"} {
+		t.Run("session-id="+sessionID, func(t *testing.T) {
+			transport := newFakeTransport()
+			client := connectedAgentClient(t, transport, "operator.write")
+			defer client.Close()
+			done := make(chan struct {
+				result AgentResult
+				err    error
+			}, 1)
+			request := validAgentRequest()
+			request.SessionID = sessionID
+			go func() {
+				result, err := client.Agent(context.Background(), request)
+				done <- struct {
+					result AgentResult
+					err    error
+				}{result, err}
+			}()
+			sent := transport.nextSent(t)
+			params := sent.Map("params")
+			if sent.String("method") != "agent" || params["message"] != "repair" || params["sessionKey"] != "agent:main:aries-fix-git" || params["idempotencyKey"] != "stable-key" || params["thinking"] != "off" {
+				t.Fatalf("agent request = %#v", sent)
+			}
+			if _, ok := params["timeoutMs"]; ok {
+				t.Fatalf("v2026.7.1 agent schema rejects timeoutMs: %#v", params)
+			}
+			value, present := params["sessionId"]
+			if (sessionID == "" && present) || (sessionID != "" && value != sessionID) {
+				t.Fatalf("optional native sessionId = %#v, present=%v", value, present)
+			}
+			id := sent.String("id")
+			transport.deliver(Frame{"type": "event", "event": "chat", "payload": map[string]any{"runId": "other"}})
+			transport.deliver(Frame{"type": "res", "id": "other-id", "ok": true, "payload": map[string]any{"status": "ok", "runId": "other"}})
+			transport.deliver(acceptedFrame(id, "run-1"))
+			transport.deliver(terminalFrame(id, "run-1", "ok", []any{map[string]any{"text": "first"}, map[string]any{"text": ""}, map[string]any{"text": "second"}}))
+			got := <-done
+			if got.err != nil || got.result.RunID != "run-1" || got.result.Text != "first\nsecond" {
+				t.Fatalf("Agent = %#v, %v", got.result, got.err)
+			}
+			select {
+			case extra := <-transport.out:
+				t.Fatalf("agent request was resubmitted: %s", extra)
+			default:
+			}
+		})
 	}
 }
 

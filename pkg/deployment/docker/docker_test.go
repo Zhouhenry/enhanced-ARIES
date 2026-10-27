@@ -27,6 +27,7 @@ func TestCreatePreservesArgumentsResourcesAndPrivateService(t *testing.T) {
 	fake := newFakeDocker()
 	manager := &Manager{client: fake}
 	request := deploymentRequest()
+	request.Hostname = "aries-workload"
 	cpu, memory := 2.5, 1536
 	request.CPU, request.MemoryMB = &cpu, &memory
 	id, err := manager.Create(context.Background(), request)
@@ -38,6 +39,9 @@ func TestCreatePreservesArgumentsResourcesAndPrivateService(t *testing.T) {
 	}
 	if !slices.Equal(fake.created.Config.Cmd, request.Args) {
 		t.Fatalf("argv=%q", fake.created.Config.Cmd)
+	}
+	if fake.created.Config.Hostname != request.Hostname {
+		t.Fatalf("hostname=%q", fake.created.Config.Hostname)
 	}
 	limits := fake.created.HostConfig.Resources
 	if limits.NanoCPUs != 2500000000 || limits.Memory != 1536<<20 {
@@ -100,6 +104,7 @@ func TestValidateRejectsChangedOwnershipIsolationAndSecretMetadata(t *testing.T)
 		"missing config":      func(c *container.InspectResponse) { c.Config = nil },
 		"missing host config": func(c *container.InspectResponse) { c.HostConfig = nil },
 		"image":               func(c *container.InspectResponse) { c.Config.Image = "other:v1" },
+		"hostname":            func(c *container.InspectResponse) { c.Config.Hostname = "other-host" },
 		"argv":                func(c *container.InspectResponse) { c.Config.Cmd = []string{"other"} },
 		"label":               func(c *container.InspectResponse) { c.Config.Labels["aries.attempt"] = "other" },
 		"network":             func(c *container.InspectResponse) { c.HostConfig.NetworkMode = "host" },
@@ -111,6 +116,7 @@ func TestValidateRejectsChangedOwnershipIsolationAndSecretMetadata(t *testing.T)
 			fake := newFakeDocker()
 			manager := &Manager{client: fake}
 			request := deploymentRequest()
+			request.Hostname = "aries-workload"
 			id, err := manager.Create(context.Background(), request)
 			if err != nil {
 				t.Fatal(err)

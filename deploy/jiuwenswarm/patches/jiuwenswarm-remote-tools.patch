@@ -1,0 +1,109 @@
+--- a/jiuwenswarm/agents/harness/flash/tools/flash_glob_tool.py
++++ b/jiuwenswarm/agents/harness/flash/tools/flash_glob_tool.py
+@@ -17,7 +17,6 @@
+ 
+ import logging
+ import os
+-import pathlib
+ import re
+ import time
+ from typing import Any, Dict, List, Optional
+@@ -101,18 +100,18 @@
+ 
+ # ── gitignore helpers ──
+ 
+-def _load_gitignore_patterns(root: str) -> List[str]:
++async def _load_gitignore_patterns(root: str, operation: Any) -> List[str]:
+     """Read .gitignore patterns from *root* directory.
+ 
+     Only reads the top-level ``.gitignore`` in *root*.  Nested ``.gitignore``
+     files in subdirectories are not followed — this covers the common case
+     where the project root holds the primary ignore rules.
+     """
+-    gitignore_path = pathlib.Path(root) / ".gitignore"
+-    if not gitignore_path.is_file():
+-        return []
+     try:
+-        text = gitignore_path.read_text(encoding="utf-8", errors="replace")
++        result = await operation.fs().read_file(os.path.join(root, ".gitignore"), mode="bytes")
++        if result.code != StatusCode.SUCCESS.code or result.data is None:
++            return []
++        text = result.data.content.decode("utf-8", errors="replace")
+     except Exception as exc:
+         logger.debug("[FlashGlob] failed to read .gitignore at %s: %s", root, exc)
+         return []
+@@ -283,7 +282,7 @@
+                         all_items.append(item)
+ 
+         # 2. Apply .gitignore filtering
+-        gitignore_patterns = _load_gitignore_patterns(path)
++        gitignore_patterns = await _load_gitignore_patterns(path, self.operation)
+         gitignore_applied = False
+         if gitignore_patterns:
+             before_count = len(all_items)
+--- a/jiuwenswarm/extensions/hook_event.py
++++ b/jiuwenswarm/extensions/hook_event.py
+@@ -26,6 +26,7 @@
+     AGENT_SERVER_STOPPED = HookEventBase.get_event("agent_server_stopped")
+     BEFORE_CHAT_REQUEST = HookEventBase.get_event("before_chat_request")
+     BEFORE_WS_SERVER_START = HookEventBase.get_event("before_ws_server_start")
++    AFTER_SESSION_CANCEL = HookEventBase.get_event("after_session_cancel")
+     MEMORY_BEFORE_CHAT = HookEventBase.get_event("memory_before_chat")
+     MEMORY_AFTER_CHAT = HookEventBase.get_event("memory_after_chat")
+     BEFORE_SYSTEM_PROMPT_BUILD = HookEventBase.get_event("before_system_prompt_build")
+--- a/jiuwenswarm/server/handlers/chat.py
++++ b/jiuwenswarm/server/handlers/chat.py
+@@ -397,7 +397,7 @@
+         cancel_response = await _handle_cancel(
+             ctx,
+             allow_create=False,
+-            send_response=not cleanup_after_cancel,
++            send_response=False,
+         )
+     finally:
+         if stream_tasks:
+@@ -423,11 +423,40 @@
+                         "success": False,
+                         "error": "session runtime cleanup failed",
+                     }
+-                wire = encode_agent_response_for_wire(
+-                    cancel_response,
+-                    response_id=request.request_id,
++        if intent in ("cancel", "supplement"):
++            # A remote provider has a different process registry. Await its
++            # session cancellation before acknowledging the native interrupt.
++            from jiuwenswarm.extensions.hook_event import AgentServerHookEvents
++            from jiuwenswarm.extensions.hooks_context import AgentServerChatHookContext
++            from jiuwenswarm.extensions.registry import ExtensionRegistry
++
++            hook = AgentServerChatHookContext(
++                request_id=request.request_id,
++                channel_id=request.channel_id,
++                session_id=sid,
++                req_method=request.req_method.value,
++                params=request.params,
++            )
++            try:
++                await ExtensionRegistry.trigger_if_initialized(
++                    AgentServerHookEvents.AFTER_SESSION_CANCEL, hook
+                 )
+-                await ctx.sink.send_wire(wire)
++            except Exception:
++                logger.exception("Session cancellation extension failed: session=%s", sid)
++                if cancel_response is None:
++                    raise
++                cancel_response.ok = False
++                cancel_response.payload = {
++                    "event_type": "chat.interrupt_result",
++                    "success": False,
++                    "error": "session cancellation extension failed",
++                }
++        if cancel_response is not None:
++            wire = encode_agent_response_for_wire(
++                cancel_response,
++                response_id=request.request_id,
++            )
++            await ctx.sink.send_wire(wire)
+ 
+ 
+ #: 按 session 串行化自动建队。弱引用持有，一次性会话不累积进程级状态。

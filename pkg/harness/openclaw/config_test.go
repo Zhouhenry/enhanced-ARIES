@@ -23,7 +23,7 @@ func testModel() core.ModelConfig {
 }
 
 func TestRenderConfigLocksProviderSharedSSHAndPlaceholder(t *testing.T) {
-	content, err := renderConfig(testModel(), testEndpoint(), ModeAgent, "http://search.example:8123", false, false, false, 0)
+	content, err := renderConfig(testModel(), nil, testEndpoint(), ModeAgent, "http://search.example:8123", false, false, false, 0)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -63,7 +63,7 @@ func TestRenderConfigSelectsSGLangProviderWithoutSerializingKey(t *testing.T) {
 	model := testModel()
 	model.Provider = "sglang"
 	model.APIKeyEnv = "SGLANG_API_KEY"
-	content, err := renderConfig(model, testEndpoint(), ModeAgent, "http://search.example:8123", false, false, false, 0)
+	content, err := renderConfig(model, nil, testEndpoint(), ModeAgent, "http://search.example:8123", false, false, false, 0)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -81,7 +81,7 @@ func TestRenderConfigSelectsSGLangProviderWithoutSerializingKey(t *testing.T) {
 }
 
 func TestRenderConfigSetsRealtimeConsultRoutingOnlyForRealtimeMode(t *testing.T) {
-	content, err := renderConfig(testModel(), testEndpoint(), ModeRealtime, "http://search.example:8123", false, false, false, 0)
+	content, err := renderConfig(testModel(), nil, testEndpoint(), ModeRealtime, "http://search.example:8123", false, false, false, 0)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -93,7 +93,7 @@ func TestRenderConfigSetsRealtimeConsultRoutingOnlyForRealtimeMode(t *testing.T)
 		t.Fatalf("talk realtime config = %#v", configuration.Talk)
 	}
 
-	content, err = renderConfig(testModel(), testEndpoint(), ModeVoiceTranscribe, "http://search.example:8123", false, false, false, 0)
+	content, err = renderConfig(testModel(), nil, testEndpoint(), ModeVoiceTranscribe, "http://search.example:8123", false, false, false, 0)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -110,7 +110,7 @@ func TestRenderConfigNormalizesSGLangBaseURL(t *testing.T) {
 	model := testModel()
 	model.Provider = "sglang"
 	model.BaseURL += "/"
-	content, err := renderConfig(model, testEndpoint(), ModeAgent, "http://search.example:8123", false, false, false, 0)
+	content, err := renderConfig(model, nil, testEndpoint(), ModeAgent, "http://search.example:8123", false, false, false, 0)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -143,7 +143,7 @@ func TestRenderConfigRejectsInvalidInputs(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			model, endpoint := testModel(), testEndpoint()
 			mutate(&model, &endpoint)
-			if _, err := renderConfig(model, endpoint, ModeAgent, "http://search.example:8123", false, false, false, 0); err == nil {
+			if _, err := renderConfig(model, nil, endpoint, ModeAgent, "http://search.example:8123", false, false, false, 0); err == nil {
 				t.Fatal("invalid input was accepted")
 			}
 		})
@@ -153,13 +153,13 @@ func TestRenderConfigRejectsInvalidInputs(t *testing.T) {
 func TestRenderConfigAcceptsLowercaseEnvironmentName(t *testing.T) {
 	model := testModel()
 	model.APIKeyEnv = "aries_fake_api_key"
-	if _, err := renderConfig(model, testEndpoint(), ModeAgent, "http://search.example:8123", false, false, false, 0); err != nil {
+	if _, err := renderConfig(model, nil, testEndpoint(), ModeAgent, "http://search.example:8123", false, false, false, 0); err != nil {
 		t.Fatalf("renderConfig() rejected a valid environment name: %v", err)
 	}
 }
 
 func TestRenderConfigOmitsWebSearchWhenDisabled(t *testing.T) {
-	content, err := renderConfig(testModel(), testEndpoint(), ModeAgent, "http://search.example:8123", false, false, false, 0)
+	content, err := renderConfig(testModel(), nil, testEndpoint(), ModeAgent, "http://search.example:8123", false, false, false, 0)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -179,7 +179,7 @@ func TestRenderConfigOmitsWebSearchWhenDisabled(t *testing.T) {
 }
 
 func TestRenderConfigEnablesSearXNGWebSearch(t *testing.T) {
-	content, err := renderConfig(testModel(), testEndpoint(), ModeAgent, "http://search.example:8123", true, false, false, 0)
+	content, err := renderConfig(testModel(), nil, testEndpoint(), ModeAgent, "http://search.example:8123", true, false, false, 0)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -207,7 +207,7 @@ func TestRenderConfigEnablesSearXNGWebSearch(t *testing.T) {
 }
 
 func TestRenderConfigEnablesTavilyExtractAlongsideSearXNGSearch(t *testing.T) {
-	content, err := renderConfig(testModel(), testEndpoint(), ModeAgent, "http://search.example:8123", true, true, false, 0)
+	content, err := renderConfig(testModel(), nil, testEndpoint(), ModeAgent, "http://search.example:8123", true, true, false, 0)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -239,7 +239,7 @@ func TestRenderConfigEnablesTavilyExtractAlongsideSearXNGSearch(t *testing.T) {
 }
 
 func TestRenderConfigIgnoresExtractWhenWebSearchDisabled(t *testing.T) {
-	content, err := renderConfig(testModel(), testEndpoint(), ModeAgent, "http://search.example:8123", false, true, false, 0)
+	content, err := renderConfig(testModel(), nil, testEndpoint(), ModeAgent, "http://search.example:8123", false, true, false, 0)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -256,7 +256,7 @@ func TestRenderConfigIgnoresExtractWhenWebSearchDisabled(t *testing.T) {
 }
 
 func TestRenderConfigAllowsSubagentsWhenEnabled(t *testing.T) {
-	content, err := renderConfig(testModel(), testEndpoint(), ModeAgent, "http://search.example:8123", false, false, true, 0)
+	content, err := renderConfig(testModel(), nil, testEndpoint(), ModeAgent, "http://search.example:8123", false, false, true, 0)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -270,7 +270,7 @@ func TestRenderConfigAllowsSubagentsWhenEnabled(t *testing.T) {
 }
 
 func TestRenderConfigSetsMaxConcurrentSubagentsWhenEnabled(t *testing.T) {
-	content, err := renderConfig(testModel(), testEndpoint(), ModeAgent, "http://search.example:8123", false, false, true, 2)
+	content, err := renderConfig(testModel(), nil, testEndpoint(), ModeAgent, "http://search.example:8123", false, false, true, 2)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -284,7 +284,7 @@ func TestRenderConfigSetsMaxConcurrentSubagentsWhenEnabled(t *testing.T) {
 }
 
 func TestRenderConfigOmitsSubagentsBlockWhenNoLimitSet(t *testing.T) {
-	content, err := renderConfig(testModel(), testEndpoint(), ModeAgent, "http://search.example:8123", false, false, true, 0)
+	content, err := renderConfig(testModel(), nil, testEndpoint(), ModeAgent, "http://search.example:8123", false, false, true, 0)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -298,7 +298,7 @@ func TestRenderConfigOmitsSubagentsBlockWhenNoLimitSet(t *testing.T) {
 }
 
 func TestRenderConfigIgnoresMaxConcurrentWhenSubagentsDisabled(t *testing.T) {
-	content, err := renderConfig(testModel(), testEndpoint(), ModeAgent, "http://search.example:8123", false, false, false, 2)
+	content, err := renderConfig(testModel(), nil, testEndpoint(), ModeAgent, "http://search.example:8123", false, false, false, 2)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -363,7 +363,7 @@ func TestRenderConfigKeysOpenAICompatibleProviderAsAries(t *testing.T) {
 	model.Provider = "openai"
 	model.BaseURL = "http://vllm.local:8000/v1/"
 	model.APIKeyEnv = "VLLM_API_KEY"
-	content, err := renderConfig(model, testEndpoint(), ModeAgent, "http://search.example:8123", false, false, false, 0)
+	content, err := renderConfig(model, nil, testEndpoint(), ModeAgent, "http://search.example:8123", false, false, false, 0)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -376,7 +376,7 @@ func TestRenderConfigKeysOpenAICompatibleProviderAsAries(t *testing.T) {
 		t.Fatalf("configuration = %#v", configuration)
 	}
 	model.BaseURL = "http://vllm.local:8000"
-	if _, err := renderConfig(model, testEndpoint(), ModeAgent, "http://search.example:8123", false, false, false, 0); err == nil {
+	if _, err := renderConfig(model, nil, testEndpoint(), ModeAgent, "http://search.example:8123", false, false, false, 0); err == nil {
 		t.Fatal("accepted an openai base URL without /v1")
 	}
 }
@@ -396,7 +396,7 @@ func TestRenderConfig_MCPServersAndSandboxAllowlist(t *testing.T) {
 		},
 	}
 
-	content, err := renderConfig(testModel(), testEndpoint(), ModeAgent, "http://search.example:8123", false, false, false, 0, MCPOptions{
+	content, err := renderConfig(testModel(), nil, testEndpoint(), ModeAgent, "http://search.example:8123", false, false, false, 0, MCPOptions{
 		Servers: servers,
 	})
 	if err != nil {
@@ -432,10 +432,10 @@ func TestRenderConfig_MCPServersAndSandboxAllowlist(t *testing.T) {
 }
 
 func TestSearchRequiresResolvedEndpoint(t *testing.T) {
-	if _, err := renderConfig(testModel(), testEndpoint(), ModeAgent, "", true, false, false, 0); err == nil {
+	if _, err := renderConfig(testModel(), nil, testEndpoint(), ModeAgent, "", true, false, false, 0); err == nil {
 		t.Fatal("accepted search without a declared endpoint")
 	}
-	if _, err := renderConfig(testModel(), testEndpoint(), ModeAgent, "", false, false, false, 0); err != nil {
+	if _, err := renderConfig(testModel(), nil, testEndpoint(), ModeAgent, "", false, false, false, 0); err != nil {
 		t.Fatal(err)
 	}
 }
@@ -455,7 +455,7 @@ func TestRenderConfigExplicitReasoningUsesNativePayloadOverrides(t *testing.T) {
 		t.Run(tc.provider+"/"+tc.effort, func(t *testing.T) {
 			model := testModel()
 			model.Provider, model.Model, model.ReasoningEffort = tc.provider, tc.model, tc.effort
-			content, err := renderConfig(model, testEndpoint(), ModeAgent, "", false, false, false, 0)
+			content, err := renderConfig(model, nil, testEndpoint(), ModeAgent, "", false, false, false, 0)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -483,7 +483,7 @@ func TestRenderConfigExplicitReasoningUsesNativePayloadOverrides(t *testing.T) {
 }
 
 func TestRenderConfig_MCPServerTransportAndTimeout(t *testing.T) {
-	content, err := renderConfig(testModel(), testEndpoint(), ModeAgent, "", false, false, false, 0, MCPOptions{
+	content, err := renderConfig(testModel(), nil, testEndpoint(), ModeAgent, "", false, false, false, 0, MCPOptions{
 		Servers: []core.MCPServerConfig{
 			{Name: "gateway", URL: "http://task-sandbox:10086/sse", Transport: "sse", TimeoutSeconds: 1200},
 			{Name: "streaming", URL: "https://mcp.example.com/mcp", Transport: "streamable-http"},
@@ -510,7 +510,7 @@ func TestRenderConfig_MCPServerTransportAndTimeout(t *testing.T) {
 // on, and renders no mcp block when there are no servers.
 func TestRenderConfig_MCPServersBesideWebSearch(t *testing.T) {
 	servers := MCPOptions{Servers: []core.MCPServerConfig{{Name: "toolathlon", URL: "http://task-sandbox:10086/sse", Transport: "sse", TimeoutSeconds: 1200}}}
-	withWeb, err := renderConfig(testModel(), testEndpoint(), ModeAgent, "http://search.example:8123", true, false, false, 0, servers)
+	withWeb, err := renderConfig(testModel(), nil, testEndpoint(), ModeAgent, "http://search.example:8123", true, false, false, 0, servers)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -521,7 +521,7 @@ func TestRenderConfig_MCPServersBesideWebSearch(t *testing.T) {
 	if got := configuration.Tools.Sandbox.Tools.AlsoAllow; strings.Join(got, ",") != "web_search,web_fetch,bundle-mcp" {
 		t.Fatalf("tools.sandbox.tools.alsoAllow with web search = %#v", got)
 	}
-	without, err := renderConfig(testModel(), testEndpoint(), ModeAgent, "", false, false, false, 0, MCPOptions{})
+	without, err := renderConfig(testModel(), nil, testEndpoint(), ModeAgent, "", false, false, false, 0, MCPOptions{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -535,7 +535,7 @@ func TestRenderConfig_MCPServersBesideWebSearch(t *testing.T) {
 func TestRenderConfig_NoSandboxToolsDeniesExec(t *testing.T) {
 	servers := []core.MCPServerConfig{{Name: "toolathlon", URL: "http://task-sandbox:10086/sse", Transport: "sse"}}
 	for _, withheld := range []bool{false, true} {
-		rendered, err := renderConfig(testModel(), testEndpoint(), ModeAgent, "", false, false, false, 0, MCPOptions{Servers: servers, NoSandboxTools: withheld})
+		rendered, err := renderConfig(testModel(), nil, testEndpoint(), ModeAgent, "", false, false, false, 0, MCPOptions{Servers: servers, NoSandboxTools: withheld})
 		if err != nil {
 			t.Fatal(err)
 		}

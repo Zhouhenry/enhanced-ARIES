@@ -8,6 +8,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/hyscale-lab/aries/pkg/bridge/ssh/execidentity"
+	"github.com/hyscale-lab/aries/pkg/performance"
 	"github.com/sirupsen/logrus"
 	gossh "golang.org/x/crypto/ssh"
 )
@@ -116,9 +118,34 @@ func serveGlobalRequests(requests <-chan *gossh.Request) {
 }
 
 func (session *bridgeSession) handleSession(ctx context.Context, channel gossh.Channel, requests <-chan *gossh.Request) {
+	// Tool identity belongs to this channel's accepted metadata, not its caller.
+	ctx = execidentity.WithoutContext(performance.WithExecutionID(ctx, ""))
 	policy := session.dialect.Policy()
+	var identity *execidentity.Metadata
 	for request := range requests {
-		audit := requestAudit{requestType: request.Type, wantReply: request.WantReply, payload: bytes.Clone(request.Payload)}
+		audit := requestAudit{requestType: request.Type, wantReply: request.WantReply, payload: bytes.Clone(request.Payload), identity: identity}
+		if request.Type == execidentity.RequestType {
+			metadata, err := execidentity.Decode(request.Payload)
+			if err != nil || !request.WantReply || identity != nil || session.identityScopeID == "" || metadata.ScopeID != session.identityScopeID || metadata.AgentSessionID != session.identitySessionID || session.identities == nil {
+				if request.WantReply {
+					_ = session.reply(request, false)
+				}
+				session.logRequestFailure(audit, policy.InvalidOperationClass, "rejected", "invalid or unexpected tool identity")
+				return
+			}
+			if err := session.identities.reserve(metadata); err != nil {
+				_ = session.reply(request, false)
+				session.logRequestFailure(audit, policy.InvalidOperationClass, "rejected", err.Error())
+				return
+			}
+			identity = &metadata
+			if err := session.reply(request, true); err != nil {
+				audit.identity = identity
+				session.logRequestFailure(audit, policy.InvalidOperationClass, "failed", "tool identity accept reply failed")
+				return
+			}
+			continue
+		}
 		if request.Type != "exec" {
 			if request.WantReply {
 				_ = session.reply(request, false)
@@ -155,6 +182,9 @@ func (session *bridgeSession) handleSession(ctx context.Context, channel gossh.C
 		if err := session.reply(request, true); err != nil {
 			session.logRequestFailure(audit, prepared.RefusalClass, "failed", "SSH accept reply failed")
 			return
+		}
+		if identity != nil {
+			ctx = execidentity.WithContext(ctx, *identity)
 		}
 		exitCode := session.execute(ctx, channel, prepared, audit)
 		_, _ = channel.SendRequest("exit-status", false, gossh.Marshal(struct{ Status uint32 }{uint32(exitCode)}))

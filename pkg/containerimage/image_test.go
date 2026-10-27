@@ -71,3 +71,24 @@ func TestValidateTagOnlyStillTrimsAndAcceptsLatest(t *testing.T) {
 		t.Fatalf("ValidateTagOnly() = %q, %v", got, err)
 	}
 }
+
+func TestValidatePinnedTagAcceptsOptionalDigestWithoutWeakeningTagRules(t *testing.T) {
+	const tag = "docker.io/example/tool:1.2.3"
+	const digest = "@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+	for _, image := range []string{tag, tag + digest} {
+		if err := ValidatePinnedTag(image); err != nil {
+			t.Fatalf("ValidatePinnedTag(%q): %v", image, err)
+		}
+	}
+	for _, image := range []string{
+		"", " " + tag, tag + "\n", " " + tag + digest, tag + digest + "\n",
+		"docker.io/example/tool", "docker.io/example/tool" + digest,
+		"docker.io/example/tool:latest", "docker.io/example/tool:latest" + digest,
+		tag + "@", tag + "@sha256:short",
+		"not a valid image",
+	} {
+		if err := ValidatePinnedTag(image); err == nil {
+			t.Fatalf("ValidatePinnedTag(%q) succeeded", image)
+		}
+	}
+}

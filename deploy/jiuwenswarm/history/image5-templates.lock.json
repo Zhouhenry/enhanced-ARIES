@@ -1,0 +1,93 @@
+{
+  "agent_gid": 60000,
+  "agent_uid": 60000,
+  "aries_build_scope": "upstream_baseline",
+  "aries_build_sha256": "e001acc1cc21c1653ec9b60db1d5ef93d514be10668fb245941e397a43510424",
+  "capabilities": [
+    "native_source_4477_files_unchanged",
+    "native_source_3_overlays_before_after_verified",
+    "installed_agent_core_overlay_verified",
+    "native_patch_manifest_verified",
+    "root_owned_not_agent_writable",
+    "native_python_imports",
+    "native_prepare_workspace_and_config_env_rewrite",
+    "memory_projects_skills_writable",
+    "uid_gid_60000",
+    "no_new_privs",
+    "zero_effective_capabilities",
+    "detached_descendant_contained",
+    "root_private_admission",
+    "revocation_denies_exec",
+    "cgroup_populated_zero_after_stop",
+    "probe_group_control_removed"
+  ],
+  "cloud_evidence": "/opt/aries-artifacts/jiuwen-image5-cloud-1/closeout.json",
+  "cloud_evidence_sha256": "6d31d365514724e80be8ac01e77e8b64ef135ad8162fd17586c557b391585848",
+  "cloud_harness_status": "UNRUN",
+  "historical_image3_archive": "/opt/aries-artifacts/jiuwen-cloud-templates-archive-1",
+  "historical_image4_locks": {
+    "image": "history/image4-image.lock.json",
+    "templates": "history/image4-templates.lock.json"
+  },
+  "image_reference": "swr.cn-southwest-2.myhuaweicloud.com/benchmark-zhoutao/aries-jiuwenswarm:0.2.3-e2c9d519-image5@sha256:b4078957d488e1cb52e9cc85ef5555208f0281a545c580a740a619f52127c6b1",
+  "installed_agent_core_overlay_files": 1,
+  "local_full_bootstrap_evidence": "/opt/aries-artifacts/jiuwen-image5-1/build-2/bootstrap-smoke/evidence.json",
+  "local_full_bootstrap_evidence_sha256": "a4253aa2b82bcddb1a462d627d79d1a742b8a304e0e422752661fb810e7f7565",
+  "model_calls": 0,
+  "native_modified": true,
+  "native_patch_manifest": "/opt/jiuwenswarm/aries-patches.json",
+  "native_patch_manifest_sha256": "99c7de4f0e221e446fe348d96dd51e22d58523b1f391fcecf0b041f868765bd3",
+  "native_revision": "e2c9d519498080e249e34f16a80c8c97f0cd1962",
+  "native_source_files_verified": 4480,
+  "native_source_overlay_files": 3,
+  "native_source_unmodified_files": 4477,
+  "permission_fix_evidence": "/opt/aries-artifacts/jiuwen-image-2/build-1/evidence.json",
+  "probe_recipe_sha256": {
+    "guest_probe.py": "6058146010114322c7af98eb0d3fc5901f87315fd7ade9d44aa89633d678166a",
+    "prepare_e2b.py": "d308f4f12c1a713c07dbefa467ac9fed8d57d6a068badd6b807f86ed75f5d647",
+    "prepare_huawei.py": "e4a025739b095ef591329ecaa444f40c9419398cacee6f50a2f32bdd1faa70b5",
+    "workspace_probe.py": "e87f7213e111fb6a7d411870f30fc5ca3cdda2c80b77d753a2885c739da1000f"
+  },
+  "providers": {
+    "e2b": {
+      "cleanup_confirmed": true,
+      "cleanup_proof": "kill then SDK SandboxNotFoundException (fixed prepare_e2b.py finally)",
+      "evidence": "/opt/aries-artifacts/jiuwen-image5-cloud-1/e2b/evidence.json",
+      "evidence_sha256": "8500fc907edd302a24d3ef4cdd609704d6dc2509fea485b5e4f1545bad0a7243",
+      "guest_result_sha256": "df494e99b21719ff685abe1f3cc55213ba50b8e9a86d60bec0b6a254c570f7aa",
+      "sandbox_probes": 1,
+      "sandbox_ttl_seconds": 300,
+      "sdk_version": "2.58.0",
+      "template": "v60dcd59es8qkzhj65vf:a0117c7b-3bfb-4499-addc-22af0a878f48"
+    },
+    "huawei-agentsphere": {
+      "cleanup_confirmed": true,
+      "cleanup_proof": "DELETE HTTP 204 followed by GET HTTP 404",
+      "egress_isolation": "UNVERIFIED_PROVIDER_ENFORCEMENT",
+      "evidence": "/opt/aries-artifacts/jiuwen-image5-cloud-1/huawei/evidence.json",
+      "evidence_sha256": "b218048bce84483c78ba08a030df16e971a61f59788baed97481ec73c0107c59",
+      "guest_result_sha256": "df494e99b21719ff685abe1f3cc55213ba50b8e9a86d60bec0b6a254c570f7aa",
+      "reported_envd_version": "0.6.1",
+      "sandbox_probes": 1,
+      "sandbox_ttl_seconds": 300,
+      "sdk_patch_version": "0.1.0",
+      "sdk_version": "2.42.0",
+      "template": "a8cdc68a-6e1f-44e6-8c24-5105dc508e8f:ba8e1c63-f26c-4bc9-b93e-3cc85e2070c1"
+    }
+  },
+  "python_path": "/opt/jiuwenswarm/.venv/bin/python",
+  "registry_config_digest": "sha256:542a6dc728b14e25d4bd858ad59781509defaa53f72e26afe0f978441ffe2f96",
+  "registry_manifest_digest": "sha256:b4078957d488e1cb52e9cc85ef5555208f0281a545c580a740a619f52127c6b1",
+  "registry_platform_manifest_digest": "sha256:9ea7def26e3e1a1f92aeea704bf060623655687f7f09c537d368d3ee77d14ae0",
+  "resources": {
+    "cpu_count": 2,
+    "memory_mb": 4096
+  },
+  "schema_version": 1,
+  "shared_control_script_sha256": "a39709f0d3e0c311c7bc6aa3838904e606ecd109192eb106c203f89356511b9e",
+  "source_manifest_scope": "upstream_baseline",
+  "source_manifest_sha256": "d72c6ac035f954eb5b6d89ca999598e7374382e2af82c6ca0e96dcfb6b0ca934",
+  "source_root": "/opt/jiuwenswarm",
+  "status": "PASS_TEMPLATES_AND_GUEST_CAPABILITIES_ONLY",
+  "uv_lock_sha256": "f28fbbd9b208bcf4f6e421818969ed2b6570f0648bed25c2ed15ee5bd551e5c9"
+}

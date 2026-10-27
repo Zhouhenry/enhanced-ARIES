@@ -11,6 +11,7 @@ import (
 	"github.com/hyscale-lab/aries/pkg/bridge/ssh"
 	"github.com/hyscale-lab/aries/pkg/bridge/target"
 	"github.com/hyscale-lab/aries/pkg/core"
+	"github.com/hyscale-lab/aries/pkg/performance"
 )
 
 // prepareWorkspaceScript creates only the alias required by the native SSH
@@ -63,6 +64,8 @@ func New(options ssh.Options) (*Server, error) {
 }
 
 func (server *Server) StartTarget(ctx context.Context, sandbox target.Executor) (core.ToolEndpoint, error) {
+	// Workspace preparation is lifecycle work, independent of any caller tool.
+	ctx = performance.WithoutNativeToolIdentity(performance.WithExecutionID(ctx, ""))
 	server.mu.Lock()
 	defer server.mu.Unlock()
 	if server.used {

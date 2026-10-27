@@ -81,3 +81,8 @@ classification. [Integration cases](../../pkg/sandbox/sandbox_integration_test.g
 cover the real Docker lifecycle and cancellation without command termination;
 [isolation cases](../../pkg/sandbox/isolation_integration_test.go) cover concurrent
 occurrences. These are verification entry points, not evidence of a new test run.
+
+The [multi-cloud performance design](sandbox-performance.md) defines measurement
+boundaries, workload controls, and analysis methods. Scheduler and Runner timing
+are implemented in the first batch; cloud backends and tool-level instrumentation
+remain planned work. The design does not extend the currently supported backends.

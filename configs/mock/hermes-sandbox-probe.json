@@ -1,0 +1,21 @@
+{
+  "name": "hermes-sandbox-probe",
+  "tool": "terminal",
+  "prompt_contains": "merge them into master",
+  "response_delay_ms": 0,
+  "steps": [
+    {
+      "arguments": {
+        "command": "pwd && uname -s && printf 'ARIES_MOCK_ENV_OK\\n'"
+      },
+      "output_contains": "ARIES_MOCK_ENV_OK"
+    },
+    {
+      "arguments": {
+        "command": "probe=$(mktemp) && printf 'ARIES_MOCK_FILE_OK\\n' > \"$probe\" && test \"$(cat \"$probe\")\" = ARIES_MOCK_FILE_OK && rm \"$probe\" && printf 'ARIES_MOCK_FILE_OK\\n'"
+      },
+      "output_contains": "ARIES_MOCK_FILE_OK"
+    }
+  ],
+  "final_response": "The scripted sandbox probe finished. Benchmark verification is separate; this probe does not solve the task."
+}

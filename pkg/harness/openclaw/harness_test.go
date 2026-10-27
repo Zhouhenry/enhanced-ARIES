@@ -41,6 +41,8 @@ type fakeDeployment struct {
 	removed                                                                bool
 	copyToErr, containerLogsErr, copyFromErr, stopErr, closeErr            error
 	startCalls, logsCalls, stopCalls, removeCalls, createCalls, closeCalls int
+	onLogs                                                                 func()
+	exec                                                                   func(context.Context, string, core.Command) (core.CommandResult, error)
 }
 
 func (f *fakeDeployment) Close() error { f.closeCalls++; return f.closeErr }
@@ -100,11 +102,17 @@ func (f *fakeDeployment) UploadArchive(_ context.Context, _, _ string, r io.Read
 }
 func (f *fakeDeployment) Start(context.Context, string) error           { f.startCalls++; return nil }
 func (f *fakeDeployment) Running(context.Context, string) (bool, error) { return !f.removed, nil }
-func (f *fakeDeployment) Exec(ctx context.Context, _ string, _ core.Command) (core.CommandResult, error) {
+func (f *fakeDeployment) Exec(ctx context.Context, id string, command core.Command) (core.CommandResult, error) {
+	if f.exec != nil {
+		return f.exec(ctx, id, command)
+	}
 	return core.CommandResult{}, ctx.Err()
 }
 func (f *fakeDeployment) Logs(context.Context, string, int) ([]byte, error) {
 	f.logsCalls++
+	if f.onLogs != nil {
+		f.onLogs()
+	}
 	if f.logContent != nil {
 		return f.logContent, f.containerLogsErr
 	}
@@ -499,18 +507,28 @@ func (synthesizer stubSpeechSynthesizer) Synthesize(_ context.Context, request a
 func (stubSpeechSynthesizer) Close() {}
 
 func TestNewRequiresExactNonLatestTaggedImage(t *testing.T) {
-	if manager, err := New(Options{Runtime: harnesscommon.RuntimeOptions{Deployment: newFakeDeployment(), Image: testOpenClawImage, OutputDir: t.TempDir()}}); err != nil {
-		t.Fatal(err)
-	} else if err := manager.Close(); err != nil {
-		t.Fatal(err)
+	digest := "@sha256:" + strings.Repeat("d", 64)
+	for _, image := range []string{testOpenClawImage, testOpenClawImage + digest} {
+		manager, err := New(Options{Runtime: harnesscommon.RuntimeOptions{Deployment: newFakeDeployment(), Image: image, OutputDir: t.TempDir()}})
+		if err != nil {
+			t.Fatal(err)
+		}
+		if manager.runtime.Options.Image != image {
+			t.Fatal("runtime image reference was rewritten")
+		}
+		if err := manager.Close(); err != nil {
+			t.Fatal(err)
+		}
 	}
 	for _, image := range []string{
 		"",
 		" " + testOpenClawImage,
 		testOpenClawImage + "\n",
 		"example.invalid/openclaw",
+		"example.invalid/openclaw" + digest,
 		"example.invalid/openclaw:latest",
-		"example.invalid/openclaw:fixture@sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+		"example.invalid/openclaw:latest" + digest,
+		testOpenClawImage + "@sha256:short",
 		"not a valid image",
 	} {
 		if _, err := New(Options{Runtime: harnesscommon.RuntimeOptions{
@@ -784,11 +802,63 @@ func TestAgentRunUsesGatewayOnceWithExactParameters(t *testing.T) {
 	if err != nil || result.FinalResponse != "first\nsecond" {
 		t.Fatalf("Run = %#v, %v", result, err)
 	}
-	if gateway.agentCalls != 1 || gateway.request.Message != "repair git" || gateway.request.SessionKey != "agent:main:aries-fix-git" || gateway.request.IdempotencyKey == "" {
+	if gateway.agentCalls != 1 || gateway.request.Message != "repair git" || gateway.request.SessionKey != "agent:main:aries-fix-git" || gateway.request.SessionID != "" || gateway.request.IdempotencyKey == "" {
 		t.Fatalf("agent calls=%d request=%#v", gateway.agentCalls, gateway.request)
+	}
+	if fake.created.Hostname != "" {
+		t.Fatal("ordinary profile unexpectedly pinned the native hostname")
 	}
 	if err := manager.Stop(context.Background()); err != nil {
 		t.Fatal(err)
+	}
+}
+
+func TestWorkloadInputsReuseNativeSessionOnlyAcrossFreshRuntimes(t *testing.T) {
+	inputs := WorkloadInputs{SessionKey: "agent:main:aries-workload", SessionID: "8ad5eb11-e541-4cbf-8ae0-1f9e2822c342", EnvelopeTimestamp: "off", SkipBootstrap: true}
+	var previousName, previousIdempotency string
+	for i := 0; i < 2; i++ {
+		fake := newFakeDeployment()
+		manager, err := New(Options{Runtime: harnesscommon.RuntimeOptions{Deployment: fake, Image: testOpenClawImage, OutputDir: t.TempDir(), StartTimeout: time.Second, AgentTimeout: time.Second,
+			APIKeyLookup: func(string) ([]byte, bool) { return []byte("model-secret"), true }}, WorkloadInputs: &inputs})
+		if err != nil {
+			t.Fatal(err)
+		}
+		gateway := &recordingGateway{summary: gatewayclient.ConnectSummary{Role: "operator", Scopes: []string{"operator.write"}}}
+		manager.newGateway = func(string, []byte) (gatewayConnection, error) { return gateway, nil }
+		request := core.HarnessRequest{Connectivity: core.HarnessConnectivity{Placement: core.RuntimePlacement{AttachmentID: "aries-net-test"}}, RunID: "run-1", TaskID: "fix-git", Endpoint: endpointFiles(t), Model: testModel()}
+		if err := manager.Start(context.Background(), request); err != nil {
+			t.Fatal(err)
+		}
+		t.Cleanup(func() {
+			if err := manager.Stop(context.Background()); err != nil {
+				t.Error(err)
+			}
+		})
+		result, err := manager.Run(context.Background(), "repair git")
+		if err != nil {
+			t.Fatal(err)
+		}
+		if gateway.request.SessionKey != inputs.SessionKey || gateway.request.SessionID != inputs.SessionID || result.SessionID != inputs.SessionKey {
+			t.Fatalf("native workload identity was lost: %#v", gateway.request)
+		}
+		if gateway.request.IdempotencyKey == "" || gateway.request.IdempotencyKey == previousIdempotency || fake.created.Name == "" || fake.created.Name == previousName {
+			t.Fatal("fixed workload identity reused request idempotency or runtime identity")
+		}
+		if fake.created.Hostname != "aries-workload" || fake.validatedRequest.Hostname != "aries-workload" {
+			t.Fatal("native hostname was not fixed and validated")
+		}
+		files := readArchive(t, fake.archive)
+		var configuration openClawConfig
+		if err := json.Unmarshal(files["run/aries/openclaw.json"].content, &configuration); err != nil {
+			t.Fatal(err)
+		}
+		if configuration.Agents.Defaults.EnvelopeTimestamp != "off" || !configuration.Agents.Defaults.SkipBootstrap {
+			t.Fatal("native timestamp and bootstrap settings did not reach the runtime")
+		}
+		previousName, previousIdempotency = fake.created.Name, gateway.request.IdempotencyKey
+		if err := manager.Stop(context.Background()); err != nil {
+			t.Fatal(err)
+		}
 	}
 }
 

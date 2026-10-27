@@ -1,0 +1,18 @@
+{
+  "upstream_revision": "e2c9d519498080e249e34f16a80c8c97f0cd1962",
+  "patch_sha256": "517ae170ee5d99bf6184cbc2fef2f179ec74fca6dae2076635e74ac450311978",
+  "files": {
+    "jiuwenswarm/agents/harness/flash/tools/flash_glob_tool.py": {
+      "before_sha256": "9da515c4eea771cf0ef5a27314bea45f84195ff3d672b4e18a38284014d5c730",
+      "after_sha256": "08bc90dc2ef14942763ba6be53546e56e9b2dcfc3d7b491e8a6fbaab1cb86875"
+    },
+    "jiuwenswarm/extensions/hook_event.py": {
+      "before_sha256": "ecf8f71b63da9b4d40dad1e1da740d0108f8bec57366c8ed7cf5acbe3ee0a807",
+      "after_sha256": "62adbfc81a7acf2c774ddd202a3a47ddef9abe5494cfee272bf5b65a73abaa8b"
+    },
+    "jiuwenswarm/server/handlers/chat.py": {
+      "before_sha256": "46ae933f57e6bb4b837a5ecf989b240785710ac6b4db4f87cc2f6e036564e7f7",
+      "after_sha256": "2a090aa8a5caab52bb890ef197c50f2e475470074552eff95e1c7a02a54c0514"
+    }
+  }
+}

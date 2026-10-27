@@ -8,7 +8,11 @@ export GOMODCACHE ?= $(CURDIR)/.cache/go-mod
 build:
 	mkdir -p bin
 	go build -o bin/aries ./cmd/aries
+	go build -o bin/aries-mock-model ./cmd/aries-mock-model
+	go build -o bin/aries-model-replay ./cmd/aries-model-replay
+	go build -o bin/aries-perf ./cmd/aries-perf
 	CGO_ENABLED=0 go build -o bin/aries-ssh-client ./cmd/aries-ssh-client
+	chmod 0555 bin/aries-ssh-client
 	CGO_ENABLED=0 go build -o bin/aries-bridge ./cmd/aries-bridge
 
 test:

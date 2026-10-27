@@ -81,11 +81,14 @@ and extension requirements. Detailed [component contracts](docs/design.md#guides
 and [implementation explanations](docs/implementation/README.md) cover the code's
 current behavior. Coding agents start at [AGENTS.md](AGENTS.md).
 
+For a Chinese introduction with component diagrams, a complete task walkthrough,
+and the cloud-sandbox implementation boundaries, read the [beginner architecture guide](docs/architecture-guide.md).
+
 ## Current implementation
 
 The research framework is intended to support multiple harnesses, benchmarks,
 and sandbox substrates. This repository currently wires the following explicit
-implementations:
+implementations for the original `aries PROFILE.json` command:
 
 | Role or service | Implementation |
 | --- | --- |
@@ -100,11 +103,55 @@ configuration keys, status, and runnable profiles. ARIES uses explicit
 constructors and command switches; it does not discover or register components
 at runtime.
 
+### E2B coding workloads: experimental cloud path
+
+`aries cloud [--env-file PATH] [--tape FILE] PROFILE.json` adds a separate,
+bounded E2B workload while reusing the four Runner roles. OpenClaw runs either
+in an ECS Docker container (**A: external**) or inside the E2B task sandbox
+(**B: embedded**). Both execute real tools against a Python coding task;
+an independent verifier checks the captured candidate in a fresh sandbox.
+
+The [five cloud profiles](profiles/cloud/) cover A/B real-model recording,
+A/B strict replay with recorded timing, and B replay without added model wait.
+Replay replaces model responses while preserving real Agent/tool execution;
+A and B use their own recordings. Per-attempt bearer tokens bind requests at
+the fixed `/v1` model endpoint to separate replay sessions. This path is for
+sandbox workload experiments, not a comparison of LLM capability.
+
+All five baseline conditions have passed one real E2B run each, including
+independent verification, positive isolation and confirmed cleanup. Three further
+repeated/concurrent batches, bounded lifecycle fault probes and isolated Replay
+process measurements are documented in the [architecture guide](docs/architecture-guide.md#84-重复并发和故障路径的实际结果).
+A suitable E2B template
+with confirmed cgroup isolation and a reachable HTTPS model origin are prerequisites.
+Cumulative creates are recorded without a hard limit; concurrency, TTL, ownership,
+and confirmed cleanup remain enforced.
+Follow the [ECS deployment guide](deploy/e2b/README.md),
+[cloud configuration](docs/configuration.md#e2b-cloud-workload-profiles), and
+[strict replay contract](docs/implementation/model-replay.md) before execution.
+[Huawei AgentSphere](deploy/agentsphere/README.md) uses a separate Adapter and
+provider configuration. Its A recording and B recording/replay passed independent
+verification under an explicit, unverified verifier-egress assumption. The new
+`merge-ranges-portable-v1` A workload also passed one real E2B recording followed
+by strict recorded-timing replays of that unchanged tape on E2B and Huawei:
+eight model turns, seven real tool calls, and 12 independent tests in each run.
+Stop/revocation and cleanup were confirmed. These single attempts establish a
+[conditional same-tape comparison](docs/performance-archive.md#portable-crosscloud),
+not provider capacity or a performance ranking. The legacy tape's filesystem
+metadata divergence remains a failed experiment; Huawei no-egress enforcement
+remains unverified.
+
+The approved observability work is tracked in the [P0 implementation report](docs/observability/OBSERVABILITY_IMPLEMENTATION_REPORT.md),
+with [R01–R18 evidence and remaining blockers](docs/observability/OPEN_ISSUES_AND_RESOLUTIONS.md).
+A readable trace does not establish complete Tool identity coverage.
+
 ## Getting started
 
-Harness and sandbox placement use independent `deployment` blocks. Both
-currently require the same local Docker daemon. **Remote Docker servers and
-mixed deployment backends are not supported.** See
+Build, test, deploy, and run experiments only on the designated **remote Linux
+ECS**; the workstation is for source editing and static review. In the original
+Docker profile path, harness and sandbox placement use independent `deployment`
+blocks and require the same Docker daemon local to that ECS. **Remote Docker
+servers and arbitrary mixed deployment backends are not supported.** See
 [deployment configuration](docs/configuration.md#deployment-configuration).
 
 ARIES requires Linux, a local Docker Engine, Go, Git, Make, network access to

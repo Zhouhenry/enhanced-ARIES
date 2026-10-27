@@ -9,6 +9,7 @@ import (
 	"io"
 	"net"
 	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"sync"
@@ -597,19 +598,38 @@ func TestManagerStartNeverCreatesAWorkspaceAlias(t *testing.T) {
 	}
 }
 
-func TestLatePartialStartCleansListenerAndAudit(t *testing.T) {
+func TestLatePartialStartClosesListenerAndAuditAndRetainsEvidence(t *testing.T) {
 	outputDir := t.TempDir()
+	priorPath := filepath.Join(outputDir, "run-result.json")
+	if err := os.WriteFile(priorPath, []byte("existing run evidence"), 0o600); err != nil {
+		t.Fatal(err)
+	}
 	manager := newContractManager(t, outputDir)
+	t.Cleanup(func() {
+		if err := manager.Stop(context.Background()); err != nil {
+			t.Error(err)
+		}
+	})
+	var closed atomic.Int32
+	manager.openAudit = func(path string) (*auditFile, error) {
+		file, err := openAuditFile(path)
+		if err == nil {
+			closeFile := file.close
+			file.close = func() error { closed.Add(1); return closeFile() }
+		}
+		return file, err
+	}
 	sandbox := &contractSandbox{}
 	want := errors.New("injected late start failure")
-	var address, artifactDir string
+	var address string
 	var retainedPaths []string
+	var audit *auditWriter
 	manager.afterStart = func(session *bridgeSession) error {
 		if session.listener == nil || session.audit == nil {
 			t.Fatal("late start hook ran before listener and audit allocation")
 		}
 		address = session.listener.Addr().String()
-		artifactDir = session.artifactDir
+		audit = session.audit
 		retainedPaths = []string{
 			session.toolLogPath,
 			session.rawLogPath,
@@ -624,12 +644,15 @@ func TestLatePartialStartCleansListenerAndAudit(t *testing.T) {
 		t.Fatal("late partial-start listener still accepts connections")
 	}
 	for _, path := range retainedPaths {
-		if _, err := os.Lstat(path); !errors.Is(err, os.ErrNotExist) {
-			t.Fatalf("partial-start audit path remains %q: %v", path, err)
+		if info, err := os.Stat(path); err != nil || info.Mode().Perm() != 0o600 {
+			t.Fatalf("partial-start private audit was not retained %q: %v", path, err)
 		}
 	}
-	if _, err := os.Lstat(artifactDir); !errors.Is(err, os.ErrNotExist) {
-		t.Fatalf("partial-start artifact directory remains: %v", err)
+	if !audit.finished() || closed.Load() != 2 {
+		t.Fatalf("partial-start audit was not finalized: closed %d files", closed.Load())
+	}
+	if content, err := os.ReadFile(priorPath); err != nil || string(content) != "existing run evidence" {
+		t.Fatalf("existing run evidence changed: %q, %v", content, err)
 	}
 	manager.mu.Lock()
 	active := manager.active
@@ -642,6 +665,80 @@ func TestLatePartialStartCleansListenerAndAudit(t *testing.T) {
 	sandbox.mu.Unlock()
 	if len(preparations) != 0 {
 		t.Fatalf("partial-start cleanup executed alias commands: %#v", preparations)
+	}
+}
+
+func TestStartAuditCollisionRetainsExistingEvidence(t *testing.T) {
+	for _, collision := range []string{"tool-calls.jsonl", "ssh_raw.log"} {
+		t.Run(collision, func(t *testing.T) {
+			outputDir := t.TempDir()
+			existing := map[string]string{
+				"run-result.json":          "existing run result",
+				"previous/model/tape.json": "existing model evidence",
+				collision:                  "existing audit evidence",
+			}
+			for name, content := range existing {
+				path := filepath.Join(outputDir, name)
+				if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
+					t.Fatal(err)
+				}
+				if err := os.WriteFile(path, []byte(content), 0o600); err != nil {
+					t.Fatal(err)
+				}
+			}
+			reservation, err := net.Listen("tcp", "127.0.0.1:0")
+			if err != nil {
+				t.Fatal(err)
+			}
+			address := reservation.Addr().(*net.TCPAddr)
+			if err := reservation.Close(); err != nil {
+				t.Fatal(err)
+			}
+			manager := newContractManager(t, outputDir)
+			t.Cleanup(func() {
+				if err := manager.Stop(context.Background()); err != nil {
+					t.Error(err)
+				}
+			})
+			manager.resolveListen = func(context.Context) (core.BridgeListen, error) {
+				return core.BridgeListen{BindHost: address.IP.String(), BindPort: address.Port}, nil
+			}
+			var closed atomic.Int32
+			manager.openAudit = func(path string) (*auditFile, error) {
+				file, err := openAuditFile(path)
+				if err == nil {
+					closeFile := file.close
+					file.close = func() error { closed.Add(1); return closeFile() }
+				}
+				return file, err
+			}
+			if _, err := manager.StartTarget(context.Background(), &contractSandbox{}); !errors.Is(err, os.ErrExist) {
+				t.Fatalf("audit collision error = %v", err)
+			}
+			listener, err := net.Listen("tcp", address.String())
+			if err != nil {
+				t.Fatalf("failed-start listener was not released: %v", err)
+			}
+			defer listener.Close()
+			wantClosed := int32(0)
+			if collision == "ssh_raw.log" {
+				wantClosed = 1
+				if _, err := os.Stat(filepath.Join(outputDir, "tool-calls.jsonl")); err != nil {
+					t.Fatalf("new partial-start audit was not retained: %v", err)
+				}
+			}
+			if closed.Load() != wantClosed || manager.active != nil {
+				t.Fatalf("failed-start resources remain: closed %d, want %d; active %v", closed.Load(), wantClosed, manager.active != nil)
+			}
+			if err := manager.Stop(context.Background()); err != nil {
+				t.Fatal(err)
+			}
+			for name, want := range existing {
+				if content, err := os.ReadFile(filepath.Join(outputDir, name)); err != nil || string(content) != want {
+					t.Fatalf("existing evidence %q changed: %q, %v", name, content, err)
+				}
+			}
+		})
 	}
 }
 

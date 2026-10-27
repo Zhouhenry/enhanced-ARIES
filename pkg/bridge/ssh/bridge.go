@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"net"
-	"os"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -45,21 +44,26 @@ type Options struct {
 	// tool-calls.jsonl. The zero value retains it; setting this trades that
 	// evidence for disk.
 	OmitRawLog bool
+	// Both IDs opt this occurrence into native identity; empty IDs retain legacy exec.
+	IdentityScopeID   string
+	IdentitySessionID string
 }
 
 // Manager owns one occurrence and proxies exec requests to its borrowed target.
 type Manager struct {
-	dialect        Dialect
-	used           bool
-	hostSigner     gossh.Signer
-	sandboxID      string
-	resolveListen  func(context.Context) (core.BridgeListen, error)
-	outputDir      string
-	cleanupTimeout time.Duration
-	logger         *logrus.Logger
-	openAudit      func(string) (*auditFile, error)
-	afterStart     func(*bridgeSession) error
-	omitRawLog     bool
+	dialect           Dialect
+	used              bool
+	hostSigner        gossh.Signer
+	sandboxID         string
+	resolveListen     func(context.Context) (core.BridgeListen, error)
+	outputDir         string
+	cleanupTimeout    time.Duration
+	logger            *logrus.Logger
+	openAudit         func(string) (*auditFile, error)
+	afterStart        func(*bridgeSession) error
+	omitRawLog        bool
+	identityScopeID   string
+	identitySessionID string
 
 	mu       sync.Mutex
 	active   *bridgeSession
@@ -69,18 +73,20 @@ type Manager struct {
 }
 
 type bridgeSession struct {
-	dialect       Dialect
-	sandbox       target.Executor
-	listener      net.Listener
-	configuration *gossh.ServerConfig
-	cancel        context.CancelFunc
-	artifactDir   string
-	sandboxID     string
-	toolLogPath   string
-	rawLogPath    string
-	audit         *auditWriter
-	partialStart  bool
-	replyRequest  func(*gossh.Request, bool) error
+	dialect           Dialect
+	sandbox           target.Executor
+	listener          net.Listener
+	configuration     *gossh.ServerConfig
+	cancel            context.CancelFunc
+	artifactDir       string
+	sandboxID         string
+	toolLogPath       string
+	rawLogPath        string
+	audit             *auditWriter
+	replyRequest      func(*gossh.Request, bool) error
+	identityScopeID   string
+	identitySessionID string
+	identities        *identityRegistry
 
 	mu          sync.Mutex
 	connections map[net.Conn]struct{}
@@ -91,6 +97,9 @@ type bridgeSession struct {
 }
 
 func New(options Options) (*Manager, error) {
+	if (options.IdentityScopeID == "") != (options.IdentitySessionID == "") {
+		return nil, errors.New("SSH identity scope and session must both be configured")
+	}
 	if options.Dialect == nil {
 		return nil, errors.New("SSH dialect is required")
 	}
@@ -123,6 +132,7 @@ func New(options Options) (*Manager, error) {
 		resolveListen: options.ResolveListen, hostSigner: options.HostSigner, sandboxID: options.SandboxID,
 		outputDir: outputDir, cleanupTimeout: options.CleanupTimeout,
 		logger: options.Logger, openAudit: openAuditFile, omitRawLog: options.OmitRawLog,
+		identityScopeID: options.IdentityScopeID, identitySessionID: options.IdentitySessionID,
 	}, nil
 }
 
@@ -147,11 +157,12 @@ func (manager *Manager) StartTarget(ctx context.Context, sandbox target.Executor
 	manager.used = true
 	session := &bridgeSession{dialect: manager.dialect,
 		sandbox: sandbox, sandboxID: manager.sandboxID, connections: make(map[net.Conn]struct{}),
-		replyRequest: func(request *gossh.Request, accepted bool) error { return request.Reply(accepted, nil) },
+		replyRequest:    func(request *gossh.Request, accepted bool) error { return request.Reply(accepted, nil) },
+		identityScopeID: manager.identityScopeID, identitySessionID: manager.identitySessionID,
+		identities: &identityRegistry{limit: maxIdentityReservations},
 	}
 	session.artifactDir = manager.outputDir
 	fail := func(primary error) (core.ToolEndpoint, error) {
-		session.partialStart = true
 		session.revoke()
 		cleanupCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), manager.cleanupTimeout)
 		defer cancel()
@@ -269,9 +280,7 @@ func (session *bridgeSession) finalize(ctx context.Context) error {
 	}
 	// Closing admission and joining execution happens before releasing the signer.
 	session.configuration = nil
-	if session.partialStart && auditErr == nil {
-		return os.RemoveAll(session.artifactDir)
-	}
+	// The caller owns the artifact directory. Retain evidence even after a failed start.
 	return auditErr
 }
 

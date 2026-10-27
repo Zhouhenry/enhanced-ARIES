@@ -1,0 +1,418 @@
+{
+  "catalog": "sandbox-runtime-v1",
+  "version": 1,
+  "status": "DESIGNED_UNRUN",
+  "created_on": "2026-10-25",
+  "scope": "测试用例规格，非可执行ARIES Profile；没有复制或运行参考suite，没有新增Runner/Benchmark/Bridge/Cloud接入。",
+  "compatibility": {
+    "current_cloud_workloads": [
+      "merge-ranges",
+      "merge-ranges-portable-v1"
+    ],
+    "cloud_entry": "pkg/config/cloud.go:DecodeCloud -> internal/app/wiring/cloud/cloud.go -> pkg/benchmark/codingcase",
+    "cloud_status": "这些asb-*尚未进入当前cloud允许列表，未来需明确的Benchmark适配和新真实录制；不能冒用merge-ranges或旧tape。",
+    "terminalbench_entry": "pkg/benchmark/terminalbench/terminalbench.go:loadTask；schema1.1、task.name=terminal-bench/<id>、固定干净checkout、显式tag镜像；其Evaluate在原task Sandbox隔离后注入私有tests。",
+    "current_interface": "pkg/runner/interfaces.go；沿用四角色、既有调度和观测，本文不新增schema加载器或执行框架。"
+  },
+  "provenance": {
+    "suite_name": "aries-sandbox-suite-1.0",
+    "suite_date": "2026-10-24",
+    "outer_archive": {
+      "filename": "归档.zip",
+      "bytes": 975144,
+      "sha256": "d2a57502b9efe12a3de99bf94da570007226a8e586bc5ba3bf073633aa7563ef",
+      "crc": "PASS"
+    },
+    "missing_original_zip": {
+      "filename": "ARIES_Sandbox_Scenarios_1.0_20261024.zip",
+      "claimed_bytes": 592972,
+      "claimed_sha256": "8dc6718439d4f4e72b441b87692ceace885fae634232c4b73fd6e0693e4c9448",
+      "status": "NOT_PRESENT_NOT_VERIFIED"
+    },
+    "manifest": {
+      "entries": 386,
+      "matched": 386,
+      "missing": 0,
+      "extra": 0,
+      "suite_file_count": 387
+    },
+    "report": {
+      "research_filename": "ARIES_Sandbox_Research_20261024.md",
+      "suite_path": "REPORT.md",
+      "bytes": 17688,
+      "sha256": "3db5c9538b232adb2bee549778e8efdd5765e9066b69f3ed568e872310b4a15c",
+      "byte_identical": true
+    },
+    "source_files": [
+      {
+        "path": "MANIFEST.sha256",
+        "sha256": "7aad370d7f07b3746a72cdf8f99ed0f3a4baa3006e38541f70018038bd3c5315",
+        "bytes": 49682
+      },
+      {
+        "path": "REPORT.md",
+        "sha256": "3db5c9538b232adb2bee549778e8efdd5765e9066b69f3ed568e872310b4a15c",
+        "bytes": 17688
+      },
+      {
+        "path": "research/source-lock.json",
+        "sha256": "6f4f7559fccea1f9c54c452011414c77d1f03cf52c694e62e97d228074904a9f",
+        "bytes": 11345
+      },
+      {
+        "path": "docs/scenario-designs.md",
+        "sha256": "4061bb9ec16852a3e51269b53bee7cf4760aad62e8e6609e4aea459fd3fa3911",
+        "bytes": 21452
+      },
+      {
+        "path": "lib/workloads.py",
+        "sha256": "ea81b48f762b7c6be8ee90c03b5868f0eb1e2511dfb220dde056869362b23899",
+        "bytes": 14661
+      },
+      {
+        "path": "lib/verifier.py",
+        "sha256": "62b9fdb9b37707507df6cc21042322fd02ef9cbc00ef0f91b8ef07a7d26bf865",
+        "bytes": 10090
+      },
+      {
+        "path": "lib/exec_step.py",
+        "sha256": "421de97c323b6f89746c9bf2bce7950f9b9bf7c71dd23429a483facbc86b5f04",
+        "bytes": 596
+      },
+      {
+        "path": "lib/http_fixture.py",
+        "sha256": "924a64e78de4621c0ced50adb50277c11b168b8e785932033143372e0d95466f",
+        "bytes": 2525
+      },
+      {
+        "path": "bin/asb.py",
+        "sha256": "62d1d429a0b3fb554332c774c135b71848dd4f14dfe20b74b60047651d6429b9",
+        "bytes": 6291
+      }
+    ],
+    "xxhash": {
+      "repo": "https://github.com/Cyan4973/xxHash",
+      "tag": "v0.8.3",
+      "commit": "e626a72bc2321cd320e953a0ccf1584cad60f363",
+      "license": "BSD-2-Clause",
+      "files": [
+        {
+          "path": "vendor/xxhash/xxhash.c",
+          "sha256": "5c3591fe6e6c86a619eb26760e9520e37a6fd5152882ab5ad93f912e2a855966",
+          "git_blob_sha1": "e60cc37f13c27ff0668ec2535937df3f4c097ec2",
+          "bytes": 1855
+        },
+        {
+          "path": "vendor/xxhash/xxhash.h",
+          "sha256": "17973c0dc49d9854ca26caa191f0e12f7a424b68858d9a78de3860d959d85e4b",
+          "git_blob_sha1": "78fc2e8dbf6db809650fbb59762c5566a71677ca",
+          "bytes": 268319
+        },
+        {
+          "path": "vendor/xxhash/LICENSE",
+          "sha256": "6ffedbc0f7878612d2b23589f1ff2ab15633e1df7963a5d9fc750ec5500c7e7a",
+          "git_blob_sha1": "e4c5da7234eca7baad9a46f0b144e49ccad2e500",
+          "bytes": 1389
+        }
+      ]
+    },
+    "history_only": "来源归档30/30 local（small各2次、medium各1次），损坏/缺result各30拒绝；非当前仓库运行证据。本目录每个case及每个档位均DESIGNED_UNRUN。",
+    "license": "参考ASB原创内容MIT；xxHash BSD-2-Clause；原TB Apache-2.0，保留各自来源和许可。只引用规格/哈希/路径，未复制上游代码或参考解。"
+  },
+  "shared_contract": {
+    "original_benchmark": false,
+    "seed": 20261024,
+    "status": "所有case/参数档/负例均DESIGNED_UNRUN；设计状态不是现有core运行status。",
+    "environment": "Linux/Python3.11+；固定实际镜像digest、架构、工具版本、CPU/内存限制；xxhash需预备gcc/libc，无公网安装。",
+    "parameters": "每次固定选择small/medium/large之一；不得Run中改参数。来源worker预算120秒，不等于ARIES task_timeout/Goodput deadline；接入时另显式设置Agent/Verifier预算。",
+    "pattern": "通用字节=SHAKE256(UTF8(decimal(seed)+':'+decimal(index)+':'+decimal(revision))).digest(size)；exec链与HTTP使用各自公式。",
+    "prepare": "每occurrence新目录；公开输入与私有tests/solution/预期分离；默认workspace与相对路径；Prepare不计Run；不限制native background/process/auto-yield。",
+    "verify": "Runner确认Harness停止与Bridge撤权后，Benchmark可信侧封存候选并独立评估，功能与历史观测分开。执行候选代码/二进制用独立验证Sandbox受限用户，私有断言/报告归可信侧；不改变原TB在原Sandbox评估的方法。",
+    "receipts": "可信catalog核对result身份/参数；workload_wall_ns正数只作一致性。worker metrics/events/RSS/time及同Agent权限server日志不是可信历史证明。",
+    "observations": "available表示现有可用测点种类，本次未采。A=external、B=embedded；只使用既有native/process/Bridge/SDK/guest和AnalysisSnapshot；未采为UNMEASURED/unknown，不补零，不新增采集框架或协议。",
+    "program_level_measurement": "不要求为每个内部循环或syscall新增观测。固定实际执行代码/输入hash、真实工具调用与终态、独立功能校验及环境条件后，可报告该固定程序的实测时长和已有资源读数；源码推导工作量与直接观测计数分开。缺逐操作测点只限制细分归因，不自动否定程序级样本。",
+    "clocks": "clock domain未校准不相减；身份映射不创造计时，receipt/native result不自动证明进程或后代退出。",
+    "outcomes": "harness/isolation/evaluation/observer/cleanup/error分开保留；预期失败不抹去，评估/基础设施错误不当正常通过。",
+    "negatives": "每case还须在独立候选副本验证缺result/缺候选、错参数、不完整产物会被拒绝；本次只定义、不执行。",
+    "cleanup": "先归档候选/日志，既有所有者回收进程与所属Sandbox；partial start/cancel保留错误；不改变借用命令取消含义。",
+    "replay": "只用未来真实录制并Strict验证的轨迹；不由参考解造tape，不修改旧tape/过滤ToolResult/放松完整匹配。参数/版本改变需新录制。"
+  },
+  "cases": [
+    {
+      "id": "asb-exec-short-v1", "priority": "P0", "status": "DESIGNED_UNRUN",
+      "source": {"scenario":"exec-short","manifest":{"path":"scenarios/exec-short/scenario.json","sha256":"77e1f3badc749b54fc6cc919a6c5ad19a624811b8ef85c881b468052078c626b","bytes":825},"implementation_reference":["lib/exec_step.py","bin/asb.py","lib/workloads.py#exec_short","lib/verifier.py#exec-short"]},
+      "profiles": {"small":{"calls":24},"medium":{"calls":96},"large":{"calls":384}},
+      "purpose": "测量逐次真实 native 工具提交及跨调用状态保留；独立区分工具往返与 Sandbox 内进程时间。",
+      "prepare": "新目录与空steps/；公开seed/calls和逐条计划，沿用lib/exec_step.py，不公开私有预期。",
+      "agent_task": "顺序提交N=calls次真实native exec，每次执行单步fixture，依赖前步完成再提交下一步；不得一次shell内循环替代N次提交。native后台/yield/process轮询保留，辅助调用另计。",
+      "run": "i=0的previous='START'，否则读取前一文件；写steps/{i:06d}.txt=SHA256(UTF8(previous+':'+i+':'+seed))，独占创建、无换行；stdout为index/digest JSON。沿用原状态链，不新增协议。",
+      "artifacts": ["steps/000000.txt … steps/{calls-1:06d}.txt","宿主原始 native/Bridge/SDK/guest 证据；参考 exec-events.json 与 result.json 仅为自报回执"],
+      "verify": {"functional":"私有侧按可信seed/calls独立重算全部N文件及精确路径集合，核对退出0与stdout；不导入step.py。","observation":"A须N条精确native invocation→SSH request→Bridge execution→SDK Process→guest receipt及终态；B须N组ToolCall/run/session身份与既有native_process记录及终态：使用tool_call_id、native_run_id、native_agent_session_id、native_session_key、process_session_id/PID；不要求A专用native_invocation_id。预登记N与ToolCall/invocation/Process分开对账，准备/轮询不算N。"},
+      "negative_cases": ["一次shell内循环N步：功能可能通过，N调用观测必须失败。","删/改中间文件：功能失败；文件齐全但缺1条身份或终态：观测INCOMPLETE。"],
+      "observation": {"available":"现有A身份链、B native/process边界和Runner阶段；每步输出/退出取实际证据。","unmeasured":"缺失终态、未对齐跨域时长、无独立分母的全工具覆盖率；不得按命令hash或顺序补关联。"},
+      "replay_pitfalls": "默认workspace与相对路径；路径/后台状态/时间进入ToolResult仍须Strict一致。改N须新真实录制，计划不是模型tape。",
+      "cleanup": "先收回steps与证据，既有Harness/Bridge/Runner停止、撤权、清理；不提前删产物，不改变原生后台语义。"
+    },
+    {
+      "id": "asb-cpu-primes-v1", "priority": "P0", "status": "DESIGNED_UNRUN",
+      "source": {"scenario":"cpu-primes","manifest":{"path":"scenarios/cpu-primes/scenario.json","sha256":"5b577a80a082b73749519de1b674b008adb59f8aeaeae6095c2c4f4250a5be8c","bytes":974},"implementation_reference":["lib/workloads.py#cpu_job","lib/workloads.py#cpu_primes","lib/verifier.py#cpu-primes"]},
+      "profiles": {"small":{"limit":12000,"rounds":2,"workers":1},"medium":{"limit":40000,"rounds":4,"workers":2},"large":{"limit":100000,"rounds":8,"workers":4}},
+      "purpose": "以固定试除运算观察 CPU 与多进程工作负载，避免把模拟结果称为 sysbench 分数。",
+      "prepare": "新目录，固定Python/架构/CPU配额；仅公开limit/rounds/workers/seed，不预生成答案。",
+      "agent_task": "native执行一次固定负载，完成全部实际试除与进程池任务，不用sleep或预计算常量替代。",
+      "run": "每轮枚举n=2..limit，试除d=2..isqrt(n)，遇整除停止该n判断；汇总素数count/sum。ProcessPoolExecutor(workers)分发rounds个任务；候选数=rounds*(limit-1)，包括进程池启动。",
+      "artifacts": ["answers.json：按轮次排列的 {count,sum} 数组","result.json：params/seed、rounds/candidates_tested、自报时间及 self/children CPU/RSS"],
+      "verify": {"functional":"私有埃氏筛独立计算count/sum；answers恰为rounds个正确结果，核对参数及候选数回执。","observation":"现有native/进程终态只证明被观测命令；重复轮次与试除历史缺独立计数时为UNMEASURED。"},
+      "negative_cases": ["改count/sum或少1轮：功能失败。","复制正确答案：不得认定所有轮次已实际计算。"],
+      "observation": {"available":"native/process、Runner阶段；后端实际提供的CPU/内存样本。","unmeasured":"试除次数、每轮实际计算、各worker CPU；自报metrics不是历史证明。"},
+      "replay_pitfalls": "三档同时改limit/rounds/workers，不是固定工作量强扩展；调度/资源/版本输出若变化，不能过滤旧tape。",
+      "cleanup": "保存answers/result后，由现有所有者回收所属进程及Sandbox。"
+    },
+    {
+      "id": "asb-memory-touch-v1", "priority": "P0", "status": "DESIGNED_UNRUN",
+      "source": {"scenario":"memory-touch","manifest":{"path":"scenarios/memory-touch/scenario.json","sha256":"ce3240461f264055c32a5f54801d5abda62280179fd6992eb97c574984327f6b","bytes":873},"implementation_reference":["lib/workloads.py#memory_touch","lib/verifier.py#memory-touch"]},
+      "profiles": {"small":{"mib":8,"passes":3},"medium":{"mib":32,"passes":5},"large":{"mib":128,"passes":8}},
+      "purpose": "定义真实分配、全量写入、CRC扫描和释放的固定内存负载；不等同 STREAM 或 sysbench memory。",
+      "prepare": "新目录，固定Python与Sandbox内存限额；size=mib*1048576。",
+      "agent_task": "native执行真实bytearray分配、全量填充/扫描/释放，不只生成CRC或4KiB样本。",
+      "run": "分配size字节；每轮r以值(seed+r)%251的65536字节块填满buffer，再zlib.crc32全量扫描。保存最终buffer前4096字节后释放；filled=scanned=size*passes。",
+      "artifacts": ["checksums.json：passes个CRC","memory-sample.bin：最终轮前4096字节","result.json：固定参数、字节量、自报self_maxrss_kib"],
+      "verify": {"functional":"私有侧用1MiB分块增量CRC重算每轮；样本为最终值重复4096次；核对字节量及自报RSS>=mib*1024的一致性。","observation":"CRC/自报RSS不能证明分配触达；后端实际RSS另报，分配/逐页触达/扫描历史无独立计数则UNMEASURED。"},
+      "negative_cases": ["改CRC、少1轮、样本用上一轮值：功能失败。","伪造正确CRC/样本/RSS：不得判历史触达通过。"],
+      "observation": {"available":"native/process、Runner阶段及后端支持的内存/CPU样本。","unmeasured":"逐页触达、实际分配历史、全部轮次扫描；self/children maxrss不可相加当总峰值。"},
+      "replay_pitfalls": "RSS/allocator/页大小/NUMA与工具输出可跨云变化，相同CRC不保证相同条件或Strict历史。",
+      "cleanup": "负载释放buffer，保留样本/CRC至验证完成；Runner回收Sandbox。"
+    },
+    {
+      "id": "asb-small-files-v1", "priority": "P0", "status": "DESIGNED_UNRUN",
+      "source": {"scenario":"small-files","manifest":{"path":"scenarios/small-files/scenario.json","sha256":"e341bf4e63c0485f538bb88b4106c5729de06ed36d81cebac9be4923062e55f9","bytes":977},"implementation_reference":["lib/workloads.py#pattern","lib/workloads.py#small_files","lib/verifier.py#small-files"]},
+      "profiles": {"small":{"files":128,"bytes":1024,"fanout":8},"medium":{"files":1024,"bytes":4096,"fanout":32},"large":{"files":4096,"bytes":4096,"fanout":64}},
+      "purpose": "覆盖批量文件创建、全量读取、改写与重命名；删除独立放在Cleanup。",
+      "prepare": "新目录与空files/；字节模式见shared_contract，revision初始0。",
+      "agent_task": "native完成创建、读校验、改写、改名，不只生成最终.done文件。",
+      "run": "建fanout个dDDD目录；i写files/d{i%fanout:03d}/f{i:06d}.bin，完整读回revision0，再写revision1并rename为.done。四类操作各files次；read=files*bytes，write=2*files*bytes，无逐文件fsync。",
+      "artifacts": ["files/dDDD/fIIIIII.done：精确files个最终文件","result.json：四类操作数及读写字节自报回执"],
+      "verify": {"functional":"精确最终路径集合与每个文件全部revision1内容；核对四类操作/字节自报回执。","observation":"终态不证明历史create/read/write/rename；无现有独立操作计数则UNMEASURED。"},
+      "negative_cases": ["缺文件、改字节、多文件或残留.bin：功能失败。","只写最终文件：不可宣称完成四类历史操作。"],
+      "observation": {"available":"native/process、Runner阶段及实际资源样本。","unmeasured":"逐文件syscall次数/时间、物理写入量、删除吞吐。"},
+      "replay_pitfalls": "新目录不是冷缓存；mtime/块数/路径/压缩策略可变；换参数需新轨迹，不删除ToolResult差异。",
+      "cleanup": "验证归档后清理所属Sandbox；删除单独计Cleanup，不混入Run。"
+    },
+    {
+      "id": "asb-sequential-io-v1", "priority": "P1", "status": "DESIGNED_UNRUN",
+      "source": {"scenario":"sequential-io","manifest":{"path":"scenarios/sequential-io/scenario.json","sha256":"24f098c1147ce95fc9259ceb081edbb0a5f95bb5a18b9dd65aee541b590b5655","bytes":870},"implementation_reference":["lib/workloads.py#sequential_io","lib/verifier.py#sequential-io"]},
+      "profiles": {"small":{"mib":8,"block_kib":256},"medium":{"mib":32,"block_kib":1024},"large":{"mib":128,"block_kib":1024}},
+      "purpose": "定义 buffered write→fsync→read 的应用级固定字节工作量，不作裸盘或冷缓存带宽成绩。",
+      "prepare": "新目录，无sequential.bin；size=mib*1048576，block=block_kib*1024，记录文件系统/缓存条件。",
+      "agent_task": "native实际写满→flush/fsync→读回哈希，不用truncate/稀疏占位代替。",
+      "run": "块i写shared pattern(seed,i,min(block,size-offset),revision0)，写完flush/fsync；按block完整读并SHA256。读写各size字节；write_fsync_ns/read_hash_ns仅为guest自报分段。",
+      "artifacts": ["sequential.bin：精确size字节","result.json：整体SHA256、字节量、两阶段时间、buffered/read-after-write标记"],
+      "verify": {"functional":"精确长度、所有块全部字节及整体SHA256；读写回执均为size。","observation":"正确文件不能证明实际读回/fsync；没有独立历史观测则UNMEASURED。"},
+      "negative_cases": ["截断、改块或改hash：功能失败。","正确终态无fsync/读回证据：不能升级历史资格。"],
+      "observation": {"available":"native/process、Runner阶段及后端资源读数。","unmeasured":"物理读写、fsync调用时间、冷缓存带宽；guest分段不可跨域相减。"},
+      "replay_pitfalls": "buffered read-after-write通常有缓存收益；block改变粒度；动态时长/路径不做Strict规范化。",
+      "cleanup": "保留文件与证据后Runner回收Sandbox，不修改宿主机缓存或设备。"
+    },
+    {
+      "id": "asb-random-io-v1", "priority": "P1", "status": "DESIGNED_UNRUN",
+      "source": {"scenario":"random-io","manifest":{"path":"scenarios/random-io/scenario.json","sha256":"5f576e65226432597a3c2abb41958a23212ad780da109e2acc6fd3167b41a279","bytes":992},"implementation_reference":["lib/workloads.py#prepare_inputs","lib/workloads.py#random_io","lib/verifier.py#random-io"]},
+      "profiles": {"small":{"blocks":256,"block_bytes":4096,"passes":2},"medium":{"blocks":2048,"block_bytes":4096,"passes":3},"large":{"blocks":8192,"block_bytes":4096,"passes":4}},
+      "purpose": "定义固定种子、每轮遍历全部块的QD1 buffered随机读改写，保留Prepare预热边界。",
+      "prepare": "写满random.bin各块revision0，flush/fsync；不是稀疏文件，Prepare已预热。",
+      "agent_task": "native完成全部轮次真实随机读校验、写下一revision和轮末fsync。",
+      "run": "order=list(range(blocks))仅初始化一次；每轮r对上一轮order执行random.Random(seed+r).shuffle(order)。逐块读revision r、写r+1，轮末fsync；记录SHA256(concat(i.to_bytes(8,'little')))；读写各blocks*passes次，QD1/OS buffered。",
+      "artifacts": ["random.bin：blocks*block_bytes字节，最终revision=passes","random-events.json：每轮pass/operations/order_sha256","result.json：固定操作数、buffered与queue_depth=1"],
+      "verify": {"functional":"所有最终块等于revision passes，无额外字节；重建原地shuffle各轮摘要并核对回执/操作数。","observation":"块级历史、fsync与排列若无独立观测保持UNMEASURED。"},
+      "negative_cases": ["旧revision、截断/追加字节：功能失败。","每轮重新初始化order造成摘要不符、少1轮事件：一致性失败。"],
+      "observation": {"available":"native/process、Runner阶段及后端资源样本。","unmeasured":"块级IOPS/时长、物理IO、fsync历史；Python unbuffered不是O_DIRECT。"},
+      "replay_pitfalls": "固定Python及shuffle语义；Prepare不是冷读。档位/原始时长变化须新录制，不补旧轨迹。",
+      "cleanup": "收回候选后Runner回收Sandbox；Prepare/Cleanup与Run分开。"
+    },
+    {
+      "id": "asb-xxhash-build-v1", "priority": "P0", "status": "DESIGNED_UNRUN",
+      "source": {"scenario":"xxhash-build","manifest":{"path":"scenarios/xxhash-build/scenario.json","sha256":"62a95e65ab0652ca0b180b75054ec0ea0c55c788d807d216602da0ef463e5c13","bytes":846},"implementation_reference":["vendor/xxhash/","lib/workloads.py#xxhash_build","lib/verifier.py#xxhash-build"]},
+      "profiles": {"small":{"rounds":1},"medium":{"rounds":2},"large":{"rounds":4}},
+      "purpose": "对固定真实上游C源码执行独立编译与链接，覆盖小型工程构建而非xxHash吞吐。",
+      "prepare": "固定v0.8.3 commit与provenance中的c/h SHA及LICENSE复制到source/；生成调用XXH64空串与abc、seed0的probe.c。固定gcc/libc/架构，新.o/binary；不访问公网。",
+      "agent_task": "native逐轮实际gcc编译、链接、运行probe；不复用.o、不启用ccache、不打印常量冒充结果。",
+      "run": "每r：gcc -O2 -c source/xxhash.c -o xxhash-r.o；gcc -O2 -Isource probe.c xxhash-r.o -o probe-r；运行probe-r。总2*rounds条编译/链接和rounds次探针，参考单条预算45s/5s。",
+      "artifacts": ["source/xxhash.c、source/xxhash.h、probe.c","xxhash-r.o、probe-r（r=0..rounds-1）","build-probes.json、result.json编译轮次/编译器版本回执"],
+      "verify": {"functional":"源SHA固定、每轮.o及probe为ELF；输出必须'ef46db3751d8e999 44bc2cf5ad770999'。封存白名单候选后，在独立验证Sandbox受限用户执行probe，由可信侧比较向量并写私有报告；禁止controller/root执行候选。","observation":"ELF/向量与自报compile_commands不证明各轮实际构建；缺逐轮现有进程证据时为UNMEASURED。"},
+      "negative_cases": ["改源、缺对象、非ELF、错误向量：功能失败。","复制旧binary可通过终态但不证明构建；超时/缺报告保留执行或评估错误。"],
+      "observation": {"available":"native/process、Runner阶段及实际支持的编译资源样本。","unmeasured":"未独立记录的编译轮次、内部阶段/缓存命中、源到产物因果。"},
+      "replay_pitfalls": "gcc/libc/架构可改变ELF和诊断；功能向量相同不代表产物字节相同。工具历史变化不修改旧tape。",
+      "cleanup": "先存候选/源hash/私有报告，Runner回收独立验证Sandbox再回收task Sandbox。"
+    },
+    {
+      "id": "asb-sqlite-etl-v1", "priority": "P0", "status": "DESIGNED_UNRUN",
+      "source": {"scenario":"sqlite-etl","manifest":{"path":"scenarios/sqlite-etl/scenario.json","sha256":"4bcb9ab7a52be49128fbeb2e8b72ea3353c421d07b46e3ddfc16efe315ed9961","bytes":920},"implementation_reference":["lib/workloads.py#prepare_inputs","lib/workloads.py#sqlite_etl","lib/verifier.py#sqlite-etl"]},
+      "profiles": {"small":{"rows":2000,"batch":200},"medium":{"rows":20000,"batch":1000},"large":{"rows":100000,"batch":1000}},
+      "purpose": "覆盖CSV解析、WAL/FULL批量事务、索引、更新、分组聚合与checkpoint的混合工作流。",
+      "prepare": "新目录，CSV表头id,grp,value；i=0..rows-1为(i,i%97,(i*17+seed)%100003)，数据库/WAL/SHM初始不存在。",
+      "agent_task": "native按batch真正导入WAL/FULL库，建索引、更新、聚合/checkpoint，不关闭持久化或只造结果。",
+      "run": "WAL+FULL；建records(id INTEGER PRIMARY KEY,grp INTEGER,value INTEGER)，每batch行INSERT/commit含尾批；建idx_group(grp)，对id%3=0加7后commit；按grp输出count/sum，wal_checkpoint(TRUNCATE)，close。插入批次ceil(rows/batch)=10/20/100，不含后续commit。",
+      "artifacts": ["input.csv、data.sqlite及必要的实际WAL/SHM状态","aggregates.json：按grp排序的[grp,count,sum]","result.json：rows_inserted/batches_committed/journal_mode/synchronous/checkpoint/SQLite版本"],
+      "verify": {"functional":"只读重开integrity_check=ok；逐行等于(i,i%97,(i*17+seed)%100003+(7 if i%3==0 else 0))；独立聚合、精确行数和idx_group；回执参数一致。","observation":"WAL/FULL/每批commit是连接历史，最终库或自报字段不证明；缺独立SQL/fsync测点则UNMEASURED。"},
+      "negative_cases": ["删行、改值、漏更新、改聚合或缺索引：功能失败。","OFF构造相同终态不能据此通过持久化历史资格。"],
+      "observation": {"available":"native/process、Runner阶段及后端资源样本。","unmeasured":"每事务/SQL/fsync次数与耗时、崩溃耐久性。"},
+      "replay_pitfalls": "SQLite版本/FS/WAL/checkpoint输出可变；档位同时改rows/batch，不能只归因为规模。变化需新录制。",
+      "cleanup": "close后保留一致数据库与实际必要sidecar，不丢WAL；验证后Runner清理Sandbox。"
+    },
+    {
+      "id": "asb-http-transfer-v1", "priority": "P1", "status": "DESIGNED_UNRUN",
+      "source": {"scenario":"http-transfer","manifest":{"path":"scenarios/http-transfer/scenario.json","sha256":"397fb968a24fd9f79ede481194ae9d9554ba29f49f9b023fc75c6922289a0775","bytes":1048},"implementation_reference":["lib/http_fixture.py","lib/workloads.py#http_work","lib/verifier.py#http-"]},
+      "profiles": {"small":{"requests":12,"payload_bytes":32768,"concurrency":2},"medium":{"requests":48,"payload_bytes":131072,"concurrency":4},"large":{"requests":128,"payload_bytes":262144,"concurrency":8}},
+      "purpose": "验证受控HTTP新连接传输和逐请求内容一致性；本版本拓扑仅为Sandbox内loopback独立进程。",
+      "prepare": "仅准备新目录和fixture配置：127.0.0.1，fail_first=0/permanent_id=-1；不启动服务。启动、就绪与停止归Run，动态端口和计数每次重建；不访问公网，跨host另建变体。",
+      "agent_task": "native使用受控服务，按并发真实完成所有请求并核对payload，保存双端回执。",
+      "run": "线程池concurrency；ID=0..requests-1各新HTTPConnection(timeout5s)，GET /blob/{id}?size={payload_bytes}&seed={seed}，Connection:close。200正文=SHAKE256(UTF8(seed+':'+id)).digest(payload_bytes)，读最多payload_bytes+1；总有效字节=requests*payload_bytes。request_phase不含服务准备，workload_wall含服务管理。",
+      "artifacts": ["http-events.json：按id的attempt、status、bytes、SHA256、outcome","server-events.jsonl、server-ready.json","result.json：requests/attempts/successes、loopback拓扑与new TCP标记"],
+      "verify": {"functional":"ID精确、每ID恰一200/succeeded、字节/hash正确；双端按(id,attempt,status,bytes)多重集合一致，总attempts=successes=requests。","observation":"同Agent权限server日志仅为一致性回执；逐HTTP请求/字节缺独立可信观测则UNMEASURED，不能声称跨host覆盖。"},
+      "negative_cases": ["改payload、缺ID、多attempt或双端不一致：功能失败。","两侧一致伪日志不能认定真实网络历史。"],
+      "observation": {"available":"native/process、Runner阶段；不可信客户端/服务回执。","unmeasured":"独立可信HTTP计数/字节、跨host、DNS/TLS/keep-alive、链路带宽。"},
+      "replay_pitfalls": "端口/并发完成顺序/耗时可变；Verifier按ID核对不授权重排Strict历史。跨host需新ID与真实录制。",
+      "cleanup": "fixture所有者停止并等待服务进程，保存双端日志后Runner清理Sandbox。"
+    },
+    {
+      "id": "asb-http-retry-v1", "priority": "P0", "status": "DESIGNED_UNRUN",
+      "source": {"scenario":"http-retry","manifest":{"path":"scenarios/http-retry/scenario.json","sha256":"9c633d54dbd1c83d37c5c27746cceb83df22b3aa53b6cf638a2d573118da5763","bytes":1269},"implementation_reference":["lib/http_fixture.py","lib/workloads.py#http_work","lib/verifier.py#http-"]},
+      "profiles": {"small":{"requests":8,"payload_bytes":4096,"concurrency":2,"fail_first":1,"max_attempts":3},"medium":{"requests":24,"payload_bytes":16384,"concurrency":4,"fail_first":2,"max_attempts":3},"large":{"requests":48,"payload_bytes":65536,"concurrency":8,"fail_first":2,"max_attempts":4}},
+      "purpose": "保留503后成功与永久503耗尽两条真实请求路径；负载有效不等于所有请求成功。",
+      "prepare": "仅准备新目录和fixture配置；fail_first按档位，permanent_id=requests-1，max_attempts>fail_first。服务启动/就绪/停止归Run，每次新端口与空计数；不访问公网。",
+      "agent_task": "native保留全部真实503与有界重试；普通ID成功，最后ID达到上限后expected_exhausted，不改成全成功。",
+      "run": "请求/200正文同http-transfer；503正文ASCII'retry'共5字节，每attempt新TCP，无退避。普通序列[503]*fail_first+[200]，最后[503]*max_attempts；attempts=(requests-1)*(fail_first+1)+max_attempts=17/72/145，成功requests-1，耗尽1。",
+      "artifacts": ["http-events.json：每ID完整尝试序列与最终outcome","server-events.jsonl、server-ready.json","result.json：requests/attempts/successes、拓扑与连接模式"],
+      "verify": {"functional":"逐ID精确状态/连续attempt/字节/hash/outcome；双端多重集合及总attempts一致。7/8、23/24、47/48成功是设计预期，不当全成功吞吐。","observation":"HTTP尝试不是ToolCall；同权限双端回执不证明真实请求历史，缺独立测点则UNMEASURED。"},
+      "negative_cases": ["最后ID提前停止/伪200、漏503或普通ID失败：功能失败。","丢耗尽记录破坏分母；服务不可达/未知状态是执行或基础设施错误，不是设计耗尽。"],
+      "observation": {"available":"native/process、Runner阶段及不可信双端回执的一致性检查。","unmeasured":"可信逐请求时间/字节、断连/DNS/TLS、跨host、退避（本版无退避）。"},
+      "replay_pitfalls": "端口/并发/503耗时影响Strict；语义通过不保证回放。改重试参数/拓扑需新版本录制，不由参考序列造模型响应。",
+      "cleanup": "耗尽仍需停止/等待fixture，保留全部失败尝试与日志；Runner清理所属Sandbox。"
+    }
+  ],
+  "references": {
+    "terminal_bench": {
+      "repository": "https://github.com/harbor-framework/terminal-bench-2-1",
+      "commit": "7131e4375048a0e408a8fb404b5f499d726b695b",
+      "license": "Apache-2.0",
+      "status": "REFERENCE_ONLY_UNRUN",
+      "original_benchmark": true,
+      "note": "三个目录仅为参考包索引，不复制进本catalog的cases，不包装为ASB或官方成绩。保留原identity/input/verifier；整个参考目录含私有tests/solution，不得整体给Agent。原始TB正式运行需要完整固定clean checkout。",
+      "directory_index": [
+        {
+          "task_id": "fix-git",
+          "directory": "upstream/tb21/tasks/fix-git",
+          "purpose": "在原Git仓库找回个人站点丢失修改并合并到master；原始两个文件内容断言。",
+          "upstream_url": "https://github.com/harbor-framework/terminal-bench-2-1/tree/7131e4375048a0e408a8fb404b5f499d726b695b/tasks/fix-git",
+          "files": [
+            {
+              "path": "upstream/tb21/tasks/fix-git/instruction.md",
+              "sha256": "f98174e47ba5ce040f6fad22ef3cbca4dd27b3192868ea5d082077222c3ec4e8",
+              "git_blob_sha1": "e925a7ae1ea325561eb98ceb6d81878c5d23d6df",
+              "bytes": 158
+            },
+            {
+              "path": "upstream/tb21/tasks/fix-git/task.toml",
+              "sha256": "f59d711003b974e4ef8ed63556614e2ea9ea7d0e394af13b2071225e3fda7805",
+              "git_blob_sha1": "235313b3fe78a18c2516bdc25fbf7ab80edb8529",
+              "bytes": 879
+            },
+            {
+              "path": "upstream/tb21/tasks/fix-git/tests/test.sh",
+              "sha256": "4770437ea96c3cc84684b4f99d55fb148fcac09f9ea1e8ef49de487716e6c334",
+              "git_blob_sha1": "cb4a41a45e4b23f4d1f1392fd68f6e47c5dbbf57",
+              "bytes": 608
+            },
+            {
+              "path": "upstream/tb21/tasks/fix-git/tests/test_outputs.py",
+              "sha256": "6ae4dd70595cf7d1eb81bc342be319de338dc0e7fd67aab8645700047e31fb37",
+              "git_blob_sha1": "8c2b789b590e5bf654b9a1f89d24dfc7c6354fc5",
+              "bytes": 1016
+            }
+          ]
+        },
+        {
+          "task_id": "cancel-async-tasks",
+          "directory": "upstream/tb21/tasks/cancel-async-tasks",
+          "purpose": "实现/app/run.py的异步run_tasks(tasks,max_concurrent)，保留并发限制和取消后的cleanup；原始6项断言。",
+          "upstream_url": "https://github.com/harbor-framework/terminal-bench-2-1/tree/7131e4375048a0e408a8fb404b5f499d726b695b/tasks/cancel-async-tasks",
+          "files": [
+            {
+              "path": "upstream/tb21/tasks/cancel-async-tasks/instruction.md",
+              "sha256": "23d22f7039b50682941652c716f96dac314b8585c32c133614cac77dc067f47e",
+              "git_blob_sha1": "e05e6bf31bba310ef8d2094a4bb6528f6389984e",
+              "bytes": 537
+            },
+            {
+              "path": "upstream/tb21/tasks/cancel-async-tasks/task.toml",
+              "sha256": "14db0675e04408f2133b0067e8dbddf66a1d6e7baf6b8d38bef8ecccfc4e58a8",
+              "git_blob_sha1": "f4bf156fa7e89ff391f233233f12180a816524f4",
+              "bytes": 927
+            },
+            {
+              "path": "upstream/tb21/tasks/cancel-async-tasks/tests/test.py",
+              "sha256": "f533c0a64db068f582b4733c5b81f2e66b8fa52fcd3efa65752e6bd6d24780aa",
+              "git_blob_sha1": "0d22fbcb37aef934ded17f0f18a0ea81731bb4a9",
+              "bytes": 701
+            },
+            {
+              "path": "upstream/tb21/tasks/cancel-async-tasks/tests/test.sh",
+              "sha256": "79600a6b863def31b4daa008297423010cd2d6243e689d67503e118e4dc53397",
+              "git_blob_sha1": "19cfbd4695c5016e53bac3f989fc3daca259f315",
+              "bytes": 639
+            },
+            {
+              "path": "upstream/tb21/tasks/cancel-async-tasks/tests/test_outputs.py",
+              "sha256": "d6f510b51fafc81b4e9b5cc95535aa13491c8753e0e4171db42c45f4de460ee7",
+              "git_blob_sha1": "c299fc55a6f41c2a2db670220e80821f3447386a",
+              "bytes": 4225
+            }
+          ]
+        },
+        {
+          "task_id": "db-wal-recovery",
+          "directory": "upstream/tb21/tasks/db-wal-recovery",
+          "purpose": "恢复原SQLite及加密WAL并输出/app/recovered.json全部11条按id排序记录；原始7项断言。",
+          "upstream_url": "https://github.com/harbor-framework/terminal-bench-2-1/tree/7131e4375048a0e408a8fb404b5f499d726b695b/tasks/db-wal-recovery",
+          "files": [
+            {
+              "path": "upstream/tb21/tasks/db-wal-recovery/environment/main.db",
+              "sha256": "68cb288eb29e76d814b4e7ee6887b37c415675e644f88173bc191348e290d119",
+              "git_blob_sha1": "836f6547b75bb002cf812239a7147419ddf0709b",
+              "bytes": 8192
+            },
+            {
+              "path": "upstream/tb21/tasks/db-wal-recovery/environment/main.db-wal.encrypted",
+              "sha256": "68753bdce26196a53194260d001544cc6bb8f9f38e2f2f6826d09798e31e6e26",
+              "git_blob_sha1": "b218b56b5680d29e2ae21c08db518cc84093827d",
+              "bytes": 16512
+            },
+            {
+              "path": "upstream/tb21/tasks/db-wal-recovery/instruction.md",
+              "sha256": "5a20375162921b8911c67035d1905df7fd335d1bed03044271e608b2c3c93b26",
+              "git_blob_sha1": "474ffff6e05d5f34059615094d4a6034a9d3f140",
+              "bytes": 658
+            },
+            {
+              "path": "upstream/tb21/tasks/db-wal-recovery/task.toml",
+              "sha256": "1cdc2c615e259bc10265efbe71b518332070c1c002e226566399e9788f18d0aa",
+              "git_blob_sha1": "bdbadbffa6793c6f78ca0d5867e81432411c3a23",
+              "bytes": 926
+            },
+            {
+              "path": "upstream/tb21/tasks/db-wal-recovery/tests/test.sh",
+              "sha256": "4770437ea96c3cc84684b4f99d55fb148fcac09f9ea1e8ef49de487716e6c334",
+              "git_blob_sha1": "cb4a41a45e4b23f4d1f1392fd68f6e47c5dbbf57",
+              "bytes": 608
+            },
+            {
+              "path": "upstream/tb21/tasks/db-wal-recovery/tests/test_outputs.py",
+              "sha256": "88dc5c2a3abba75bca0e0f9136223ae5bb585d5984b8d9eba51a7829c1d2ba49",
+              "git_blob_sha1": "faf2f70e57447610ea980c1a7c0e1ea3387bb2f2",
+              "bytes": 4263
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

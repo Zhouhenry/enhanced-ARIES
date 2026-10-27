@@ -26,11 +26,31 @@ go.work.sum
 
 # env file
 .env
+.env.*
+!.env.example
+*.private.env
+*.private.json
+*.private.log
+credentials.csv
+*.pem
+*.key
+
+# Machine-local files and generated experiment deliveries
+.DS_Store
+__pycache__/
+*.py[cod]
+/docs/archive/
+/docs/test-case-files-handle.zip
+/docs/dashboard/large-scale-text-editing/data.json
+/docs/dashboard/large-scale-text-editing/case-actions.json
+/docs/dashboard/large-scale-text-editing/trace_views.json
+/docs/dashboard/large-scale-text-editing/index.html
 
 # ARIES-local inputs and generated state
 .omx/
 .cache/
 runs/
+runs-mock/
 # Run artifacts pulled off a cluster with `kubectl cp` land outside runs/.
 # They hold full agent trajectories and tool-call logs.
 x4run/

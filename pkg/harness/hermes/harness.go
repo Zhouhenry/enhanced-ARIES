@@ -336,7 +336,7 @@ func (manager *Manager) Start(ctx context.Context, request core.HarnessRequest) 
 	return nil
 }
 
-func (manager *Manager) Run(ctx context.Context, instruction string) (core.HarnessResult, error) {
+func (manager *Manager) Run(ctx context.Context, instruction string) (result core.HarnessResult, runErr error) {
 	started := time.Now()
 	manager.mu.Lock()
 	if err := manager.runtime.AdmitRun(instruction); err != nil {
@@ -352,6 +352,7 @@ func (manager *Manager) Run(ctx context.Context, instruction string) (core.Harne
 		return manager.runVoiceTranscribe(ctx, active, instruction, started)
 	}
 	output, outcome, err := manager.runGateway(ctx, active, instruction)
+	defer func() { applyRuntimeTiming(&result, outcome) }()
 	stdout := active.Credentials.Redact([]byte(output))
 	artifactCtx, artifactCancel := context.WithTimeout(context.WithoutCancel(ctx), manager.runtime.Options.CleanupTimeout)
 	artifactErr := manager.collectArtifacts(artifactCtx, active, stdout, outcome)
@@ -367,7 +368,7 @@ func (manager *Manager) Run(ctx context.Context, instruction string) (core.Harne
 	}, nil
 }
 
-func (manager *Manager) runVoiceTranscribe(ctx context.Context, active *session, instruction string, started time.Time) (core.HarnessResult, error) {
+func (manager *Manager) runVoiceTranscribe(ctx context.Context, active *session, instruction string, started time.Time) (result core.HarnessResult, resultErr error) {
 	audioPath, voicePaths, err := manager.synthesizeVoiceInstruction(ctx, active, instruction)
 	if len(voicePaths) != 0 {
 		active.Artifacts.Add(voicePaths...)
@@ -395,6 +396,7 @@ func (manager *Manager) runVoiceTranscribe(ctx context.Context, active *session,
 		return active.FailedResult(started, err), err
 	}
 	output, outcome, runErr := manager.runGateway(ctx, active, sttResult.Transcript)
+	defer func() { applyRuntimeTiming(&result, outcome) }()
 	stdout := active.Credentials.Redact([]byte(output))
 	err = runErr
 	agentOutput := strings.TrimRight(string(stdout), "\n")
@@ -414,6 +416,18 @@ func (manager *Manager) runVoiceTranscribe(ctx context.Context, active *session,
 		Status: core.StatusSucceeded, FinalResponse: agentOutput,
 		Duration: time.Since(started), LogPaths: active.Artifacts.Paths(),
 	}, nil
+}
+
+func applyRuntimeTiming(result *core.HarnessResult, outcome runOutcome) {
+	result.SessionID = outcome.SessionID
+	if outcome.runtimeStarted.IsZero() || outcome.runtimeFinished.IsZero() {
+		return
+	}
+	started, finished := outcome.runtimeStarted, outcome.runtimeFinished
+	duration := finished.Sub(started)
+	result.RuntimeStartedAt = &started
+	result.RuntimeFinishedAt = &finished
+	result.RuntimeExecutionDuration = &duration
 }
 
 type voiceSTTResult struct {

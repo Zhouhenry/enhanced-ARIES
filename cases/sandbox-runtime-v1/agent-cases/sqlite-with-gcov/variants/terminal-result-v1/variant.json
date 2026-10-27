@@ -1,0 +1,94 @@
+{
+  "schema_version": 1,
+  "variant_id": "sqlite-with-gcov-terminal-result-v1",
+  "classification": "approved_independent_benchmark_interaction_variant",
+  "status": {
+    "materials": "CONSTRUCTED_STATIC_CHECKED",
+    "profile_wiring": "CANDIDATE_APPENDIX_CONTRACT_UNRUN",
+    "native_protocol_validation": "UNRUN",
+    "agent_recording": "UNRUN",
+    "strict_replay": "UNRUN",
+    "cross_cloud_comparison": "UNRUN"
+  },
+  "original_task_id": "sqlite-with-gcov",
+  "source": {
+    "repository": "https://github.com/harbor-framework/terminal-bench-2-1",
+    "revision": "7131e4375048a0e408a8fb404b5f499d726b695b",
+    "task_path": "tasks/sqlite-with-gcov",
+    "license": "Apache-2.0",
+    "original_content_unchanged": true,
+    "source_manifest": "../../../revision-2-source-manifest.json"
+  },
+  "original_case_files_unchanged": true,
+  "prompt": {
+    "original_file": "../../public/instruction.md",
+    "original_file_sha256": "b6ba9acf62292bc2a0bab40d4805b3abceededbb0ccd4477a1ce9ccc42c14dd9",
+    "original_task_instruction_sha256": "ce64d3568f68cbdc240249a64847f5aba30f06daa2991b4d74addee9799da56b",
+    "appendix_file": "instruction-appendix.md",
+    "appendix_file_sha256": "d7bcc5e420f87ff28fe1cff06fb4d119b2c8654ac680b7ed9b31b81e83983b0f",
+    "effective_instruction_file": "effective-instruction.txt",
+    "effective_instruction_sha256": "4651f6f8cb6bb6824f372e3da328c32de1991ad4f14c6cf9415d6d8e293e65b6",
+    "composition": "UTF-8 original Task.Instruction (upstream trim) + two LF + exact appendix file bytes; appendix is not trimmed",
+    "diff_file": "prompt.diff",
+    "diff_sha256": "36b771904b6cd67a00c4b32f5515445e8c29e4fdfd4c1a05f402c53310a8e4a2"
+  },
+  "harness": {
+    "placement": "external",
+    "native_observation_protocol": "aries-ssh-identity-v1",
+    "tool_output_renderer": "stdout-stderr-v1",
+    "replay_tool_protocol": "terminal-result-v1",
+    "native_default_modified": false
+  },
+  "preserved": {
+    "task_toml": "../../task.toml",
+    "task_toml_sha256": "9a0da96990ee2ecbf4d92682a4c5301a53db45fc6e2d46ac7d45d3b8ee7fe523",
+    "agent_timeout_seconds": 900,
+    "verifier_timeout_seconds": 900,
+    "cpu": 1,
+    "memory_mb": 2048,
+    "storage_mb": 10240,
+    "gpus": 0,
+    "allow_network": true,
+    "original_scoring_method": true,
+    "reference_solution_included": false,
+    "expected_tool_call_count": null,
+    "fixed_solution_commands": false
+  },
+  "private_verifier": {
+    "location": "../../private/tests",
+    "distribution": "controller-only; inject into the original Sandbox only after confirmed stop and bridge revocation",
+    "original_source_sha256": {
+      "tests/test.sh": "4770437ea96c3cc84684b4f99d55fb148fcac09f9ea1e8ef49de487716e6c334",
+      "tests/test_outputs.py": "b165f8504bb93a901451b80c4ea73344b71b6af377ebdabef745fbcdd1d2993b"
+    }
+  },
+  "environment_preparation": {
+    "binding": "reuse the selected original task binding; freeze any declared initial-directory mtime adaptation before the first new recording",
+    "native_image": "must freeze a verified image containing terminal-result-v1; no digest invented in this material",
+    "runtime_created_metadata": "remain real; do not rewrite runtime timestamps or tool output",
+    "sqlite_toolchain": "inherit declared general toolchain adaptation; never prebuild the task answer"
+  },
+  "acceptance": [
+    "new real autonomous Agent recording passes the original independent verifier",
+    "new Tape complete; same full request/history Strict matching; real tools execute again",
+    "at least two new-Sandbox replays plus same-Tape Huawei/E2B comparison after independent preparation",
+    "preserve all failed, canceled and unstarted attempts; no post-hoc Tape or matcher edits",
+    "same CPU/memory, variant, Tape and placement; report disk/platform differences without disqualifying solely for those differences",
+    "confirm stop/revocation, private verification and owned Sandbox cleanup; keep missing timing absent"
+  ],
+  "limits": [
+    "not an unchanged official benchmark submission",
+    "a stable logical handle is not a real PID; child output can still be dynamic",
+    "native poll/log/PTY remain available and may produce non-repeatable live results",
+    "raw job evidence is not automatically an analyzed Trace or complete process-call coverage",
+    "preparation, runtime, model wait, tool work and independent verification have distinct measured boundaries"
+  ],
+  "profile": "../../../../../../profiles/cloud/terminalbench/variants/openclaw-e2b-a-sqlite-with-gcov-terminal-result-v1-record.json",
+  "profile_contract": {
+    "benchmark.task_id": "sqlite-with-gcov",
+    "benchmark.variant.id": "sqlite-with-gcov-terminal-result-v1",
+    "benchmark.variant.instruction_appendix_file": "instruction-appendix.md (resolved relative to profile in actual configuration)",
+    "benchmark.variant.appendix_sha256": "d7bcc5e420f87ff28fe1cff06fb4d119b2c8654ac680b7ed9b31b81e83983b0f",
+    "attempt_logical_task_id": "sqlite-with-gcov-terminal-result-v1"
+  }
+}

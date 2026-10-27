@@ -17,7 +17,14 @@ func main() {
 	logger := newLogger()
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
-	if err := dispatch(ctx, os.Args[1:], os.Stdout, app.Dependencies{Logger: logger, Wiring: commandWiring()}, app.Run, app.Setup); err != nil {
+	dependencies := app.Dependencies{Logger: logger, Wiring: commandWiring()}
+	var err error
+	if len(os.Args) > 1 && os.Args[1] == "cloud" {
+		err = runCloudCommand(ctx, os.Args[2:], os.Stdout, dependencies)
+	} else {
+		err = dispatch(ctx, os.Args[1:], os.Stdout, dependencies, app.Run, app.Setup)
+	}
+	if err != nil {
 		logger.WithError(err).Error("aries failed")
 		os.Exit(1)
 	}

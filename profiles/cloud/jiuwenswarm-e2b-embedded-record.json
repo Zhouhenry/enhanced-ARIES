@@ -1,0 +1,27 @@
+{
+  "name": "jiuwenswarm-e2b-embedded-record",
+  "agent_type": "jiuwenswarm",
+  "placement": "embedded",
+  "sandbox_backend": "e2b-cloud",
+  "workload": "merge-ranges-portable-v1",
+  "versions_file": "../../configs/versions.json",
+  "output_dir": "runs",
+  "sandbox": {
+    "template": "ka5ej4mq5hsk1kf91gvp:df971e4f-721e-4456-90d0-c6da803db29a",
+    "timeout_seconds": 900
+  },
+  "harness": {
+    "jiuwen_source_dir": "/opt/jiuwenswarm",
+    "jiuwen_python_path": "/opt/jiuwenswarm/.venv/bin/python"
+  },
+  "model": {
+    "mode": "record",
+    "max_turns": 32
+  },
+  "execution": {
+    "concurrency": 1,
+    "attempts": 1,
+    "task_timeout": "5m",
+    "verifier_timeout": "1m"
+  }
+}

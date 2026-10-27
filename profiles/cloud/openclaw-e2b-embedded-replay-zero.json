@@ -1,0 +1,11 @@
+{
+  "name": "openclaw-e2b-embedded-replay-zero",
+  "agent_type": "openclaw",
+  "placement": "embedded",
+  "sandbox_backend": "e2b-cloud",
+  "versions_file": "../../configs/versions.json",
+  "output_dir": "runs",
+  "harness": {"openclaw_path": "/usr/local/bin/openclaw", "openclaw_version": "2026.7.1"},
+  "model": {"mode": "replay", "tool_call_id_dialect": "openclaw-2026.7.1", "timing": "zero", "tape_file": "REPLACE_WITH_REAL_EMBEDDED_TAPE.json"},
+  "execution": {"concurrency": 1, "attempts": 1, "task_timeout": "5m", "verifier_timeout": "1m"}
+}

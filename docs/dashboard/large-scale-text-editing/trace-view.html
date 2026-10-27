@@ -1,0 +1,108 @@
+<style>
+#trace-view{--trace-label:240px}.trace-controls{display:flex;flex-wrap:wrap;gap:12px;align-items:end;margin:14px 0}.trace-controls label{display:flex;flex-direction:column;gap:4px;color:var(--muted);font-size:12px}.trace-controls select,.trace-controls input{max-width:100%;font-size:13px}.trace-controls input{width:280px}.trace-actions{display:flex;flex-wrap:wrap;gap:8px;align-items:center}.trace-actions button,#trace-page button{padding:8px 12px;border:1px solid #b9c8cf;background:var(--white);color:var(--ink);border-radius:4px}.trace-actions button:first-child{background:var(--nav);color:var(--white);border-color:var(--nav)}#trace-view button:disabled{cursor:default;opacity:.5}#trace-status{min-height:24px;overflow-wrap:anywhere}#trace-status[data-error="true"]{color:var(--hw)}#trace-provenance{overflow-wrap:anywhere}#trace-scroll{overflow:auto;max-height:540px;border:1px solid var(--line);overscroll-behavior:contain}#trace-chart{min-width:100%}.trace-axis,.trace-row{display:grid;grid-template-columns:var(--trace-label) 1fr}.trace-axis{position:sticky;top:0;z-index:2;background:var(--paper);height:36px;font:11px var(--mono);color:var(--muted);border-bottom:1px solid var(--line)}.trace-axis>span:first-child{position:sticky;left:0;z-index:3;background:var(--paper);padding:10px}.trace-ticks{position:relative;margin-right:8px}.trace-ticks span{position:absolute;top:10px;transform:translateX(-50%)}.trace-ticks span:first-child{transform:none}.trace-ticks span:last-child{transform:translateX(-100%)}.trace-row{width:100%;padding:0;border:0;border-bottom:1px solid var(--line);background:var(--white);color:var(--ink);text-align:left;min-height:46px;cursor:pointer}.trace-row:hover,.trace-row[aria-pressed="true"]{background:#edf6f4}.trace-row:focus-visible{outline:2px solid var(--e1);outline-offset:-2px}.trace-label{position:sticky;left:0;z-index:1;background:inherit;padding:5px 10px;overflow:hidden;border-right:1px solid var(--line)}.trace-label strong{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px;font-weight:500}.trace-label small{display:block;color:var(--muted);font:10px/1.7 var(--mono);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.trace-lane{position:relative;margin-right:8px;background:repeating-linear-gradient(90deg,transparent,transparent calc(10% - 1px),var(--line) calc(10% - 1px),var(--line) 10%)}.trace-span{position:absolute;top:14px;height:17px;border-radius:2px;min-width:2px;background:var(--e1)}.trace-span[data-kind="model"]{background:var(--e2)}.trace-span[data-kind="tool"]{background:var(--hw)}.trace-span[data-kind="other"]{background:var(--muted)}#trace-page{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin:12px 0}#trace-page>div{display:flex;gap:8px}#trace-detail{margin-top:12px;border:1px solid var(--line);padding:14px;background:var(--paper);overflow-wrap:anywhere}#trace-detail pre{max-height:340px;overflow:auto;white-space:pre-wrap;font:12px/1.65 var(--mono)}#trace-native:empty{display:none}#trace-native iframe{width:100%;height:650px;margin-top:12px;border:1px solid var(--line);background:var(--paper)}@media(max-width:600px){#trace-view{--trace-label:170px}.trace-controls{gap:10px}.trace-controls label{max-width:100%;flex:1 1 140px}.trace-controls input,.trace-controls select{width:100%}#trace-native iframe{height:520px}}
+</style>
+<section id="trace-view" class="section" aria-labelledby="trace-title">
+  <div class="section-head"><div><h2 id="trace-title">原始 Trace · Operation 泳道</h2><p class="muted small">同一时钟域的真实起止与重叠。每个 operation 独立一行，点击查看身份、时间和证据来源。</p></div></div>
+  <div class="time-context"><strong>横轴 / 行耗时显示秒 s，原 JSON 的 ts / dur 是微秒 µs。</strong> <button type="button" class="time-help" data-time="trace_time">Trace 计时口径</button><p class="micro">每个域以自己的首个区间为 0；域间没有校准，不能按横轴相减。agent.run 覆盖整个 Harness.Run，不等于 Runtime；后台 tool.observed.exec 的 result 可只是 accepted，不能作为 guest 全程的父区间。泳道之间可以重叠，不相加。</p></div>
+  <div class="trace-controls">
+    <label for="trace-run">运行<select id="trace-run"></select></label>
+    <label for="trace-domain">时钟域<select id="trace-domain"></select></label>
+    <label for="trace-category">区间范围<select id="trace-category"><option value="common">常规 · runtime / tool / bridge / model</option><option value="all">全部区间</option></select></label>
+    <label for="trace-search">搜索身份 / 名称 / category<input id="trace-search" type="search" placeholder="operation / ToolCall ID / category"></label>
+    <label for="trace-zoom">横向缩放<select id="trace-zoom"><option value="1">1× · 全窗口</option><option value="2">2×</option><option value="4">4×</option><option value="8">8×</option><option value="16">16×</option><option value="32">32×</option><option value="64">64×</option></select></label>
+  </div>
+  <div class="trace-actions"><button id="trace-download" type="button" disabled>下载原始 trace.json</button><button id="trace-open" type="button" disabled>用 Perfetto 打开</button><a href="https://ui.perfetto.dev/" target="_blank" rel="noopener noreferrer">Perfetto 官网 ↗</a></div>
+  <p id="trace-status" class="small muted" role="status" aria-live="polite">准备读取内嵌 Trace…</p>
+  <p id="trace-provenance" class="micro mono"></p>
+  <p id="trace-boundary" class="micro"></p>
+  <div id="trace-scroll" tabindex="0" role="region" aria-label="Operation 时间瀑布图，可横向和纵向滚动"><div id="trace-chart"></div></div>
+  <div id="trace-page"><span id="trace-count" class="small muted"></span><div><button id="trace-prev" type="button" disabled>上一页</button><button id="trace-next" type="button" disabled>下一页</button></div></div>
+  <div id="trace-detail" hidden></div>
+  <p class="micro">横轴为距本域首个区间的秒数；原始 ts / dur 单位为微秒，详情保留原始纳秒字段。每页最多 80 行，筛选不会改写下载文件。完整 Flow、瞬时事件和导航在 Perfetto 中查看。</p>
+  <p id="trace-viewer-note" class="micro"></p><div id="trace-native"></div>
+</section>
+<script>
+(()=>{
+function initTraceView(){
+  const views=data.trace_views||[],origin='https://ui.perfetto.dev',size=80;
+  let current=null,page=0,selected=-1,revision=0,cancelViewer=()=>{};
+  const status=(text,error=false)=>{$('trace-status').textContent=text;$('trace-status').dataset.error=String(error);};
+  const entry=()=>views.find(v=>v.id===$('trace-domain').value);
+  const kind=e=>/model/i.test(e.cat)?'model':/tool|bridge/i.test(e.cat)?'tool':/runtime|harness/i.test(e.cat)?'runtime':'other';
+  const common=e=>/runtime|harness|tool|bridge|model/i.test(e.cat+' '+e.name);
+  const secs=n=>(n/1e6).toLocaleString('en-US',{maximumFractionDigits:3});
+  async function sha256(buffer){
+    if(!globalThis.crypto?.subtle)throw Error('当前 HTTP 来源不支持 SHA-256 安全校验。请通过 localhost / 127.0.0.1、HTTPS 或本地 file:// 打开此页。');
+    return Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256',buffer)),b=>b.toString(16).padStart(2,'0')).join('');
+  }
+  async function decode(v){
+    if(v.encoding!=='gzip-base64'||!globalThis.DecompressionStream)throw Error('浏览器不支持内嵌 gzip 解压，请使用近期版本的 Chrome、Edge、Firefox 或 Safari。');
+    const packed=Uint8Array.from(atob(v.payload),c=>c.charCodeAt(0));
+    const bytes=await new Response(new Blob([packed]).stream().pipeThrough(new DecompressionStream('gzip'))).arrayBuffer();
+    if(await sha256(bytes)!==v.sha256)throw Error('SHA-256 不匹配，已停止显示、下载和传送该 Trace。');
+    const trace=JSON.parse(new TextDecoder('utf-8',{fatal:true}).decode(bytes)),meta=trace.metadata,events=trace.traceEvents;
+    if(!Array.isArray(events)||!meta?.clock_domain||meta.snapshot_id!==v.snapshot_id)throw Error('Trace 格式、Snapshot 或时钟域与清单不符。');
+    const spans=events.filter(e=>e.ph==='X');
+    if(spans.length!==v.interval_count||spans.some(e=>!Number.isFinite(e.ts)||!Number.isFinite(e.dur)||e.dur<0||e.args?.clock_domain!==meta.clock_domain))throw Error('区间数量、时间或单时钟域核验失败。');
+    spans.sort((a,b)=>a.ts-b.ts||a.tid-b.tid);
+    let start=Infinity,end=-Infinity;for(const e of spans){start=Math.min(start,e.ts);end=Math.max(end,e.ts+e.dur);}
+    return {v,bytes,meta,spans,start:spans.length?start:0,range:spans.length?Math.max(end-start,1):1,search:spans.map(e=>JSON.stringify([e.name,e.cat,e.args]).toLowerCase())};
+  }
+  function render(){
+    if(!current)return;const q=$('trace-search').value.trim().toLowerCase(),category=$('trace-category').value;
+    const matches=[];current.spans.forEach((e,i)=>{if((category==='all'||(category==='common'?common(e):e.cat===category))&&(!q||current.search[i].includes(q)))matches.push(i);});
+    page=Math.min(page,Math.max(0,Math.ceil(matches.length/size)-1));const visible=matches.slice(page*size,(page+1)*size);
+    const label=parseFloat(getComputedStyle($('trace-view')).getPropertyValue('--trace-label')),width=Math.max(480,$('trace-scroll').clientWidth-label-10)*Number($('trace-zoom').value);
+    $('trace-chart').style.width=(label+width+8)+'px';
+    $('trace-chart').innerHTML=`<div class="trace-axis"><span>距本域首个区间 / s</span><div class="trace-ticks">${Array.from({length:11},(_,i)=>`<span style="left:${i*10}%">${secs(current.range*i/10)}</span>`).join('')}</div></div>`+visible.map(i=>{const e=current.spans[i];return `<button type="button" class="trace-row" data-index="${i}" aria-pressed="${selected===i}" title="${esc(e.name+' · ts '+e.ts+' µs · dur '+e.dur+' µs')}"><span class="trace-label"><strong>${esc(e.name)}</strong><small>${esc(e.cat||'未分类')} · ${secs(e.dur)} s · track ${e.pid}/${e.tid}</small></span><span class="trace-lane"><i class="trace-span" data-kind="${kind(e)}" style="left:${(e.ts-current.start)/current.range*100}%;width:${e.dur/current.range*100}%"></i></span></button>`;}).join('')+(!visible.length?'<div class="empty">没有匹配区间；可清除搜索或选择全部区间。</div>':'');
+    $('trace-count').textContent=`当前 ${matches.length?page*size+1:0}–${Math.min((page+1)*size,matches.length)} / 筛选 ${matches.length.toLocaleString()} / 全部 ${current.spans.length.toLocaleString()} 个区间 · 第 ${page+1}/${Math.max(1,Math.ceil(matches.length/size))} 页`;
+    $('trace-prev').disabled=page===0;$('trace-next').disabled=(page+1)*size>=matches.length;
+  }
+  function detail(i){
+    selected=i;const e=current.spans[i];$('trace-detail').hidden=false;
+    $('trace-detail').innerHTML=`<strong>${esc(e.name)}</strong>${timeHelp('trace_time')}<p class="micro">本域相对开始 ${secs(e.ts-current.start)} s → 结束 ${secs(e.ts+e.dur-current.start)} s；区间持续 ${secs(e.dur)} s。包含该 operation 起止间的工作；父级/因果只依据下方原 args 与原 Flow，不从行顺序推断。<br>原始 Chrome Trace · ph=X · pid=${e.pid} / tid=${e.tid}（operation track）<br>ts=${e.ts} µs · dur=${e.dur} µs · category=${esc(e.cat||'')}</p><pre>${esc(JSON.stringify(e.args||{},null,2))}</pre>`;render();
+  }
+  async function load(){
+    const ticket=++revision,v=entry();cancelViewer();$('trace-native').replaceChildren();current=null;page=0;selected=-1;
+    $('trace-download').disabled=true;$('trace-open').disabled=true;$('trace-prev').disabled=true;$('trace-next').disabled=true;
+    $('trace-detail').hidden=true;$('trace-chart').replaceChildren();$('trace-count').textContent='';$('trace-provenance').textContent='';$('trace-boundary').textContent='';
+    if(!v){status('没有可用的 Trace 数据。',true);return;}status('正在本地解压并核验原始字节 SHA-256…');
+    try{
+      const result=await decode(v);if(ticket!==revision)return;current=result;
+      const old=$('trace-category').value,categories=[...new Set(current.spans.map(e=>e.cat||''))].sort();
+      $('trace-category').innerHTML='<option value="common">常规 · runtime / tool / bridge / model</option><option value="all">全部区间</option>'+categories.map(c=>`<option value="${esc(c)}">${esc(c||'未分类')}</option>`).join('');
+      $('trace-category').value=['common','all',...categories].includes(old)?old:'common';
+      $('trace-provenance').textContent=`Snapshot ${v.snapshot_id} · SHA-256 ${v.sha256}`;
+      const excluded=current.meta.excluded_clock_domains||v.excluded_clock_domains||[];
+      $('trace-boundary').textContent=`时钟域：${current.meta.clock_domain} · ${v.interval_count.toLocaleString()} 个区间 · ${v.flow_count.toLocaleString()} 条原始 Flow · 覆盖状态：${current.meta.coverage_status||'未知'}。未对齐、未合并的其他域：${excluded.length?excluded.join('、'):'无'}。`;
+      status(`原始字节 SHA-256 已核验 · ${v.label} · ${secs(current.range)} s 观察窗口。`);$('trace-download').disabled=false;$('trace-open').disabled=false;render();
+    }catch(error){if(ticket===revision)status(error.message,true);}
+  }
+  function domains(){const choices=views.filter(v=>v.run_id===$('trace-run').value);$('trace-domain').innerHTML=choices.map(v=>`<option value="${esc(v.id)}">${esc(v.domain_label||v.label)}</option>`).join('');load();}
+  function download(){
+    if(!current)return;const url=URL.createObjectURL(new Blob([current.bytes],{type:'application/json'})),a=document.createElement('a');a.href=url;a.download=current.v.id.replace(/[^a-zA-Z0-9._-]/g,'_')+'-trace.json';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);
+    status('已下载 SHA-256 核验后的原始 JSON 字节，包含全部区间与 Flow。');
+  }
+  function openPerfetto(){
+    if(!current)return;if(!/^https?:$/.test(location.protocol)){download();status('file:// 模式：已下载原始 Trace。请在 Perfetto 官网用 Open trace file 导入；通过 HTTP / HTTPS 打开此页可嵌入查看。');return;}
+    cancelViewer();const source=current,frame=document.createElement('iframe');frame.title='Perfetto 原生 Trace 查看器';frame.src=origin+'/#!/?mode=embedded';$('trace-native').replaceChildren(frame);status('正在加载 Perfetto 官网，等待 PING / PONG 握手…');
+    let interval,timeout;const cleanup=()=>{clearInterval(interval);clearTimeout(timeout);window.removeEventListener('message',receive);};cancelViewer=cleanup;
+    const fail=message=>{cleanup();if(current===source&&frame.isConnected)status(message+' 可下载原始 trace.json，并在 Perfetto 官网手动导入。',true);};
+    function receive(event){
+      if(event.origin!==origin||event.source!==frame.contentWindow||event.data!=='PONG')return;
+      cleanup();try{const buffer=source.bytes.slice(0);frame.contentWindow.postMessage({perfetto:{buffer,title:source.v.label+' · '+source.v.domain_label,fileName:source.v.id+'-trace.json'}},origin,[buffer]);status('Perfetto 已握手，原始 Trace 已传送；请以查看器显示的导入结果为准。若导入失败，可下载原文件手动打开。');}catch(error){fail('Perfetto 传送失败：'+error.message);}
+    }
+    window.addEventListener('message',receive);interval=setInterval(()=>{try{frame.contentWindow?.postMessage('PING',origin);}catch(error){fail('Perfetto 通信失败：'+error.message);}},250);
+    timeout=setTimeout(()=>fail('Perfetto 在 30 秒内未响应，可能网络不可达或浏览器阻止嵌入。'),30000);frame.addEventListener('error',()=>fail('Perfetto 页面加载失败。'),{once:true});
+  }
+  const runIds=[...new Set(views.map(v=>v.run_id))];$('trace-run').innerHTML=runIds.map(id=>`<option value="${esc(id)}">${esc(runs.find(r=>r.id===id)?.label||id)}</option>`).join('');
+  $('trace-viewer-note').textContent=/^https?:$/.test(location.protocol)?'点击“用 Perfetto 打开”后才连接官网并加载原生查看器；本页离线泳道不请求网络。':'当前为 file:// 离线模式。用 Perfetto 打开会下载原始文件，再从官网手动导入；HTTP / HTTPS 下可嵌入。';
+  $('trace-run').addEventListener('change',domains);$('trace-domain').addEventListener('change',load);
+  ['trace-search','trace-category'].forEach(id=>$(id).addEventListener('input',()=>{page=0;render();}));$('trace-zoom').addEventListener('change',render);
+  $('trace-prev').addEventListener('click',()=>{page--;render();$('trace-scroll').scrollTop=0;});$('trace-next').addEventListener('click',()=>{page++;render();$('trace-scroll').scrollTop=0;});
+  $('trace-chart').addEventListener('click',event=>{const row=event.target.closest('[data-index]');if(row&&current)detail(Number(row.dataset.index));});
+  $('trace-download').addEventListener('click',download);$('trace-open').addEventListener('click',openPerfetto);window.addEventListener('resize',render);domains();
+}
+if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',initTraceView,{once:true});else initTraceView();
+})();
+</script>

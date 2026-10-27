@@ -205,6 +205,12 @@ type HarnessResult struct {
 	Duration      time.Duration `json:"duration"`
 	LogPaths      []string      `json:"log_paths,omitempty"`
 	Error         string        `json:"error,omitempty"`
+	// Native execution excludes artifact export. Omitted when the harness
+	// cannot observe this boundary; Duration retains its original meaning.
+	RuntimeStartedAt         *time.Time     `json:"runtime_started_at,omitempty"`
+	RuntimeFinishedAt        *time.Time     `json:"runtime_finished_at,omitempty"`
+	RuntimeExecutionDuration *time.Duration `json:"runtime_execution_duration,omitempty"`
+	SessionID                string         `json:"session_id,omitempty"`
 }
 
 // IsolationResult records the two positive gates required before evaluation.
@@ -224,6 +230,9 @@ type Evaluation struct {
 	Duration       time.Duration `json:"duration"`
 	LogPaths       []string      `json:"log_paths,omitempty"`
 	Error          string        `json:"error,omitempty"`
+	// Artifact identifies a stable candidate captured before verification,
+	// independently of verifier completion. Ordinary telemetry is not proof.
+	Artifact *ArtifactEvidence `json:"artifact,omitempty"`
 }
 
 // ObserverResult records observer-only evidence composed outside the Runner.
@@ -254,11 +263,11 @@ type TaskResult struct {
 	// Error joins every failure of the task, including sandbox preparation
 	// failures that leave the harness not started.
 	Error string `json:"error,omitempty"`
-	// StartedAt is when the runner began the task: with an arrival schedule
-	// it is the realised start, which an analysis sets against the offset the
-	// schedule asked for.
+	// StartedAt is when the runner began the task, after scheduler admission
+	// and occurrence setup. It is not a measurement of admission queue time.
 	StartedAt time.Time     `json:"started_at,omitempty"`
 	Duration  time.Duration `json:"duration"`
+	Timing    *TaskTiming   `json:"timing,omitempty"`
 }
 
 // RunSummary is a direct count of task outcomes.
@@ -275,12 +284,27 @@ type RunSummary struct {
 
 // RunResult contains all task results and their aggregate counts.
 type RunResult struct {
+	ModelSessions  []ModelSessionResult  `json:"model_sessions,omitempty"`
 	Infrastructure *InfrastructureResult `json:"infrastructure,omitempty"`
+	Performance    *PerformanceResult    `json:"performance,omitempty"`
 	Name           string                `json:"name"`
 	RunID          string                `json:"run_id"`
 	Tasks          []TaskResult          `json:"tasks"`
 	Summary        RunSummary            `json:"summary"`
 	Duration       time.Duration         `json:"duration"`
+	// Attempts accounts for scheduling and construction failures as well as
+	// returned tasks, without changing the existing Tasks/Summary contract.
+	Attempts       []AttemptResult `json:"attempts,omitempty"`
+	AttemptSummary *AttemptSummary `json:"attempt_summary,omitempty"`
+}
+
+// PerformanceResult records artifact finalization, not experiment validity or
+// task correctness. Offline analysis checks event completeness separately.
+type PerformanceResult struct {
+	Status           string `json:"status"`
+	ArtifactDir      string `json:"artifact_dir"`
+	ObservationLevel string `json:"observation_level,omitempty"`
+	Error            string `json:"error,omitempty"`
 }
 
 // InfrastructureResult records shared costs and failures without adding a task.

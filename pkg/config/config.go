@@ -48,6 +48,9 @@ type ExecutionConfig struct {
 	Concurrency  int           `json:"concurrency"`
 	LoopDuration string        `json:"loop_duration,omitempty"`
 	Loop         time.Duration `json:"-"`
+	// GoodputDeadline is explicit and independent of agent or verifier timeouts.
+	GoodputDeadline string        `json:"goodput_deadline,omitempty"`
+	Goodput         time.Duration `json:"-"`
 	// ArrivalsFile and ArrivalRatePerMin turn the run into an open loop: each
 	// task starts at the offset the trace gives it, scaled from the trace's
 	// base rate to ArrivalRatePerMin, instead of as soon as a worker is free.
@@ -724,6 +727,13 @@ func (c *Config) validate() error {
 		}
 		c.Execution.Loop = loop
 	}
+	if c.Execution.GoodputDeadline != "" {
+		deadline, err := time.ParseDuration(c.Execution.GoodputDeadline)
+		if err != nil || deadline <= 0 {
+			return errors.New("execution.goodput_deadline must be a positive Go duration")
+		}
+		c.Execution.Goodput = deadline
+	}
 	if (c.Execution.ArrivalsFile != "") != (c.Execution.ArrivalRatePerMin != 0) {
 		return errors.New("execution.arrivals_file and execution.arrival_rate_per_min must be set together")
 	}
@@ -1331,7 +1341,7 @@ func (c Versions) validate() error {
 			return err
 		}
 	}
-	if err := containerimage.ValidatePinnedTagOnly(c.OpenClaw.Image); err != nil {
+	if err := containerimage.ValidatePinnedTag(c.OpenClaw.Image); err != nil {
 		return fmt.Errorf("openclaw.image: %w", err)
 	}
 	// A catalog predating a given harness stays valid: only the image the

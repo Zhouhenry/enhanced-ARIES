@@ -1,0 +1,10 @@
+{
+  "upstream_revision": "3460150aa5f319b0b8f84a4ed10eec0a08b0feb1",
+  "patch_sha256": "6d99cc43192be029ca9ce302086c341d4a2321b3d63c0f8cc1306a8c42133571",
+  "files": {
+    "openjiuwen/core/foundation/tool/base.py": {
+      "before_sha256": "c8b5ec94312d60e1272b07a570e60efbc2ce06f52cef9193d15687b21828f4e3",
+      "after_sha256": "de50526cb24454451b0c5575bfb7d82d9721836725760ae52b378d19fc8cd58d"
+    }
+  }
+}

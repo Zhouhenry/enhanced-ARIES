@@ -516,6 +516,7 @@ func TestPinnedGatewayRealtimeProtocolSmoke(t *testing.T) {
 		token,
 		[]string{"operator.read", "operator.write"},
 		gatewayclient.EventDispositionDelivery,
+		false,
 	)
 	clear(token)
 	if err != nil {

@@ -1,0 +1,113 @@
+{
+  "schema_version": 1,
+  "variant_id": "sqlite-with-gcov-terminal-result-v2",
+  "classification": "approved_independent_benchmark_interaction_variant",
+  "status": {
+    "materials": "CONSTRUCTED_STATIC_CHECKED",
+    "profile_wiring": "EXISTING_APPENDIX_CONTRACT_NEW_PROFILE_UNRUN",
+    "native_protocol_validation": "INHERITED_TERMINAL_RESULT_V1_NO_PROTOCOL_CHANGE",
+    "agent_recording": "UNRUN",
+    "strict_replay": "UNRUN",
+    "cross_cloud_comparison": "UNRUN"
+  },
+  "original_task_id": "sqlite-with-gcov",
+  "source": {
+    "repository": "https://github.com/harbor-framework/terminal-bench-2-1",
+    "revision": "7131e4375048a0e408a8fb404b5f499d726b695b",
+    "task_path": "tasks/sqlite-with-gcov",
+    "license": "Apache-2.0",
+    "original_content_unchanged": true,
+    "source_manifest": "../../../revision-2-source-manifest.json"
+  },
+  "original_case_files_unchanged": true,
+  "prompt": {
+    "original_file": "../../public/instruction.md",
+    "original_file_sha256": "b6ba9acf62292bc2a0bab40d4805b3abceededbb0ccd4477a1ce9ccc42c14dd9",
+    "original_task_instruction_sha256": "ce64d3568f68cbdc240249a64847f5aba30f06daa2991b4d74addee9799da56b",
+    "appendix_file": "instruction-appendix.md",
+    "appendix_file_sha256": "0a7859d75d23a4497ce17a894c2b7b1fe5a3fff968cb1db931c0ea6cdf619c05",
+    "effective_instruction_file": "effective-instruction.txt",
+    "effective_instruction_sha256": "efd081e15e68f57025892d19d04d19c6254f6d72718aef6cc88080c87e3b156e",
+    "composition": "UTF-8 original Task.Instruction (upstream trim) + two LF + exact appendix file bytes; appendix is not trimmed",
+    "diff_file": "prompt.diff",
+    "diff_sha256": "44cf720c4ae76ddff47520c5ee21886a42de7e23445c83e1bc738c37b294199c"
+  },
+  "harness": {
+    "placement": "external",
+    "native_observation_protocol": "aries-ssh-identity-v1",
+    "tool_output_renderer": "stdout-stderr-v1",
+    "replay_tool_protocol": "terminal-result-v1",
+    "native_default_modified": false
+  },
+  "preserved": {
+    "task_toml": "../../task.toml",
+    "task_toml_sha256": "9a0da96990ee2ecbf4d92682a4c5301a53db45fc6e2d46ac7d45d3b8ee7fe523",
+    "agent_timeout_seconds": 900,
+    "verifier_timeout_seconds": 900,
+    "cpu": 1,
+    "memory_mb": 2048,
+    "storage_mb": 10240,
+    "gpus": 0,
+    "allow_network": true,
+    "original_scoring_method": true,
+    "reference_solution_included": false,
+    "expected_tool_call_count": null,
+    "fixed_solution_commands": false
+  },
+  "private_verifier": {
+    "location": "../../private/tests",
+    "distribution": "controller-only; inject into the original Sandbox only after confirmed stop and bridge revocation",
+    "original_source_sha256": {
+      "tests/test.sh": "4770437ea96c3cc84684b4f99d55fb148fcac09f9ea1e8ef49de487716e6c334",
+      "tests/test_outputs.py": "b165f8504bb93a901451b80c4ea73344b71b6af377ebdabef745fbcdd1d2993b"
+    }
+  },
+  "environment_preparation": {
+    "binding": "reuse the selected original task binding; freeze any declared initial-directory mtime adaptation before the first new recording",
+    "native_image": "reuse the existing verified terminal-result-v1 native image pinned below; no native or Go rebuild is required for this public appendix revision",
+    "runtime_created_metadata": "remain real; do not rewrite runtime timestamps or tool output",
+    "sqlite_toolchain": "inherit declared general toolchain adaptation; never prebuild the task answer"
+  },
+  "acceptance": [
+    "new real autonomous Agent recording passes the original independent verifier",
+    "new Tape complete; same full request/history Strict matching; real tools execute again",
+    "at least two new-Sandbox replays plus same-Tape Huawei/E2B comparison after independent preparation",
+    "preserve all failed, canceled and unstarted attempts; no post-hoc Tape or matcher edits",
+    "same CPU/memory, variant, Tape and placement; report disk/platform differences without disqualifying solely for those differences",
+    "confirm stop/revocation, private verification and owned Sandbox cleanup; keep missing timing absent"
+  ],
+  "limits": [
+    "not an unchanged official benchmark submission",
+    "a stable logical handle is not a real PID; child output can still be dynamic",
+    "native poll/log/PTY remain available and may produce non-repeatable live results",
+    "raw job evidence is not automatically an analyzed Trace or complete process-call coverage",
+    "preparation, runtime, model wait, tool work and independent verification have distinct measured boundaries",
+    "names-only discovery does not make unrelated platform-generated names reproducible; inspect the task-relevant scope",
+    "the native optional wait timeout and live polling remain available with real timing-dependent outcomes; v2 directs finite-work comparisons to omit the wait timeout but does not enforce compliance or normalize results",
+    "new public instructions require a new real recording; v1 tapes cannot validate v2"
+  ],
+  "profile": "../../../../../../profiles/cloud/terminalbench/variants/openclaw-e2b-a-sqlite-with-gcov-terminal-result-v2-record.json",
+  "profile_contract": {
+    "benchmark.task_id": "sqlite-with-gcov",
+    "benchmark.variant.id": "sqlite-with-gcov-terminal-result-v2",
+    "benchmark.variant.instruction_appendix_file": "instruction-appendix.md (resolved relative to profile in actual configuration)",
+    "benchmark.variant.appendix_sha256": "0a7859d75d23a4497ce17a894c2b7b1fe5a3fff968cb1db931c0ea6cdf619c05",
+    "attempt_logical_task_id": "sqlite-with-gcov-terminal-result-v2"
+  },
+  "native_version_catalog": {
+    "file": "../../../../../../configs/versions-terminal-result-v1.json",
+    "sha256_at_construction": "9e04daab45661749997d77d3b1d26cebfe84b38483b22c60925badd1dc9973f8",
+    "openclaw_image": "swr.cn-southwest-2.myhuaweicloud.com/benchmark-zhoutao/aries-openclaw:2026.7.1-terminal-result-v1-observer-e040654efde8@sha256:e040654efde8adde910583291b547fb9d5fc94e565b2f4dc8bad29abcc423041",
+    "replay_tool_protocol": "terminal-result-v1"
+  },
+  "revision_provenance": {
+    "previous_variant_id": "sqlite-with-gcov-terminal-result-v1",
+    "previous_manifest": "../terminal-result-v1/variant.json",
+    "previous_manifest_sha256": "2dbc399528dbcbfdb385be789f2f457ee25a2d863c30e98040a6d0c4416188d9",
+    "previous_appendix_sha256": "d7bcc5e420f87ff28fe1cff06fb4d119b2c8654ac680b7ed9b31b81e83983b0f",
+    "scope": "Change the public appendix version heading and directory-discovery/property-selection paragraph; append finite-work guidance to omit the optional per-wait timeout while preserving original deadline and cancellation. All other appendix text is byte-identical.",
+    "reason": "Real v1 evidence exposed runtime-created parent/build-output mtimes and two 30000 ms waits that timed out before a later wait reached completion. Initial-directory mtime preparation cannot normalize later creation; finite timed waits race real job completion.",
+    "old_materials_tapes_results_unchanged": true,
+    "solution_or_private_test_content_added": false
+  }
+}

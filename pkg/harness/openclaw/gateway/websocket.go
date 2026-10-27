@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"net"
+	"net/http"
 	"net/url"
 	"strings"
 	"sync"
@@ -22,6 +23,8 @@ func isWebSocketProtocolError(err error) bool {
 
 type WebSocketOptions struct {
 	URL string
+	// Headers carries provider-owned guest access credentials, never artifacts.
+	Headers http.Header
 }
 
 type webSocketTransport struct {
@@ -46,6 +49,7 @@ func NewWebSocketDialer(options WebSocketOptions) (DialFunc, error) {
 	if parsed.Host == "" {
 		return nil, fmt.Errorf("gateway websocket URL missing host")
 	}
+	headers := options.Headers.Clone()
 	return func(ctx context.Context) (Transport, error) {
 		// DialContext bounds connection establishment and TLS. Closing the socket
 		// also interrupts an HTTP upgrade when cancellation has no deadline.
@@ -57,7 +61,7 @@ func NewWebSocketDialer(options WebSocketOptions) (DialFunc, error) {
 			}
 			return connection, err
 		}}
-		connection, response, err := dialer.DialContext(ctx, rawURL, nil)
+		connection, response, err := dialer.DialContext(ctx, rawURL, headers)
 		stop()
 		if response != nil {
 			_ = response.Body.Close()

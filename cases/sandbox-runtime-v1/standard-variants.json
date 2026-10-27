@@ -1,0 +1,280 @@
+{
+  "catalog": "sandbox-runtime-standard-variants-v1",
+  "schema_version": 1,
+  "status": "DESIGNED_UNRUN",
+  "created_on": "2026-10-25",
+  "scope": "5项标准工具实验规格、16个固定参数组合；非可执行ARIES Profile，未接入、编译、运行或构建镜像。",
+  "authority": "工具来自官方项目；实验组合由本项目定义，不代表官方认证或通用硬件排名。",
+  "related_documents": ["README.md", "authority-and-measurement.md", "acceptance.md"],
+  "separate_from": "cases.json中的10个自建ASB及30个small/medium/large组合；3个原始TB仅为参考索引。",
+  "template_contract": {
+    "executable": false,
+    "notation": "{{name}}为待绑定的占位；argv_template是参数数组，非shell脚本。fio_job为拟定job选项对象，不是已生成的job文件。",
+    "fio_composition": "选定一个combination，将其job_overrides覆盖run.fio_job.common_options，再替换路径占位。本文不提供加载器。",
+    "argv_composition": "选定一个combination，将其parameters替换argv_template中同名占位；append_argv按数组原样追加，不通过shell解释。",
+    "bindings": {
+      "tool_binary": "冻结版本后的工具绝对路径，必须对应tool_pins中实际二进制SHA；不是任意PATH解析。",
+      "workdir": "该occurrence拥有的Sandbox工作目录，非宿主磁盘设备。",
+      "artifact_dir": "该occurrence的原始工具日志目录；独立验证报告不写入Agent可见位置。",
+      "fio_job_path": "由具体组合形成并冻结的job文件路径，后续实施时生成。",
+      "server_binary": "独立受控服务端的iperf3绝对路径，版本/二进制SHA另行记录。",
+      "server_ip": "事先选定且可达的独立受控主机IP，非loopback；本文件不分配或购买资源。",
+      "server_port": "事先固定的服务端TCP端口，所有比较组合保持相同。"
+    },
+    "parameters": "run中的其他占位来自combination.parameters，fio路径占位来自bindings。未解析占位或未冻结工具版本不能解释为可运行Profile。",
+    "deadline": "工具固定工作量或测量时间不等于Runner超时/Goodput deadline；后续实例化时另行显式固定，当前未设置。"
+  },
+  "tool_pins": {
+    "sysbench": {
+      "upstream": "https://github.com/akopytov/sysbench",
+      "status": "PENDING_FREEZE",
+      "version": null,
+      "commit": null,
+      "source_sha256": null,
+      "binary_sha256": null,
+      "image_digest": null,
+      "freeze_before_execution": ["选择官方release/commit", "核对该版本CPU/memory帮助和输出字段", "记录构建选项、架构、二进制SHA与镜像digest"]
+    },
+    "fio": {
+      "upstream": "https://github.com/axboe/fio",
+      "status": "PENDING_FREEZE",
+      "version": null,
+      "commit": null,
+      "source_sha256": null,
+      "binary_sha256": null,
+      "image_digest": null,
+      "freeze_before_execution": ["选择官方release/commit", "核对sync/direct/verify和JSON字段语义", "记录构建选项、架构、二进制SHA与镜像digest", "冻结独立全文件CRC验证的具体命令及损坏负例"]
+    },
+    "iperf3": {
+      "upstream": "https://github.com/esnet/iperf",
+      "status": "PENDING_FREEZE",
+      "version": null,
+      "commit": null,
+      "source_sha256": null,
+      "binary_sha256": null,
+      "server_binary_sha256": null,
+      "image_digest": null,
+      "freeze_before_execution": ["客户端与服务端选定同一官方版本", "核对该版本JSON、omit和双端计账口径", "分别记录两端二进制SHA、架构与运行环境", "冻结服务端位置/路由/IP族/MTU/端口"]
+    }
+  },
+  "shared_contract": {
+    "status": "所有组合、负例和指标均DESIGNED_UNRUN；下面没有实测值。",
+    "placement": "同placement比较；A实际native/SSH/Bridge/SDK/guest证据与B实际native/process证据分别报告，不按命令哈希或时间近邻补身份。",
+    "execution_evidence": ["实际工具版本和二进制SHA、解析后的完整参数及固定输入", "真实native调用的session/run/tool身份及对应Sandbox执行证据", "实际stdout/stderr、退出码、可用进程终态和单调时钟边界", "停止撤权后的独立验证结论及Cleanup结果"],
+    "tool_calls": "程序内部events、IOs、线程或网络流不等于ToolCall；记录实际native提交，保留后台/yield/process/PTY语义，不预造调用数。",
+    "verification": "Benchmark可信侧在Harness停止、Bridge撤权确认后核对封存证据；候选自报成功不是独立验证。工具未输出可独立复算的数学结果或载荷时明确说明验证边界，不虚构端到端内容正确性。",
+    "timing": "工具自身统计、T_tool、可用T_process、Runner Run分列；Prepare/独立Verify/Cleanup另列。未校准时钟域不相减，不给缺测项补零。",
+    "comparison": "同工具pin/镜像/架构/CPU内存/工作量/存储或网络条件/placement/观测等级；默认每组合至少5个独立occurrence并预登记顺序，列逐次值、中位数和范围，不凭5次推断p99。",
+    "failures": "所有planned/admitted/failed/canceled/not_started保留原分母；功能成功但身份/关键边界缺失或工作量改变时，不能计为目标性能合格样本。内部细分缺测只限制对应归因。",
+    "replay": "未来只能由真实模型运行录制Strict Tape，真实工具照常执行；工具输出含动态速率/时间不保证跨云严格相等，不改写旧Tape或过滤ToolResult来通过。",
+    "metrics": "primary_metrics为拟报告指标，无测量值；工具输出字段映射须在版本冻结后核对。工具报告来源明确为tool_report，不能替代真实进程证据。",
+    "cleanup": "先归档原始日志/封存必要候选和独立报告，再由既有所有者停止所属进程、回收Sandbox；部分启动和取消仍保留证据，不改共享网络或删除借用资源。"
+  },
+  "variants": [
+    {
+      "id": "asb-sysbench-cpu-v1",
+      "status": "DESIGNED_UNRUN",
+      "tool_pin": "sysbench",
+      "official_sources": [
+        "https://github.com/akopytov/sysbench/blob/master/README.md",
+        "https://raw.githubusercontent.com/akopytov/sysbench/master/src/tests/cpu/sb_cpu.c"
+      ],
+      "purpose": "固定素数CPU事件工作量，对照Python primes，减少解释器和进程池混杂。",
+      "combinations": [
+        {"id": "threads-1", "status": "DESIGNED_UNRUN", "parameters": {"threads": 1, "events": 500, "time_seconds": 0, "warmup_seconds": 0, "cpu_max_prime": 20000}},
+        {"id": "threads-2", "status": "DESIGNED_UNRUN", "parameters": {"threads": 2, "events": 500, "time_seconds": 0, "warmup_seconds": 0, "cpu_max_prime": 20000}}
+      ],
+      "public_inputs": ["固定组合与已冻结sysbench二进制", "明确CPU配额和架构；events=500为所有线程总工作量"],
+      "prepare": ["创建新工作目录", "归档工具pin和解析参数；不预运行计时负载"],
+      "run": {
+        "argv_template": ["{{tool_binary}}", "--threads={{threads}}", "--events={{events}}", "--time={{time_seconds}}", "--warmup-time={{warmup_seconds}}", "--cpu-max-prime={{cpu_max_prime}}", "cpu", "run"],
+        "expected_work": {"completed_events": 500, "cpu_max_prime": 20000},
+        "capture": ["原始stdout/stderr", "实际调用/进程身份与终态", "工具计时和事件报告"]
+      },
+      "independent_verification": {
+        "scope": "真实执行与固定事件工作量核验；stock sysbench不输出每事件的完整素数集合，不声称私有侧重算了每次计算历史。",
+        "checks": ["可信侧核对实际二进制pin、CPU测试参数及真实调用终态", "退出0、总events恰为500、线程数正确、工具报告完整且无错误", "原始事件总量/工具耗时/rate的一致性按冻结版本的单位和舍入规则核对", "不能用候选打印的成功文本替代实际工具执行"]
+      },
+      "negative_cases": [
+        {"case": "events改为499或cpu-max-prime改小", "expected": "拒绝固定工作量性能资格；保留该次执行及错误分母"},
+        {"case": "仅printf正常报告却无真实sysbench执行身份", "expected": "拒绝真实执行资格"},
+        {"case": "工具中断/非零退出/缺完整报告", "expected": "记录失败或取消，不按部分events当完整样本"}
+      ],
+      "primary_metrics": [
+        {"name": "cpu_event_elapsed", "unit": "s", "source": "tool_report", "scope": "500个事件的工具计时区间"},
+        {"name": "cpu_events_per_second", "unit": "events/s", "source": "tool_report", "scope": "同500个事件区间"},
+        {"name": "cpu_event_latency", "unit": "ms", "source": "tool_report", "scope": "工具报告的min/mean/max/p95；不是5次occurrence的p95"},
+        {"name": "process_duration", "unit": "ns", "source": "existing_process_events", "scope": "真实可用的同域进程边界，缺测则unknown"}
+      ],
+      "comparable_scope": "同pin/CPU配额/架构下的特定素数算法；threads1/2作为两个条件，固定总事件数。",
+      "unknown_or_excluded": ["不是纯硬件综合分数或所有CPU指令能力", "无独立逐事件观测时不称每事件时间已由ARIES重测", "无实际CPU采样时不从wall time估算CPU用量"],
+      "cleanup": "归档工具输出和验证报告，回收本次sysbench进程及所属Sandbox。"
+    },
+    {
+      "id": "asb-sysbench-memory-v1",
+      "status": "DESIGNED_UNRUN",
+      "tool_pin": "sysbench",
+      "official_sources": [
+        "https://github.com/akopytov/sysbench/blob/master/README.md",
+        "https://raw.githubusercontent.com/akopytov/sysbench/master/src/tests/memory/sb_memory.c"
+      ],
+      "purpose": "标准工具的固定逻辑内存传输，区分小块缓存访问和较大工作集，不冒称纯DRAM带宽。",
+      "combinations": [
+        {"id": "write-1k", "status": "DESIGNED_UNRUN", "parameters": {"memory_oper": "write", "block_size": "1K", "block_bytes": 1024}},
+        {"id": "read-1k", "status": "DESIGNED_UNRUN", "parameters": {"memory_oper": "read", "block_size": "1K", "block_bytes": 1024}},
+        {"id": "write-64m", "status": "DESIGNED_UNRUN", "parameters": {"memory_oper": "write", "block_size": "64M", "block_bytes": 67108864}},
+        {"id": "read-64m", "status": "DESIGNED_UNRUN", "parameters": {"memory_oper": "read", "block_size": "64M", "block_bytes": 67108864}}
+      ],
+      "fixed_parameters": {"threads": 1, "time_seconds": 0, "events_limit": 0, "warmup_seconds": 0, "memory_scope": "local", "memory_access_mode": "seq", "memory_total_bytes": 1073741824, "memory_hugetlb": false},
+      "public_inputs": ["固定组合和1GiB逻辑传输总量", "已冻结sysbench二进制和明确的Sandbox内存/CPU限制"],
+      "prepare": ["新工作目录，记录工具pin/架构/内存限制及可知缓存条件", "实际内存分配由工具执行；不把total-size当同时分配量"],
+      "run": {
+        "argv_template": ["{{tool_binary}}", "--threads=1", "--time=0", "--events=0", "--warmup-time=0", "--memory-scope=local", "--memory-access-mode=seq", "--memory-oper={{memory_oper}}", "--memory-block-size={{block_size}}", "--memory-total-size=1G", "--memory-hugetlb=off", "memory", "run"],
+        "expected_work": {"logical_transferred_bytes": 1073741824, "operation_count_formula": "logical_transferred_bytes / combination.parameters.block_bytes", "count_1k": 1048576, "count_64m": 16},
+        "capture": ["原始stdout/stderr", "真实调用与进程终态", "工具报告的总量/速率/时间", "既有可用CPU/内存采样"]
+      },
+      "independent_verification": {
+        "scope": "固定参数、实际工具执行与逻辑传输计账；工具进程退出后无完整内存内容产物，不宣称独立验证了每次读写或DRAM字节数。",
+        "checks": ["核对实际二进制pin和选定read/write、block、local/seq、单线程参数", "真实工具退出0且完整报告总量为1GiB，操作数为对应固定值", "依据冻结版本输出单位核对总量/速率/时间，不将自报内存速率替代进程证据", "实际采样归属明确；缓存或峰值未知时保留unknown"]
+      },
+      "negative_cases": [
+        {"case": "total-size减半或memory-oper=none", "expected": "拒绝原组合性能资格"},
+        {"case": "只有打印的1GiB报告，没有真实工具执行", "expected": "拒绝真实执行资格"},
+        {"case": "内存不足或工具提前退出只完成部分传输", "expected": "保留失败分母，不换小参数重标原组合成功"}
+      ],
+      "primary_metrics": [
+        {"name": "memory_logical_rate", "unit": "MiB/s", "source": "tool_report", "scope": "工具内存访问循环，不是物理内存总线带宽"},
+        {"name": "memory_logical_transferred", "unit": "bytes", "source": "tool_report", "scope": "预期1073741824逻辑字节"},
+        {"name": "process_duration", "unit": "ns", "source": "existing_process_events", "scope": "真实可用同域进程区间"}
+      ],
+      "comparable_scope": "同pin/架构/CPU和内存条件下，同block及同操作比较；1KiB和64MiB分别展示。",
+      "unknown_or_excluded": ["小块可主要命中缓存，64MiB也不保证超过所有机器LLC", "total-size为逻辑传输，不是实际分配或DRAM总线字节数", "不以工具MiB/s推断逐页触达或峰值RSS"],
+      "cleanup": "确认所属工具退出并保存输出；由Runner回收所属Sandbox，工具自身释放内存。"
+    },
+    {
+      "id": "asb-fio-sequential-v1",
+      "status": "DESIGNED_UNRUN",
+      "tool_pin": "fio",
+      "official_sources": ["https://fio.readthedocs.io/en/latest/fio_doc.html", "https://github.com/axboe/fio"],
+      "purpose": "固定普通文件顺序读写；buffered/direct及读/写分别比较，独立完整性验证不计入性能段。",
+      "combinations": [
+        {"id": "write-buffered", "status": "DESIGNED_UNRUN", "job_overrides": {"rw": "write", "direct": 0, "end_fsync": 1, "verify": "crc32c", "do_verify": 0}},
+        {"id": "read-buffered", "status": "DESIGNED_UNRUN", "job_overrides": {"rw": "read", "direct": 0}},
+        {"id": "write-direct", "status": "DESIGNED_UNRUN", "job_overrides": {"rw": "write", "direct": 1, "end_fsync": 1, "verify": "crc32c", "do_verify": 0}},
+        {"id": "read-direct", "status": "DESIGNED_UNRUN", "job_overrides": {"rw": "read", "direct": 1}}
+      ],
+      "public_inputs": ["固定fio job和普通文件路径", "512MiB文件、1MiB block、单job/QD1参数", "固定数据生成seed=20261024；写入CRC header成本属于该write工作量"],
+      "prepare": ["新目录，不使用宿主裸设备", "read组合预先真实写满512MiB且带1MiB粒度CRC32C header的文件，独立确认长度并封存初始hash；Prepare开销另列", "write组合从该occurrence的新目标文件开始；明确文件系统/可用空间/缓存状态", "direct不可用时保留unsupported，不静默改为buffered；不修改宿主page cache"],
+      "run": {
+        "argv_template": ["{{tool_binary}}", "--output-format=json", "--output={{artifact_dir}}/fio.json", "{{fio_job_path}}"],
+        "fio_job": {
+          "section_name": "asb-sequential",
+          "common_options": {"filename": "{{workdir}}/fio-data.bin", "size": 536870912, "bs": 1048576, "ioengine": "sync", "iodepth": 1, "numjobs": 1, "loops": 1, "randseed": 20261024, "randrepeat": 1}
+        },
+        "expected_work": {"data_bytes": 536870912, "data_ios": 512, "direction": "由combination.rw指定；不把end_fsync计为data IO"},
+        "capture": ["冻结job及其SHA", "原始fio JSON/stdout/stderr", "真实执行身份、退出码与可用进程终态", "候选数据文件及实际文件系统条件"],
+        "measurement_note": "write生成CRC header/checksum计入本工作量，do_verify=0仅关闭随后的读回验证；后续独立验证另计。read计时段不启用CRC检查，完整性由独立Verify处理。"
+      },
+      "independent_verification": {
+        "scope": "真实固定fio执行、工作量计账及全文件数据完整性；不证明断电耐久性。",
+        "checks": ["核对二进制pin、实际job及选定direct/rw/sync/QD1参数，退出0且fio job error=0", "对应方向数据量恰512MiB、512个数据IO，无意外另一方向工作量", "候选是精确512MiB普通文件，可信Verifier使用冻结fio或对应独立解析器重读并核对所有CRC header/数据块", "read候选文件应与封存的初始文件一致；write结果在验证侧实际读回", "固定版本后冻结独立CRC命令；不把验证阶段的fio phantom writes或read统计算入计时Run"]
+      },
+      "negative_cases": [
+        {"case": "截断文件或翻转任一数据块字节", "expected": "独立完整性验证拒绝"},
+        {"case": "direct=1要求被改为0或只完成511个数据IO", "expected": "拒绝原组合性能资格"},
+        {"case": "复制fio JSON而无对应真实调用或候选文件", "expected": "拒绝真实执行或完整性资格"}
+      ],
+      "primary_metrics": [
+        {"name": "fio_data_bandwidth", "unit": "bytes/s", "source": "tool_report", "scope": "对应read/write数据阶段，按冻结版本确认是否含末尾sync"},
+        {"name": "fio_completion_latency", "unit": "ns", "source": "tool_report", "scope": "fio clat分布，按冻结版本原单位转换"},
+        {"name": "process_duration", "unit": "ns", "source": "existing_process_events", "scope": "真实fio整体进程区间，包括其末尾sync与报告，不包含独立Verify"}
+      ],
+      "comparable_scope": "相同IO方向/direct/FS/文件尺寸与缓存条件的512MiB应用文件测试；四种组合单独报告。",
+      "unknown_or_excluded": ["buffered read可能命中page cache", "direct不是裸盘隔离实验，也不自动证明耐久性", "write含数据/checksum生成，不能当纯硬件极限", "无具体sync测点不从进程时间减出fsync时延"],
+      "cleanup": "保存封存文件、fio报告及私有验证结论后删除本次文件或回收所属Sandbox；不碰宿主设备和其他实验文件。"
+    },
+    {
+      "id": "asb-fio-random-v1",
+      "status": "DESIGNED_UNRUN",
+      "tool_pin": "fio",
+      "official_sources": ["https://fio.readthedocs.io/en/latest/fio_doc.html", "https://github.com/axboe/fio"],
+      "purpose": "固定普通文件的QD1 direct随机读或写；保持8192次数据IO，不声称设备峰值能力。",
+      "combinations": [
+        {"id": "randread-qd1", "status": "DESIGNED_UNRUN", "job_overrides": {"rw": "randread"}},
+        {"id": "randwrite-qd1", "status": "DESIGNED_UNRUN", "job_overrides": {"rw": "randwrite", "verify": "crc32c", "do_verify": 0}}
+      ],
+      "public_inputs": ["固定fio job、seed和已完整填充的512MiB文件", "bs=4096、direct=1、sync/QD1、8192次数据IO"],
+      "prepare": ["在新目录真实填充512MiB普通文件，以4KiB粒度写CRC32C header并完成准备阶段同步，保存初始文件hash", "固定fio版本的随机生成/随机map语义；不把Prepare称为冷缓存", "确认本次文件系统支持direct；不支持就记录unsupported，不更改成buffered"],
+      "run": {
+        "argv_template": ["{{tool_binary}}", "--output-format=json", "--output={{artifact_dir}}/fio.json", "{{fio_job_path}}"],
+        "fio_job": {
+          "section_name": "asb-random",
+          "common_options": {"filename": "{{workdir}}/fio-data.bin", "size": 536870912, "bs": 4096, "ioengine": "sync", "iodepth": 1, "numjobs": 1, "direct": 1, "number_ios": 8192, "randseed": 20261024, "randrepeat": 1, "norandommap": 0, "fsync": 0, "end_fsync": 0}
+        },
+        "expected_work": {"data_ios": 8192, "data_bytes": 33554432, "address_space_bytes": 536870912},
+        "capture": ["冻结job与SHA", "完整fio JSON/stdout/stderr", "真实native调用与对应执行终态", "操作后的完整候选文件"],
+        "measurement_note": "randwrite生成CRC header/checksum属于实际写负载；独立验证另计。本版不测sync持久化路径。"
+      },
+      "independent_verification": {
+        "scope": "真实执行与固定IO计账、候选全文件完整性；CRC不证明精确随机访问顺序。",
+        "checks": ["核对真实二进制/job、退出0和job error=0、选定方向8192个数据IO及33554432字节", "核对direct=1、sync/QD1和固定seed，不以工具请求深度冒充其他并发能力", "独立Verifier重读整个512MiB文件并校验4KiB块CRC；randwrite未修改的块同样必须有效", "randread后文件内容与初始封存hash一致", "具体CRC验证按冻结版本处理来自Prepare/Run的不同header种子与序号，不能把无顺序验证宣称为完整IO历史复核"]
+      },
+      "negative_cases": [
+        {"case": "修改某块数据、截断或追加文件", "expected": "独立数据完整性或长度验证拒绝"},
+        {"case": "只运行4096次IO或改bs/direct", "expected": "拒绝原组合工作量资格"},
+        {"case": "报告称成功但真实进程被取消或无终态", "expected": "保留取消/观测不完整，不计完整性能样本"}
+      ],
+      "primary_metrics": [
+        {"name": "fio_data_iops", "unit": "IO/s", "source": "tool_report", "scope": "8192次4KiB操作的计时段"},
+        {"name": "fio_completion_latency", "unit": "ns", "source": "tool_report", "scope": "对应方向clat分布，原单位按版本核对"},
+        {"name": "fio_data_bytes", "unit": "bytes", "source": "tool_report", "scope": "33554432，非512MiB地址空间大小"},
+        {"name": "process_duration", "unit": "ns", "source": "existing_process_events", "scope": "同域真实进程边界"}
+      ],
+      "comparable_scope": "相同文件系统/资源/固定QD1和方向的应用文件随机IO。",
+      "unknown_or_excluded": ["不代表最大IOPS或高队列深度扩展", "未采块级历史则不能把固定seed当已观测的访问序列", "无末尾fsync，本版不声称断电后数据持久", "随机写包含CRC生成成本，不能省略这一实验条件"],
+      "cleanup": "归档fio输出、封存候选与独立报告后清理本次文件及所属Sandbox；不操作宿主裸盘或缓存。"
+    },
+    {
+      "id": "asb-iperf3-controlled-v1",
+      "status": "DESIGNED_UNRUN",
+      "tool_pin": "iperf3",
+      "official_sources": ["https://software.es.net/iperf/", "https://software.es.net/iperf/invoking.html", "https://github.com/esnet/iperf"],
+      "purpose": "测量Sandbox与独立受控端点间的TCP路径吞吐；不沿用loopback结果充当跨云网络性能。",
+      "combinations": [
+        {"id": "forward-p1", "status": "DESIGNED_UNRUN", "parameters": {"parallel_streams": 1, "direction": "sandbox_to_server"}, "append_argv": []},
+        {"id": "reverse-p1", "status": "DESIGNED_UNRUN", "parameters": {"parallel_streams": 1, "direction": "server_to_sandbox"}, "append_argv": ["--reverse"]},
+        {"id": "forward-p4", "status": "DESIGNED_UNRUN", "parameters": {"parallel_streams": 4, "direction": "sandbox_to_server"}, "append_argv": []},
+        {"id": "reverse-p4", "status": "DESIGNED_UNRUN", "parameters": {"parallel_streams": 4, "direction": "server_to_sandbox"}, "append_argv": ["--reverse"]}
+      ],
+      "fixed_parameters": {"protocol": "TCP", "ip_family": "IPv4", "measurement_seconds": 15, "omit_seconds": 3, "zerocopy": false, "tcp_bitrate_limit_bps": 0, "directions_run_separately": true},
+      "public_inputs": ["固定独立受控服务端IP/端口与同一版本iperf3", "固定地域/路由/IP族/MTU、端点资源；不在此文件中提供凭据", "每方向15秒测量加3秒预热；P1/P4为独立组合"],
+      "prepare": ["在已选独立受控主机启动一次性服务，确认就绪并记录进程身份；服务准备不混入网络测量窗口", "封存两端工具pin与本次端点/路由条件，记录其他负载和已知限速", "确认服务端能承载本次试验；无法确定时标记容量未知，不自动归因Sandbox"],
+      "run": {
+        "server_argv_template": ["{{server_binary}}", "--server", "--one-off", "--port={{server_port}}", "--json", "--logfile={{artifact_dir}}/iperf3-server.json"],
+        "argv_template": ["{{tool_binary}}", "--client={{server_ip}}", "--port={{server_port}}", "--version4", "--parallel={{parallel_streams}}", "--time=15", "--omit=3", "--bitrate=0", "--json", "--get-server-output"],
+        "server_command_phase": "Prepare启动，完整测量后等待服务终态；客户端命令归Run。",
+        "capture": ["客户端原始JSON/stdout/stderr", "服务端独立原始JSON和终态", "两端实际进程身份/退出码", "路由、资源与可用两端CPU证据"],
+        "expected_work": {"measurement_seconds": 15, "pretest_omit_seconds": 3, "bytes": null, "bytes_note": "定时吞吐实验，实际字节量来自两端回执；不预填相等传输量。"}
+      },
+      "independent_verification": {
+        "scope": "真实双端执行和传输计账；iperf3不提供本例所需的应用正文逐字节校验，因此不声称独立内容完整性验证。",
+        "checks": ["可信侧分别取得两端实际工具pin、进程身份和正常终态，核对本次会话/端点对应关系", "核对TCP/IPv4、方向、流数、15秒测量和3秒omit生效，排除omitted区间后使用冻结版本的最终汇总", "保留sender/receiver各自字节与时间，按照两端区间和结束语义对账，不强制不同时钟的窗口逐字节相等", "速率由对应字节/区间合理支持；最终报告无error，未知或缺失retransmits不补0", "独立服务端缺报告或进程未正常结束则不能宣称完整双端网络样本；保留已获得部分输出"]
+      },
+      "negative_cases": [
+        {"case": "客户端报告成功但服务端不存在、未收集或被中断", "expected": "拒绝完整双端样本资格并保留部分证据"},
+        {"case": "将127.0.0.1、错误方向/P值或不同omit参数当目标组合", "expected": "拒绝原组合可比资格"},
+        {"case": "删去失败attempt或只保留较快方向", "expected": "拒绝完整实验分母，不据此排名"}
+      ],
+      "primary_metrics": [
+        {"name": "tcp_sender_rate", "unit": "bits/s", "source": "tool_report_sender", "scope": "sender本地最终非omitted区间"},
+        {"name": "tcp_receiver_rate", "unit": "bits/s", "source": "tool_report_receiver", "scope": "receiver本地最终非omitted区间"},
+        {"name": "tcp_transferred", "unit": "bytes", "source": "two_endpoint_reports", "scope": "sender和receiver分列，不合并成一个猜测值"},
+        {"name": "tcp_retransmits", "unit": "count", "source": "tool_report_sender", "scope": "仅该版本/平台实际提供时报告"},
+        {"name": "endpoint_cpu_utilization", "unit": "percent", "source": "tool_report_each_endpoint", "scope": "按工具定义分端点报告，不冒充独立全机采样"}
+      ],
+      "comparable_scope": "同受控端点、路径/地域/资源/IP族/MTU下，同方向和P值的TCP测量。",
+      "unknown_or_excluded": ["链路、端点CPU或限速都可成为瓶颈，不能单独归因Sandbox内核", "不测TLS/DNS、应用请求延迟或逐字节正文完整性", "两端时钟未校准时不相减求单向时延", "工具版本未冻结，最终JSON字段与输出口径尚待对应版本确认"],
+      "cleanup": "归档两端报告，确认本次一次性服务和客户端退出；仅停止本次拥有的残留进程，不删除受控主机或修改共享网络。"
+    }
+  ]
+}

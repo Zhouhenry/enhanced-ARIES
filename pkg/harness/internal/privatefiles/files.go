@@ -11,7 +11,7 @@ import (
 	"syscall"
 )
 
-const maxPrivateFileBytes = 16 << 20
+const maxPrivateFileBytes = 64 << 20
 
 // Read rejects symlinks and files that change, exceed the bound, or have unsafe modes.
 func Read(path string, mode os.FileMode) ([]byte, error) {

@@ -1,0 +1,28 @@
+{
+  "name": "jiuwenswarm-huawei-embedded-record",
+  "agent_type": "jiuwenswarm",
+  "placement": "embedded",
+  "sandbox_backend": "huawei-agentsphere",
+  "workload": "merge-ranges-portable-v1",
+  "versions_file": "../../configs/versions.json",
+  "output_dir": "runs",
+  "sandbox": {
+    "template": "7697f6d1-2b69-4090-88d8-1bb77e8adb44:db05fc28-683a-40a4-9382-d76f5c928775",
+    "timeout_seconds": 900,
+    "assume_network_isolation": true
+  },
+  "harness": {
+    "jiuwen_source_dir": "/opt/jiuwenswarm",
+    "jiuwen_python_path": "/opt/jiuwenswarm/.venv/bin/python"
+  },
+  "model": {
+    "mode": "record",
+    "max_turns": 32
+  },
+  "execution": {
+    "concurrency": 1,
+    "attempts": 1,
+    "task_timeout": "5m",
+    "verifier_timeout": "1m"
+  }
+}

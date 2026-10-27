@@ -43,6 +43,28 @@ HTTP examples use a non-secret placeholder because ARIES requires a non-empty
 credential value even for an unauthenticated server. Remote or credentialed
 endpoints must use HTTPS; a real API key must never be sent over HTTP.
 
+## Scripted mock endpoint
+
+The standalone [aries-mock-model CLI](../../cmd/aries-mock-model/main.go) uses
+the existing external `openai` path, including model discovery and native harness
+requests. It adds no runtime backend or Runner role. The operator owns its
+lifecycle; task preparation, bridge revocation, benchmark evaluation, and sandbox
+cleanup keep their normal
+contracts. See the [configuration guide](../configuration.md#scripted-mock-model)
+for the fixture, listener, and example profile.
+
+The [mock server](../../internal/mockmodel/server.go) loads one fixture defining
+an ordered tool-call workload. Both JSON and SSE Chat Completions responses are
+generated from the complete assistant/tool history;
+requests do not advance a shared counter. Tool names, arguments, IDs, and expected
+output must match the fixture. Requests outside the supported transcript shape
+fail instead of falling back to a model; wholly reset history is indistinguishable
+from a new request, so compaction must remain disabled. The fixture's raw-byte
+SHA-256 identifies the workload, including its response delay, and the server
+emits no synthetic token usage.
+This supports infrastructure checks with a real verifier, not model-capability
+claims or general API compatibility.
+
 ## Implementation gap: HTTP transport policy
 
 The trusted-local restriction above is an operator requirement, not an enforced

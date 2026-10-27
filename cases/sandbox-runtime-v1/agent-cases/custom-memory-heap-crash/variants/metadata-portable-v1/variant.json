@@ -1,0 +1,97 @@
+{
+  "schema_version": 1,
+  "variant_id": "custom-memory-heap-crash-metadata-portable-v1",
+  "classification": "approved_independent_metadata_inspection_variant",
+  "status": {
+    "materials": "CONSTRUCTED_STATIC_CHECKED",
+    "profile_runtime": "UNRUN",
+    "agent_recording": "UNRUN",
+    "strict_replay": "UNRUN",
+    "cross_cloud_comparison": "UNRUN",
+    "release7": "NOT_INCLUDED"
+  },
+  "original_task_id": "custom-memory-heap-crash",
+  "source": {
+    "repository": "https://github.com/harbor-framework/terminal-bench-2-1",
+    "revision": "7131e4375048a0e408a8fb404b5f499d726b695b",
+    "task_path": "tasks/custom-memory-heap-crash",
+    "license": "Apache-2.0",
+    "original_content_unchanged": true,
+    "source_manifest": "../../../revision-3-source-manifest.json"
+  },
+  "prompt": {
+    "original_file": "../../public/instruction.md",
+    "original_file_sha256": "53c68ae14a3c3af9a97c40bfd9bdc30a5d98b37eaa2f69f763475745f70f108d",
+    "original_task_instruction_sha256": "8a2759f4d28bdb5a2e3ba67fd7bbaf3c6e193c304ee3c6d9a4e0c27c81c75e8b",
+    "appendix_file": "instruction-appendix.md",
+    "appendix_file_sha256": "e29a7c70f63aac23f0cd703034ffa77d487f5a969b4abbd9a9af1f70b8555f6d",
+    "effective_instruction_file": "effective-instruction.txt",
+    "effective_instruction_sha256": "b143e12e7795f87c44c48c5671f9fbad1a0a19235f0b5bb0c12ced755dd4caec",
+    "composition": "UTF-8 original Task.Instruction (upstream trim) + two LF + exact appendix file bytes; appendix is not trimmed",
+    "diff_file": "prompt.diff",
+    "diff_sha256": "6881b04f596d05fe66a21b30decd0d94f9c65304315cb5fc9ff8065d04e2585c"
+  },
+  "original_case_files_unchanged": {
+    "public/instruction.md": "53c68ae14a3c3af9a97c40bfd9bdc30a5d98b37eaa2f69f763475745f70f108d",
+    "task.toml": "ed474be1983e212913aa8866ebb66216acbe36aef2339ac375d232aa46617481",
+    "environment/Dockerfile": "6ee81e5a4fa2540443d7f27d577ba840728fc6aab9f301ab7919103673c78080",
+    "environment/patches/locale_classes.tcc.patch": "16951f4a4df6bf253886ac75f5a39fdbc328e415194493f63cb7589a364aa817",
+    "environment/patches/locale_init.cc.patch": "e97f133ceebd86f8881f972e0e45b0ec0a13a9bfa428d8032008707683d54292",
+    "environment/program/main.cpp": "b94538c76887cc2b2ab739b5ac4731cddd0faa8f4a9892a6265c062bbbeede14",
+    "environment/program/user.cpp": "92b203786fed1bf0b3aa1675c9cd2d82b2651170675064da8ffee73b98ef14f9",
+    "environment/program/user.h": "f43d155995a56c22b9cd1417daef7c3b5a976cdc662a98eef0feb438ae1eee77",
+    "private/tests/test.sh": "70a2b55f0c5757f6b123a216dfd202be4a646680bced28dddcd31fd8959a058f",
+    "private/tests/test_outputs.py": "4e1cb33f777fa7fb5e1536f9bea9eace6deccd515c67d4f87570adbe692914ba"
+  },
+  "preserved": {
+    "agent_timeout_seconds": 1800,
+    "verifier_timeout_seconds": 1800,
+    "cpu": 1,
+    "memory_mb": 2048,
+    "storage_mb": 10240,
+    "gpus": 0,
+    "allow_network": true,
+    "original_scoring_method": true,
+    "reference_solution_included": false,
+    "fixed_solution_commands": false,
+    "original_test_functions": 6
+  },
+  "harness": {
+    "placement": "external",
+    "native_default_modified": false,
+    "replay_tool_protocol": null,
+    "tool_result_filtering": false
+  },
+  "private_verifier": {
+    "location": "../../private/tests",
+    "distribution": "controller-only; inject after confirmed stop and bridge revocation"
+  },
+  "environment_preparation": {
+    "binding": "reuse original custom-memory-heap-crash task binding and declared dependency adaptations; no fixture, initial mtime or output mutation is introduced by this appendix",
+    "native_image": "freeze actual tested native image and observation settings with each new recording; no new output contract is introduced by this variant",
+    "first_provider": "huawei-agentsphere; original 4200-second sandbox window retained; E2B project 1-hour limit remains a separate unresolved restriction"
+  },
+  "acceptance": [
+    "fresh autonomous real Agent recording passes original independent verifier",
+    "same new Tape replays with full request/history Strict matching and real tools on both E2B and Huawei",
+    "same CPU/memory, placement, variant, Tape and native version; disclose disk differences",
+    "stop/revocation, original private scoring and confirmed owned Sandbox cleanup remain required",
+    "preserve all original failures and failed variant attempts; never rewrite Tape or relax matcher"
+  ],
+  "limits": [
+    "not an unchanged official benchmark score",
+    "the appendix is guidance, not guaranteed determinism; necessary dynamic output may still fail Strict matching",
+    "no forced command sequence, output rewriting, fixed process IDs or background/wait protocol",
+    "same-config samples do not establish isolated cloud rankings without repetition and controlled load",
+    "Not included in the current frozen release7; material construction does not trigger a Go release or authorize interpreting original-case success as variant acceptance"
+  ],
+  "profile": "../../../../../../profiles/cloud/terminalbench/variants/openclaw-huawei-a-custom-memory-heap-crash-metadata-portable-v1-record.json",
+  "profile_sha256": "ab59c449166aaae0a5f1cc2ed852a0e6900e49bc9388144fd03663f8dd71780b",
+  "observed_motivation": {
+    "scope": "existing original-case Huawei record-2/replay-1; not a new variant run",
+    "replay_root": "/opt/aries-artifacts/tb-huawei-cpp-replay-1",
+    "replay_evidence_sha256": "9a73ff20538b17e1838be14ab846ed3bb20049cc5d53ce5d538b3778317a19b6",
+    "original_tape_sha256": "063be0eb73a5022f0805db4bd17e9261526a1ec9eb7ae151c45bcc21d2dfafc0",
+    "first_mismatch": "Second model request turn=1, messages[3].content; ls -la /app parent-directory root mtime 03:55 versus 04:10; no claim about later unexecuted steps"
+  }
+}

@@ -1,0 +1,40 @@
+{
+  "status": "PASS_IMAGE8_PRESENTATION1_LOCAL_ONLY",
+  "image_id": "sha256:c6eca9c7caeb67f544148df444b5bfb0e1f2be2250090e530d0e619ec83a33dd",
+  "image_tag": "aries-jiuwenswarm:e2c9d519-image8-presentation1-candidate2",
+  "base_image": "swr.cn-southwest-2.myhuaweicloud.com/benchmark-zhoutao/aries-jiuwenswarm:0.2.3-e2c9d519-image7-process1@sha256:ba27c904098a8e41c3efe297e773d16b208c2e77edf38e206b70eb0ee335ce21",
+  "base_image_id": "sha256:ba27c904098a8e41c3efe297e773d16b208c2e77edf38e206b70eb0ee335ce21",
+  "native_patch_manifest_sha256": "122f681cb9519a9e4a7443e3cae56b86fd8200e348f92a0152cef609cf5f0eae",
+  "native_source_files_verified": 2552,
+  "native_resources_unchanged": true,
+  "existing_python_packages_unchanged": true,
+  "python_packages_added": {
+    "PyMuPDF": "1.26.6"
+  },
+  "recipe_manifest_sha256": "7433e7e0f3cd8dc49924158585f255d61c80f531b6d1ed5dfbd661004c2d208b",
+  "fixture_evidence_sha256": "2839062c28c868e46f7cc054d039018184afffc5a2f94f46d27ed002e2b36796",
+  "dependency_files_sha256": {
+    "package-lock.json": "4517f5cf1d8d33bc56aa995bd9321686b508265735e12c093a31451639ba32dc",
+    "debian-packages.tsv": "a0639f6004c56e251078c7a8c0b189db13b708697abe3536198ce7d5ea48c509",
+    "npm-installed.json": "dca5c8298b042e075a7178a468bfd3403d860fa3aa3e22d38ceb9b51d2bc2c50",
+    "node-version.txt": "593764ae7aa0b416ad8ca2dad0d87bde031426b40b5eb7563eb95a15b4b47b64",
+    "npm-version.txt": "1b9487d55bea47fea50d226cc9c53bc548877ad2a318bac8fbc8b320f429e5c5"
+  },
+  "build_evidence_path": "/opt/aries-artifacts/jiuwen-presentation-image8-1/build-2/evidence.json",
+  "build_evidence_sha256": "20dff8df5bcfdd866b373b6b8ccaa6ffa32b2cb8fe79c5e679b75ddc2fb3289e",
+  "fixture_evidence_path": "/opt/aries-artifacts/jiuwen-presentation-image8-1/build-2/fixture/evidence.json",
+  "fixture_status": "PASS_NATIVE_SKILLS20_AND_PPT_GENERATION_RENDERING_FIXTURE",
+  "native_skills_files": 237,
+  "native_skills_manifest_sha256": "6658728ab847a4861d45d52206e22fadd758867be9856dffd4ff5d48f475ff64",
+  "recipe_input_note": "package-lock.json was resolved during the successful build and then copied byte for byte here; captured Debian package versions describe the tested image, not a Debian archive snapshot",
+  "model_calls": 0,
+  "cloud_created": 0,
+  "versions": {
+    "node": "v18.20.4",
+    "npm": "9.2.0",
+    "libreoffice": "LibreOffice 7.4.7.2 40(Build:2)",
+    "python": "/opt/jiuwenswarm/.venv/bin/python",
+    "pymupdf": "1.26.6"
+  },
+  "render_visual_review": "Chinese and English content page is legible; native cover/end preserved; fonts use available fallback rather than licensed Microsoft font equivalence"
+}

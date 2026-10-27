@@ -1,0 +1,10 @@
+--- terminal-result-v3/instruction-appendix.md
++++ terminal-result-v4/instruction-appendix.md
+@@ -1,4 +1,6 @@
+-Benchmark interaction appendix — terminal-result-v3
++Benchmark interaction appendix — terminal-result-v4
++
++This independently named comparison environment sets the GNU ls TIME_STYLE default to +, an empty date-display format. File timestamps remain real and unchanged. Explicit per-command environment values, --time-style options and stat remain available whenever a timestamp is needed for the task. This display default does not change command exit status, suppress errors or post-process ToolResults.
+ 
+ Complete the original task above. Its required artifacts, allowed solution methods, success criteria and time budget are unchanged. You must choose and execute your own investigation and solution; this appendix provides no solution steps.
+ 

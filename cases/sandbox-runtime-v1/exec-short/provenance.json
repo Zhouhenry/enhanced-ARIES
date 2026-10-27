@@ -1,0 +1,43 @@
+{
+  "case_id": "asb-exec-short-v1",
+  "artifact_status": "CONSTRUCTED_UNRUN",
+  "execution_status": "DESIGNED_UNRUN",
+  "source_archive": {
+    "filename": "归档.zip",
+    "sha256": "d2a57502b9efe12a3de99bf94da570007226a8e586bc5ba3bf073633aa7563ef",
+    "suite": "aries-sandbox-suite-1.0"
+  },
+  "source_files": [
+    {
+      "path": "lib/exec_step.py",
+      "bytes": 596,
+      "sha256": "421de97c323b6f89746c9bf2bce7950f9b9bf7c71dd23429a483facbc86b5f04",
+      "use": "public/step.py逐字节保留；一次命令只完成一步"
+    },
+    {
+      "path": "LICENSE",
+      "bytes": 1235,
+      "sha256": "b06cd5996554927899a4cd8637cc15159372a5ab78e29e49deb34bc326bcec3c",
+      "use": "逐字节保留原MIT许可；本目录没有复制其他第三方代码"
+    },
+    {
+      "path": "scenarios/exec-short/scenario.json",
+      "bytes": 825,
+      "sha256": "77e1f3badc749b54fc6cc919a6c5ad19a624811b8ef85c881b468052078c626b",
+      "use": "seed=20261024、calls=24/96/384"
+    },
+    {
+      "path": "lib/verifier.py",
+      "bytes": 10090,
+      "sha256": "62b9fdb9b37707507df6cc21042322fd02ef9cbc00ef0f91b8ef07a7d26bf865",
+      "use": "参考其独立重算链的语义；没有复制整个验证器或执行框架"
+    }
+  ],
+  "local_catalog": "../cases.json:asb-exec-short-v1",
+  "construction": "只生成静态逐调用计划和题目。private/verify.py独立重算可信参数的所有文件和stdout/exit回执，不导入public/step.py。",
+  "private_inputs": "private目录及可信采集回执不能进入Agent工作区；仅分发README公开清单。",
+  "authority": "自建受控workload；参数源自参考包而非官方基准标准。",
+  "evidence_boundary": "功能验证不认证ToolCall身份或N次实际提交；此部分必须由后续真实ARIES观测完成。",
+  "not_a_tape": true,
+  "execution": "本轮没有运行单步程序、验证器、编译或云测试。"
+}

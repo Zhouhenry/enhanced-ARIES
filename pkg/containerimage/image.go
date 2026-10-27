@@ -59,6 +59,19 @@ func ValidatePinnedTagOnly(value string) error {
 	return nil
 }
 
+// ValidatePinnedTag requires an exact, explicit non-latest tag and permits an
+// optional full sha256 digest without rewriting the supplied reference.
+func ValidatePinnedTag(value string) error {
+	tag, _, hasDigest := strings.Cut(value, "@")
+	if err := ValidatePinnedTagOnly(tag); err != nil {
+		return err
+	}
+	if hasDigest {
+		return Validate(value)
+	}
+	return nil
+}
+
 func parse(value string) (reference.Named, error) {
 	named, err := reference.ParseNormalizedNamed(value)
 	if err != nil {

@@ -1,0 +1,36 @@
+{
+  "name": "openclaw-e2b-a-db-wal-recovery-metadata-portable-v1-record",
+  "agent_type": "openclaw",
+  "placement": "external",
+  "sandbox_backend": "e2b-cloud",
+  "versions_file": "../../../../configs/versions.json",
+  "output_dir": "runs",
+  "benchmark": {
+    "type": "terminalbench2",
+    "root": "../../../../.cache/terminal-bench-2-1",
+    "task_id": "db-wal-recovery",
+    "variant": {
+      "id": "db-wal-recovery-metadata-portable-v1",
+      "instruction_appendix_file": "../../../../cases/sandbox-runtime-v1/agent-cases/db-wal-recovery/variants/metadata-portable-v1/instruction-appendix.md",
+      "appendix_sha256": "e29a7c70f63aac23f0cd703034ffa77d487f5a969b4abbd9a9af1f70b8555f6d"
+    }
+  },
+  "sandbox": {
+    "binding_file": "../../../../.cache/tb2-e2b/db-wal-recovery/binding.json",
+    "timeout_seconds": 2400
+  },
+  "harness": {
+    "openclaw_path": "/usr/local/bin/openclaw",
+    "openclaw_version": "2026.7.1",
+    "ssh_client_path": "../../../../bin/aries-ssh-client"
+  },
+  "model": {
+    "mode": "record",
+    "tool_call_id_dialect": "openclaw-2026.7.1",
+    "max_turns": 128
+  },
+  "execution": {
+    "concurrency": 1,
+    "attempts": 1
+  }
+}

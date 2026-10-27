@@ -1,0 +1,141 @@
+{
+  "schema_version": 1,
+  "variant_id": "custom-memory-heap-crash-terminal-result-v2",
+  "classification": "approved_independent_benchmark_interaction_variant",
+  "status": {
+    "materials": "CONSTRUCTED_STATIC_CHECKED",
+    "agent_recording": "UNRUN",
+    "strict_replay": "UNRUN",
+    "cross_cloud_comparison": "UNRUN",
+    "native_protocol_validation": "INHERITED_TERMINAL_RESULT_V1_NO_PROTOCOL_CHANGE",
+    "release10": "BINARY_AND_PINS_PENDING"
+  },
+  "original_task_id": "custom-memory-heap-crash",
+  "source": {
+    "repository": "https://github.com/harbor-framework/terminal-bench-2-1",
+    "revision": "7131e4375048a0e408a8fb404b5f499d726b695b",
+    "task_path": "tasks/custom-memory-heap-crash",
+    "license": "Apache-2.0",
+    "original_content_unchanged": true,
+    "source_manifest": "../../../revision-3-source-manifest.json"
+  },
+  "prompt": {
+    "original_file": "../../public/instruction.md",
+    "original_file_sha256": "53c68ae14a3c3af9a97c40bfd9bdc30a5d98b37eaa2f69f763475745f70f108d",
+    "original_task_instruction_sha256": "8a2759f4d28bdb5a2e3ba67fd7bbaf3c6e193c304ee3c6d9a4e0c27c81c75e8b",
+    "appendix_file": "instruction-appendix.md",
+    "appendix_file_sha256": "0a7859d75d23a4497ce17a894c2b7b1fe5a3fff968cb1db931c0ea6cdf619c05",
+    "effective_instruction_file": "effective-instruction.txt",
+    "effective_instruction_sha256": "c41c7c655eb27c9e195f7a3086075eed72c1e26f66a6307fdcf14f630ef1d082",
+    "composition": "UTF-8 original Task.Instruction (upstream trim) + two LF + exact appendix file bytes; appendix is not trimmed",
+    "diff_file": "prompt.diff",
+    "diff_sha256": "cd5e11fd3e3692893f9b1c63d87dc13971fd9e9321fc36d05f30e106a9394f3e"
+  },
+  "original_case_files_unchanged": {
+    "public/instruction.md": "53c68ae14a3c3af9a97c40bfd9bdc30a5d98b37eaa2f69f763475745f70f108d",
+    "task.toml": "ed474be1983e212913aa8866ebb66216acbe36aef2339ac375d232aa46617481",
+    "environment/Dockerfile": "6ee81e5a4fa2540443d7f27d577ba840728fc6aab9f301ab7919103673c78080",
+    "environment/patches/locale_classes.tcc.patch": "16951f4a4df6bf253886ac75f5a39fdbc328e415194493f63cb7589a364aa817",
+    "environment/patches/locale_init.cc.patch": "e97f133ceebd86f8881f972e0e45b0ec0a13a9bfa428d8032008707683d54292",
+    "environment/program/main.cpp": "b94538c76887cc2b2ab739b5ac4731cddd0faa8f4a9892a6265c062bbbeede14",
+    "environment/program/user.cpp": "92b203786fed1bf0b3aa1675c9cd2d82b2651170675064da8ffee73b98ef14f9",
+    "environment/program/user.h": "f43d155995a56c22b9cd1417daef7c3b5a976cdc662a98eef0feb438ae1eee77",
+    "private/tests/test.sh": "70a2b55f0c5757f6b123a216dfd202be4a646680bced28dddcd31fd8959a058f",
+    "private/tests/test_outputs.py": "4e1cb33f777fa7fb5e1536f9bea9eace6deccd515c67d4f87570adbe692914ba"
+  },
+  "preserved": {
+    "agent_timeout_seconds": 1800,
+    "verifier_timeout_seconds": 1800,
+    "cpu": 1,
+    "memory_mb": 2048,
+    "storage_mb": 10240,
+    "gpus": 0,
+    "allow_network": true,
+    "original_scoring_method": true,
+    "reference_solution_included": false,
+    "fixed_solution_commands": false,
+    "original_test_functions": 6
+  },
+  "harness": {
+    "placement": "external",
+    "native_default_modified": false,
+    "replay_tool_protocol": "terminal-result-v1",
+    "tool_result_filtering": false,
+    "native_observation_protocol": "aries-ssh-identity-v1",
+    "tool_output_renderer": "stdout-stderr-v1"
+  },
+  "private_verifier": {
+    "location": "../../private/tests",
+    "distribution": "controller-only; inject after confirmed stop and bridge revocation"
+  },
+  "environment_preparation": {
+    "binding": "/opt/aries-artifacts/tb-huawei-cpp-initial-mtime-1/binding.json",
+    "native_image": "swr.cn-southwest-2.myhuaweicloud.com/benchmark-zhoutao/aries-openclaw:2026.7.1-terminal-result-v1-observer-e040654efde8@sha256:e040654efde8adde910583291b547fb9d5fc94e565b2f4dc8bad29abcc423041",
+    "first_provider": "huawei-agentsphere; original 4200-second sandbox window retained; E2B project 1-hour limit remains a separate unresolved restriction",
+    "binding_sha256": "85fccbbb08f96aeeb92f5f46ad1c03c3d6aa6727d6f3214feb1c91cc80d55913",
+    "initial_directory_mtime_unix_ns": {
+      "/": 1704067200000000000
+    }
+  },
+  "acceptance": [
+    "fresh autonomous real Agent recording passes original independent verifier",
+    "same new Tape replays with full request/history Strict matching and real tools on both E2B and Huawei",
+    "same CPU/memory, placement, variant, Tape and native version; disclose disk differences",
+    "stop/revocation, original private scoring and confirmed owned Sandbox cleanup remain required",
+    "preserve all original failures and failed variant attempts; never rewrite Tape or relax matcher"
+  ],
+  "limits": [
+    "not an unchanged official benchmark score",
+    "public instructions do not guarantee compliance or byte-identical future results; Strict matcher remains unchanged",
+    "native poll/log/kill/PTY remain available; necessary dynamic output and genuine cancellation or failure remain visible",
+    "finite work is directed to omit optional per-wait timeout; original task deadline/cancellation apply, and genuinely stuck work is not declared completed",
+    "same CPU/memory, placement, variant and Tape are required for controlled comparison; report disk differences",
+    "E2B original 4200-second allocation remains blocked by the recorded project one-hour limit; Huawei evidence does not fix that E2B restriction"
+  ],
+  "profile": "../../../../../../profiles/cloud/terminalbench/variants/openclaw-huawei-a-custom-memory-heap-crash-terminal-result-v2-record.json",
+  "profile_sha256": "bb960e488edb340bc2fe4f4110998176eadbc4afd02647568ef25a92daa7ca53",
+  "observed_motivation": {
+    "scope": "read-only inspection of archived metadata-portable-v1 Huawei record-2, not a new v2 execution",
+    "run_root": "/opt/aries-artifacts/tb-repro-cpp-huawei-record-2",
+    "driver_status": "FAIL",
+    "tape_complete": true,
+    "model_turns": 63,
+    "native_protocol": null,
+    "tape_sha256": "5d75cbe0782eed264a1418a8e3e4220e61059366ac734348e9c6e2bb67ecd85b",
+    "native_transcript_sha256": "132a7136fb46c64dca112fe3d7c748f6d77d41cff68ebb9dd98b2a5d0821f279",
+    "auto_yield_exec_tool_call_id": "call_00_yXATBd6iWb2oecqto1Xu5038",
+    "exec_result_bytes": 144,
+    "exec_result_sha256": "8b31e4cd35d7f0da271e1f6b63993fdabff45051db7b25f109ccb6718911db33",
+    "exec_result_equals_recorded_tape": true,
+    "model_visible_native_random_handle_and_pid": true,
+    "session_id_sha256": "48527c711b88616b2ec3e5ed19269d0c307e6cd74a8be1cfdedf67fe7d621e8f",
+    "process_calls": [
+      {
+        "tool_call_id": "call_00_9UzikOhaxKO1uCNQQokT1092",
+        "action": "poll",
+        "dynamic_idle_seconds_present": true
+      },
+      {
+        "tool_call_id": "call_00_eQRtb4rQXL2suFolzUvk5926",
+        "action": "log",
+        "dynamic_idle_seconds_present": true
+      },
+      {
+        "tool_call_id": "call_00_F8WeWXbkVelwATbpKqMT0714",
+        "action": "kill",
+        "dynamic_idle_seconds_present": false
+      }
+    ]
+  },
+  "revision_provenance": {
+    "previous_variant_id": "custom-memory-heap-crash-metadata-portable-v1",
+    "previous_manifest": "../metadata-portable-v1/variant.json",
+    "previous_manifest_sha256": "5f42a5c07e1fabf59a6f28bfc65e5b6b16a5ddeb9a0b9a28eac9f82412e885a3",
+    "shared_public_appendix": "../../../sqlite-with-gcov/variants/terminal-result-v2/instruction-appendix.md",
+    "shared_appendix_sha256": "0a7859d75d23a4497ce17a894c2b7b1fe5a3fff968cb1db931c0ea6cdf619c05",
+    "shared_appendix_byte_identical": true,
+    "original_task_private_verifier_and_budgets_unchanged": true,
+    "old_materials_and_failed_attempts_unchanged": true,
+    "reference_answer_added": false
+  }
+}

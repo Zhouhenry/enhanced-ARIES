@@ -1,0 +1,86 @@
+name: aries-agentsphere
+
+services:
+  agentsphere-adapter:
+    image: aries-agentsphere-adapter:local
+    build:
+      context: ../../.cache/agentsphere-adapter-context
+      dockerfile: Dockerfile
+    init: true
+    restart: "no"
+    user: "10001:10001"
+    environment:
+      HUAWEI_AGENTSPHERE_API_KEY: "${HUAWEI_AGENTSPHERE_API_KEY:-}"
+      HUAWEI_AGENTSPHERE_API_URL: "${HUAWEI_AGENTSPHERE_API_URL:-https://agentsandbox.cn-southwest-2.myhuaweicloud.com}"
+      HUAWEI_AGENTSPHERE_GATEWAY_URL: "${HUAWEI_AGENTSPHERE_GATEWAY_URL:-}"
+      HUAWEI_AGENTSPHERE_ASSUME_NETWORK_ISOLATION: "${HUAWEI_AGENTSPHERE_ASSUME_NETWORK_ISOLATION:-false}"
+      HUAWEI_SANDBOX_TEMPLATE_ID: "${HUAWEI_SANDBOX_TEMPLATE_ID:-}"
+      ARIES_HUAWEI_ADAPTER_TOKEN: "${ARIES_HUAWEI_ADAPTER_TOKEN:-}"
+      PYTHONDONTWRITEBYTECODE: "1"
+      PYTHONUNBUFFERED: "1"
+    command:
+      - --max-sandboxes
+      - "${ARIES_MAX_SANDBOXES:-4}"
+      - --max-timeout
+      - "${ARIES_SANDBOX_TIMEOUT_SECONDS:-600}"
+    ports:
+      - "127.0.0.1:8788:8788"
+    volumes:
+      - adapter-state:/state
+    read_only: true
+    tmpfs:
+      - /tmp:mode=1777
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+    stop_grace_period: 300s
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - >-
+          import json,os,urllib.request;
+          r=urllib.request.Request('http://127.0.0.1:8788/v1/health',data=b'{}',headers={'Content-Type':'application/json','Authorization':'Bearer '+os.environ['ARIES_HUAWEI_ADAPTER_TOKEN']});
+          d=json.load(urllib.request.urlopen(r,timeout=3));
+          assert d['schema']==1 and d['provider']=='huawei-agentsphere' and not d['stopping']
+      interval: 10s
+      timeout: 5s
+      start_period: 60s
+      retries: 30
+
+  runner:
+    image: aries-e2b-runner:local
+    profiles: [experiment]
+    network_mode: host
+    init: true
+    restart: "no"
+    working_dir: /app
+    depends_on:
+      agentsphere-adapter:
+        condition: service_healthy
+    environment:
+      DEEPSEEK_API_KEY: "${DEEPSEEK_API_KEY:-}"
+      DEEPSEEK_BASE_URL: "${DEEPSEEK_BASE_URL:-https://api.deepseek.com}"
+      DEEPSEEK_MODEL: "${DEEPSEEK_MODEL:-}"
+      HUAWEI_SANDBOX_TEMPLATE_ID: "${HUAWEI_SANDBOX_TEMPLATE_ID:-}"
+      ARIES_HUAWEI_ADAPTER_TOKEN: "${ARIES_HUAWEI_ADAPTER_TOKEN:-}"
+      ARIES_HUAWEI_ADAPTER_URL: "http://127.0.0.1:8788"
+      ARIES_ECS_PRIVATE_IP: "${ARIES_ECS_PRIVATE_IP:-}"
+      ARIES_MODEL_PROXY_PUBLIC_URL: "${ARIES_MODEL_PROXY_PUBLIC_URL:-}"
+      ARIES_MAX_CONCURRENCY: "${ARIES_MAX_CONCURRENCY:-1}"
+      ARIES_MAX_ATTEMPTS: "${ARIES_MAX_ATTEMPTS:-2}"
+      ARIES_SANDBOX_TIMEOUT_SECONDS: "${ARIES_SANDBOX_TIMEOUT_SECONDS:-600}"
+      ARIES_GOODPUT_DEADLINE_SECONDS: "${ARIES_GOODPUT_DEADLINE_SECONDS:-}"
+    volumes:
+      - ../../runs:/app/runs
+      - /var/run/docker.sock:/var/run/docker.sock
+    read_only: true
+    tmpfs:
+      - /tmp:mode=0700
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+    stop_grace_period: 120s
+
+volumes:
+  adapter-state:
+    name: aries-agentsphere-adapter-state

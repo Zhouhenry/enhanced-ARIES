@@ -1,0 +1,29 @@
+{
+  "name": "jiuwenswarm-huawei-external-record",
+  "agent_type": "jiuwenswarm",
+  "placement": "external",
+  "sandbox_backend": "huawei-agentsphere",
+  "workload": "merge-ranges-portable-v1",
+  "versions_file": "../../configs/versions.json",
+  "output_dir": "runs",
+  "sandbox": {
+    "template": "7697f6d1-2b69-4090-88d8-1bb77e8adb44:db05fc28-683a-40a4-9382-d76f5c928775",
+    "timeout_seconds": 900
+  },
+  "harness": {
+    "jiuwen_image": "swr.cn-southwest-2.myhuaweicloud.com/benchmark-zhoutao/aries-jiuwenswarm:0.2.3-e2c9d519-image7-process1@sha256:ba27c904098a8e41c3efe297e773d16b208c2e77edf38e206b70eb0ee335ce21",
+    "jiuwen_source_dir": "/opt/jiuwenswarm",
+    "jiuwen_python_path": "/opt/jiuwenswarm/.venv/bin/python",
+    "docker_socket": "unix:///var/run/docker.sock"
+  },
+  "model": {
+    "mode": "record",
+    "max_turns": 32
+  },
+  "execution": {
+    "concurrency": 1,
+    "attempts": 1,
+    "task_timeout": "5m",
+    "verifier_timeout": "1m"
+  }
+}

@@ -1,0 +1,19 @@
+{
+  "name": "jiuwenswarm-e2b-embedded-replay",
+  "agent_type": "jiuwenswarm",
+  "placement": "embedded",
+  "sandbox_backend": "e2b-cloud",
+  "workload": "merge-ranges-portable-v1",
+  "versions_file": "../../configs/versions.json",
+  "output_dir": "runs",
+  "sandbox": {
+    "template": "2f4kmdvot1ncn9q26ob9:20bd6f86-1368-41e1-8136-4d8f95d90d03",
+    "timeout_seconds": 900
+  },
+  "harness": {
+    "jiuwen_source_dir": "/opt/jiuwenswarm",
+    "jiuwen_python_path": "/opt/jiuwenswarm/.venv/bin/python"
+  },
+  "model": {"mode": "replay", "replay_policy": "strict", "timing": "recorded", "tape_file": "REPLACE_WITH_REAL_JIUWEN_TAPE.json", "max_turns": 32},
+  "execution": {"concurrency": 1, "attempts": 1, "task_timeout": "5m", "verifier_timeout": "1m"}
+}

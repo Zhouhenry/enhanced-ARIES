@@ -1,0 +1,49 @@
+<style>
+#resource-view .resource-controls{display:flex;flex-wrap:wrap;gap:12px;align-items:end;margin:14px 0}#resource-view label{display:flex;flex-direction:column;gap:4px;color:var(--muted);font-size:12px}#resource-view select{max-width:100%;font-size:13px}#resource-chart{overflow:auto;border:1px solid var(--line)}#resource-chart svg{display:block;width:100%;min-width:640px;height:auto;color:var(--muted);font:12px var(--mono)}#resource-chart .resource-grid{stroke:var(--line);stroke-width:1}#resource-chart circle{fill:var(--e1);stroke:var(--white);stroke-width:1;cursor:pointer}#resource-chart circle:hover,#resource-chart circle:focus{fill:var(--hw);stroke:var(--ink);stroke-width:2;outline:none}#resource-table{max-height:360px;overflow:auto;border:1px solid var(--line);margin-top:14px}#resource-table table{min-width:780px}#resource-table thead{position:sticky;top:0;z-index:1}#resource-table button{font:inherit;border:0;background:transparent;color:var(--e1);text-decoration:underline;cursor:pointer;padding:3px}#resource-table td{font-size:12px}#resource-detail{background:var(--paper);border:1px solid var(--line);margin-top:12px;padding:14px}#resource-detail pre{max-height:300px;overflow:auto;white-space:pre-wrap;overflow-wrap:anywhere;font:12px/1.65 var(--mono)}#resource-source{overflow-wrap:anywhere}@media(max-width:600px){#resource-view label{flex:1 1 130px;max-width:100%}#resource-view select{width:100%}}
+</style>
+<section id="resource-view" class="section" aria-labelledby="resource-title">
+  <div class="section-head"><div><h2 id="resource-title">资源读数 · 原始采样点</h2><p class="muted small">按观测对象查看 CPU 与内存。散点保留实际读数，不插值、不与工具时间线对齐。</p></div></div>
+  <div class="resource-controls"><label for="resource-run">运行<select id="resource-run"></select></label><label for="resource-owner">观测对象<select id="resource-owner"><option value="provider">Sandbox · Provider</option><option value="harness">ECS Agent · Harness</option><option value="controller">共享 Controller</option></select></label><label for="resource-metric">指标<select id="resource-metric"></select></label></div>
+  <p id="resource-count" class="small muted" role="status" aria-live="polite"></p><p id="resource-semantics" class="micro"></p>
+  <div id="resource-chart" tabindex="0" role="region" aria-label="原始资源散点图，可横向滚动"></div>
+  <div id="resource-table" tabindex="0" role="region" aria-label="资源读数原始数据表"></div>
+  <div id="resource-detail" hidden></div><p id="resource-source" class="micro mono"></p>
+</section>
+<script>
+(()=>{
+function initResourceView(){
+  const names={cpu_used_pct:'CPU 使用率',mem_used:'内存返回读数',mem_used_mib:'内存返回读数',cpu_usage_nanoseconds:'CPU 累计时间',memory_usage_bytes:'内存采样读数',memory_limit_bytes:'内存限制读数',cpu_user_ns:'用户态 CPU 累计时间',cpu_system_ns:'内核态 CPU 累计时间',heap_alloc_bytes:'Go 堆分配读数',process_lifetime_peak_rss_bytes:'进程生命周期 RSS 高水位'};
+  const num=value=>Number(value).toLocaleString('en-US',{maximumFractionDigits:6}),unit=m=>m.unit==='bytes'||m.unit==='MiB'?'MiB':m.unit==='ns'?'s':m.unit==='percent'?'%':m.unit;
+  const value=(m,p)=>p.value/(m.unit==='bytes'?1048576:m.unit==='ns'?1e9:1);
+  let points=[];
+  function stream(){return resourceStream(runs.find(r=>r.id===$('resource-run').value),$('resource-owner').value);}
+  function showPoint(i){const p=points[i];if(!p)return;$('resource-detail').hidden=false;$('resource-detail').innerHTML=`<strong>读数 ${i+1} · 原始数值与证据</strong><pre>${esc(JSON.stringify(p,null,2))}</pre>`;}
+  function metrics(){
+    const s=stream(),old=$('resource-metric').value,entries=Object.entries(s?.metrics||{});
+    $('resource-metric').innerHTML=entries.map(([key,m])=>`<option value="${esc(key)}">${esc(names[key]||key)} / ${esc(unit(m))}${m.points?.length?'':' · 未采集'}</option>`).join('');
+    $('resource-metric').value=entries.some(([key,m])=>key===old&&m.points?.length)?old:entries.find(([,m])=>m.points?.length)?.[0]||entries[0]?.[0]||'';render();
+  }
+  function render(){
+    const s=stream(),m=s?.metrics[$('resource-metric').value];points=m?.points||[];$('resource-detail').hidden=true;$('resource-chart').replaceChildren();$('resource-table').replaceChildren();
+    $('resource-source').textContent=s?`owner ${s.owner_id} · source ${s.source} · stream ${s.stream_id}`:'';
+    $('resource-count').textContent=m?`${points.length.toLocaleString()} 个去重读数 / ${m.reading_count.toLocaleString()} 次原始返回 · ${m.duplicate_reading_count.toLocaleString()} 次同值重复 · ${m.conflicting_timestamp_count} 处同时间戳异值 · ${m.missing_or_unverified_unit_count} 次缺失或单位未核验`:'没有可用的资源流。';
+    if(!points.length){$('resource-chart').innerHTML='<div class="empty">该指标未采集，或没有可核验单位的读数。</div>';$('resource-semantics').textContent='缺失数据不作为零值绘制。';return;}
+    const trusted=p=>p.evidence?.time_status==='verified'&&Number.isFinite(Date.parse(p.evidence.observed_at_utc));
+    const timed=!/unverified/.test(s.time_basis||'')&&points.every(trusted),allPoints=Object.values(s.metrics).flatMap(item=>item.points||[]),times=allPoints.filter(trusted).map(p=>Date.parse(p.evidence.observed_at_utc)),start=times.length?Math.min(...times):0;
+    const xs=points.map((p,i)=>timed?(Date.parse(p.evidence.observed_at_utc)-start)/1000:i+1),ys=points.map(p=>value(m,p)),xmin=timed?0:1,xmax=Math.max(...xs),ymax=Math.max(...ys)||1,xrange=Math.max(xmax-xmin,1),x=v=>76+(v-xmin)/xrange*808,y=v=>244-v/ymax*204;
+    const axis=timed?'距本流最早可信采样 / s':'去重返回读数序号（保留返回顺序）';
+    const scope=$('resource-owner').value==='controller'?'共享进程的采样；RSS 高水位来自进程生命周期，不能作为任务峰值。':$('resource-owner').value==='harness'?'CPU 为容器累计时间；内存为采样读数，采样最大值不能作为真实峰值。':'Provider 原生返回读数；同时间戳异值保留，不能据此积分 CPU 或归因到工具。';
+    $('resource-semantics').innerHTML=esc(scope+' '+(timed?'横轴仅使用已核验的 observed_at_utc；本流采样窗口不等于 Runtime。':'时间不可核验，横轴使用读数序号；provider_timestamp 保留原值，单位未知时不转换。'))+timeHelp('resource_clock','横轴与采样时间口径')+(m.unit==='ns'?timeHelp('resource_cpu','CPU 秒口径'):'');
+    const grid=Array.from({length:5},(_,i)=>{const yy=244-i*51;return `<line class="resource-grid" x1="76" x2="884" y1="${yy}" y2="${yy}"/><text fill="currentColor" x="66" y="${yy+4}" text-anchor="end">${num(ymax*i/4)}</text>`;}).join('');
+    const ticks=Array.from({length:5},(_,i)=>{const tick=xmin+(xmax-xmin)*i/4;return `<text fill="currentColor" x="${x(tick)}" y="265" text-anchor="middle">${timed?num(tick):num(Math.round(tick))}</text>`;}).join('');
+    $('resource-chart').innerHTML=`<svg viewBox="0 0 920 310" role="group" aria-label="${esc((names[m.name]||m.name)+'实际读数散点图，'+axis)}"><text fill="currentColor" x="76" y="21">${esc(names[m.name]||m.name)} / ${esc(unit(m))}</text>${grid}${ticks}${points.map((p,i)=>`<circle cx="${x(xs[i])}" cy="${y(ys[i])}" r="4" tabindex="0" role="button" data-point="${i}" aria-label="读数 ${i+1}，${num(ys[i])} ${esc(unit(m))}"><title>读数 ${i+1} · ${num(ys[i])} ${esc(unit(m))} · ${esc(p.evidence.observed_at_utc||p.evidence.provider_timestamp||'时间未知')}</title></circle>`).join('')}<text fill="currentColor" x="480" y="297" text-anchor="middle">${axis}</text></svg>`;
+    $('resource-table').innerHTML=`<table><thead><tr><th>读数</th><th class="num">${esc(unit(m))}</th><th>原始数值 / 单位</th><th>原始时间 / 状态 ${timeHelp('resource_clock','口径')}</th><th>来源定位</th><th class="num">同值返回次数</th></tr></thead><tbody>${points.map((p,i)=>{const e=p.evidence;return `<tr><td><button type="button" data-point="${i}" aria-label="查看读数 ${i+1} 的证据">${i+1}</button></td><td class="num">${m.unit==='ns'?timeValue(num(ys[i]),'resource_cpu'):num(ys[i])}</td><td class="mono">${esc(p.value)} ${esc(m.unit)}</td><td class="mono">${esc(e.observed_at_utc??e.provider_timestamp??'未知')}<div class="micro">${esc(e.time_status||'unknown')}</div></td><td>source line ${esc(e.source_line??'未知')} · reading ${esc(e.reading_index??'未知')}<div class="micro">点击读数查看完整 evidence_ref / sample_ids</div></td><td class="num">${p.sample_ids.length}</td></tr>`;}).join('')}</tbody></table>`;
+  }
+  $('resource-run').innerHTML=runs.map(r=>`<option value="${esc(r.id)}">${esc(r.label)}</option>`).join('');
+  ['resource-run','resource-owner'].forEach(id=>$(id).addEventListener('change',metrics));$('resource-metric').addEventListener('change',render);
+  $('resource-view').addEventListener('click',event=>{const target=event.target.closest('[data-point]');if(target)showPoint(Number(target.dataset.point));});
+  $('resource-chart').addEventListener('keydown',event=>{if((event.key==='Enter'||event.key===' ')&&event.target.matches('[data-point]')){event.preventDefault();showPoint(Number(event.target.dataset.point));}});metrics();
+}
+if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',initResourceView,{once:true});else initResourceView();
+})();
+</script>

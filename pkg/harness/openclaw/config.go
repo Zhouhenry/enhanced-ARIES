@@ -174,10 +174,12 @@ type agentsConfig struct {
 }
 
 type agentDefaults struct {
-	Model     primaryModel             `json:"model"`
-	Models    map[string]modelDefaults `json:"models,omitempty"`
-	Sandbox   sandboxConfig            `json:"sandbox"`
-	Subagents *subagentsConfig         `json:"subagents,omitempty"`
+	EnvelopeTimestamp string                   `json:"envelopeTimestamp,omitempty"`
+	SkipBootstrap     bool                     `json:"skipBootstrap,omitempty"`
+	Model             primaryModel             `json:"model"`
+	Models            map[string]modelDefaults `json:"models,omitempty"`
+	Sandbox           sandboxConfig            `json:"sandbox"`
+	Subagents         *subagentsConfig         `json:"subagents,omitempty"`
 }
 
 // subagentsConfig bounds sessions_spawn concurrency. Omitted entirely when no
@@ -212,7 +214,7 @@ type sshConfig struct {
 	UpdateHostKeys        bool   `json:"updateHostKeys"`
 }
 
-func renderConfig(model core.ModelConfig, endpoint core.ToolEndpoint, mode string, searchURL string, webSearchEnabled, extractEnabled, subagentsEnabled bool, maxConcurrentSubagents int, mcp ...MCPOptions) ([]byte, error) {
+func renderConfig(model core.ModelConfig, inputs *WorkloadInputs, endpoint core.ToolEndpoint, mode string, searchURL string, webSearchEnabled, extractEnabled, subagentsEnabled bool, maxConcurrentSubagents int, mcp ...MCPOptions) ([]byte, error) {
 	if err := validateModel(model); err != nil {
 		return nil, err
 	}
@@ -264,11 +266,21 @@ func renderConfig(model core.ModelConfig, endpoint core.ToolEndpoint, mode strin
 		}},
 		Tools: toolPolicy{Deny: denyToolList(subagentsEnabled)},
 	}
+	if inputs != nil {
+		if inputs.ToolOutputRenderer != "" && inputs.ToolOutputRenderer != "stdout-stderr-v1" {
+			return nil, errors.New("unsupported OpenClaw tool output renderer")
+		}
+		configuration.Agents.Defaults.EnvelopeTimestamp = inputs.EnvelopeTimestamp
+		configuration.Agents.Defaults.SkipBootstrap = inputs.SkipBootstrap
+	}
 	if len(mcp) > 0 && mcp[0].NoSandboxTools {
 		// read, write, edit and apply_patch are denied already; exec runs
 		// commands in the sandbox and process manages the ones it left
 		// running.
-		configuration.Tools.Deny = append(configuration.Tools.Deny, "exec", "process")
+		configuration.Tools.Deny = append(configuration.Tools.Deny, "exec")
+		if !slices.Contains(configuration.Tools.Deny, "process") {
+			configuration.Tools.Deny = append(configuration.Tools.Deny, "process")
+		}
 	}
 	if reasoningBody != nil {
 		provider := configuration.Models.Providers[providerID]

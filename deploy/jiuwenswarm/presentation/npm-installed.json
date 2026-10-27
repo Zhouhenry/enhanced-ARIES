@@ -1,0 +1,123 @@
+{
+  "version": "1.0.0",
+  "name": "aries-jiuwen-presentation-runtime",
+  "dependencies": {
+    "pptxgenjs": {
+      "version": "4.0.1",
+      "resolved": "https://registry.npmjs.org/pptxgenjs/-/pptxgenjs-4.0.1.tgz",
+      "overridden": false,
+      "dependencies": {
+        "@types/node": {
+          "version": "22.20.5",
+          "resolved": "https://registry.npmjs.org/@types/node/-/node-22.20.5.tgz",
+          "overridden": false,
+          "dependencies": {
+            "undici-types": {
+              "version": "6.21.0",
+              "resolved": "https://registry.npmjs.org/undici-types/-/undici-types-6.21.0.tgz",
+              "overridden": false
+            }
+          }
+        },
+        "https": {
+          "version": "1.0.0",
+          "resolved": "https://registry.npmjs.org/https/-/https-1.0.0.tgz",
+          "overridden": false
+        },
+        "image-size": {
+          "version": "1.2.1",
+          "resolved": "https://registry.npmjs.org/image-size/-/image-size-1.2.1.tgz",
+          "overridden": false,
+          "dependencies": {
+            "queue": {
+              "version": "6.0.2",
+              "resolved": "https://registry.npmjs.org/queue/-/queue-6.0.2.tgz",
+              "overridden": false,
+              "dependencies": {
+                "inherits": {
+                  "version": "2.0.4",
+                  "resolved": "https://registry.npmjs.org/inherits/-/inherits-2.0.4.tgz",
+                  "overridden": false
+                }
+              }
+            }
+          }
+        },
+        "jszip": {
+          "version": "3.10.2",
+          "resolved": "https://registry.npmjs.org/jszip/-/jszip-3.10.2.tgz",
+          "overridden": false,
+          "dependencies": {
+            "lie": {
+              "version": "3.3.0",
+              "resolved": "https://registry.npmjs.org/lie/-/lie-3.3.0.tgz",
+              "overridden": false,
+              "dependencies": {
+                "immediate": {
+                  "version": "3.0.6",
+                  "resolved": "https://registry.npmjs.org/immediate/-/immediate-3.0.6.tgz",
+                  "overridden": false
+                }
+              }
+            },
+            "pako": {
+              "version": "1.0.11",
+              "resolved": "https://registry.npmjs.org/pako/-/pako-1.0.11.tgz",
+              "overridden": false
+            },
+            "readable-stream": {
+              "version": "2.3.8",
+              "resolved": "https://registry.npmjs.org/readable-stream/-/readable-stream-2.3.8.tgz",
+              "overridden": false,
+              "dependencies": {
+                "core-util-is": {
+                  "version": "1.0.3",
+                  "resolved": "https://registry.npmjs.org/core-util-is/-/core-util-is-1.0.3.tgz",
+                  "overridden": false
+                },
+                "inherits": {
+                  "version": "2.0.4"
+                },
+                "isarray": {
+                  "version": "1.0.0",
+                  "resolved": "https://registry.npmjs.org/isarray/-/isarray-1.0.0.tgz",
+                  "overridden": false
+                },
+                "process-nextick-args": {
+                  "version": "2.0.1",
+                  "resolved": "https://registry.npmjs.org/process-nextick-args/-/process-nextick-args-2.0.1.tgz",
+                  "overridden": false
+                },
+                "safe-buffer": {
+                  "version": "5.1.2",
+                  "resolved": "https://registry.npmjs.org/safe-buffer/-/safe-buffer-5.1.2.tgz",
+                  "overridden": false
+                },
+                "string_decoder": {
+                  "version": "1.1.1",
+                  "resolved": "https://registry.npmjs.org/string_decoder/-/string_decoder-1.1.1.tgz",
+                  "overridden": false,
+                  "dependencies": {
+                    "safe-buffer": {
+                      "version": "5.1.2"
+                    }
+                  }
+                },
+                "util-deprecate": {
+                  "version": "1.0.2",
+                  "resolved": "https://registry.npmjs.org/util-deprecate/-/util-deprecate-1.0.2.tgz",
+                  "overridden": false
+                }
+              }
+            },
+            "setimmediate": {
+              "version": "1.0.5",
+              "resolved": "https://registry.npmjs.org/setimmediate/-/setimmediate-1.0.5.tgz",
+              "overridden": false
+            }
+          }
+        }
+      }
+    }
+  }
+}

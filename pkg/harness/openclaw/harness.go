@@ -48,6 +48,15 @@ type Options struct {
 	Runtime  harness.RuntimeOptions
 	Common   harness.Options
 	Realtime RealtimeOptions
+	// ExpectedVersion enables native startup verification; empty preserves
+	// the existing image-pin-only behavior for ordinary profiles.
+	ExpectedVersion string
+	// Nil preserves ordinary profile inputs. Cloud fixtures use a fresh Gateway
+	// per attempt before selecting these fixed native session/timestamp inputs.
+	WorkloadInputs *WorkloadInputs
+	NativeIdentity *NativeIdentityScope
+	// Cloud A enables native Gateway receipt evidence at L0 and above.
+	ObserveNativeTools bool
 }
 
 type RealtimeOptions struct {
@@ -75,8 +84,12 @@ type Manager struct {
 	newRealtime     func(realtimeclient.Gateway, realtimeclient.Options) (realtimeRunner, error)
 	newSpeech       func(audioinput.SpeechClientOptions) (speechSynthesizer, error)
 
-	mu     sync.Mutex
-	active *session
+	mu                       sync.Mutex
+	active                   *session
+	nativeObservation        core.ObserverResult
+	nativeObservationErr     error
+	nativeToolObservation    core.ObserverResult
+	nativeToolObservationErr error
 }
 
 type realtimeRunner interface {
@@ -119,6 +132,28 @@ func New(options Options) (*Manager, error) {
 	if options.Common.Mode == "" {
 		options.Common.Mode = ModeAgent
 	}
+	if options.WorkloadInputs != nil {
+		if options.Common.Mode != ModeAgent {
+			return nil, errors.New("OpenClaw workload inputs require agent mode")
+		}
+		inputs := *options.WorkloadInputs
+		options.WorkloadInputs = &inputs
+	}
+	if options.NativeIdentity != nil {
+		if options.Common.Mode != ModeAgent || options.WorkloadInputs == nil || options.NativeIdentity.AgentSessionID != options.WorkloadInputs.SessionKey {
+			return nil, errors.New("native tool identity requires agent mode and the configured workload session")
+		}
+		if err := options.NativeIdentity.validate(); err != nil {
+			return nil, err
+		}
+		identity := *options.NativeIdentity
+		options.NativeIdentity = &identity
+	}
+	if inputs := options.WorkloadInputs; inputs != nil && inputs.ReplayToolProtocol != "" {
+		if inputs.ReplayToolProtocol != "terminal-result-v1" || inputs.ToolOutputRenderer != "stdout-stderr-v1" || options.NativeIdentity == nil {
+			return nil, errors.New("OpenClaw replay tool protocol requires terminal-result-v1, native identity and stdout-stderr-v1")
+		}
+	}
 	switch options.Common.Mode {
 	case ModeAgent:
 		if options.Realtime != (RealtimeOptions{}) {
@@ -148,10 +183,15 @@ func New(options Options) (*Manager, error) {
 	options.Runtime = runtime.Options
 	return &Manager{runtime: runtime, options: options, newID: privatefiles.RandomID,
 		newGateway: func(rawURL string, token []byte) (gatewayConnection, error) {
-			return newGatewayClientWithDisposition(rawURL, token, gatewayScopes(options.Common.Mode), gatewayEventDisposition(options.Common.Mode))
+			disposition := gatewayEventDisposition(options.Common.Mode)
+			toolEvents := options.Common.Mode == ModeAgent && options.ObserveNativeTools
+			if toolEvents {
+				disposition = gatewayclient.EventDispositionDelivery
+			}
+			return newGatewayClientWithDisposition(rawURL, token, gatewayScopes(options.Common.Mode), disposition, toolEvents)
 		},
 		newAgentGateway: func(rawURL string, token []byte) (gatewayConnection, error) {
-			return newGatewayClientWithDisposition(rawURL, token, gatewayScopes(ModeAgent), gatewayclient.EventDispositionResponseOnly)
+			return newGatewayClientWithDisposition(rawURL, token, gatewayScopes(ModeAgent), gatewayclient.EventDispositionResponseOnly, false)
 		},
 		newRealtime: newRealtimeRunner, newSpeech: newSpeechClient,
 	}, nil
@@ -168,6 +208,9 @@ func (manager *Manager) Start(ctx context.Context, request core.HarnessRequest) 
 	}
 	if err := harness.ValidateTaskID("OpenClaw", request.TaskID); err != nil {
 		return err
+	}
+	if scope := manager.options.NativeIdentity; scope != nil && scope.ScopeID != request.RunID+"/"+request.TaskID {
+		return errors.New("native identity scope differs from the requested occurrence")
 	}
 	if err := harness.ValidateSearch(request.Connectivity.SearchURL, manager.options.Common.WebSearchEnabled); err != nil {
 		return err
@@ -204,7 +247,7 @@ func (manager *Manager) Start(ctx context.Context, request core.HarnessRequest) 
 			}).Warn("OpenClaw extract API-key environment is not set; falling back to native web_fetch without Tavily extraction")
 		}
 	}
-	configuration, err := renderConfig(request.Model, request.Endpoint, manager.options.Common.Mode, request.Connectivity.SearchURL, manager.options.Common.WebSearchEnabled, extractEnabled, manager.options.Common.SubagentsEnabled, manager.options.Common.MaxConcurrentSubagents, MCPOptions{
+	configuration, err := renderConfig(request.Model, manager.options.WorkloadInputs, request.Endpoint, manager.options.Common.Mode, request.Connectivity.SearchURL, manager.options.Common.WebSearchEnabled, extractEnabled, manager.options.Common.SubagentsEnabled, manager.options.Common.MaxConcurrentSubagents, MCPOptions{
 		Servers:        mcpServers,
 		NoSandboxTools: request.NoSandboxTools,
 	})
@@ -263,11 +306,19 @@ func (manager *Manager) Start(ctx context.Context, request core.HarnessRequest) 
 		active.Credentials.Clear()
 		return err
 	}
+	manager.nativeObservation, manager.nativeObservationErr = core.ObserverResult{}, nil
+	manager.nativeToolObservation, manager.nativeToolObservationErr = core.ObserverResult{}, nil
 	active.DeploymentRequest = deployment.Request{
 		Name: active.Name, Image: manager.runtime.Options.Image,
 		Env: []string{"OPENCLAW_CONFIG_PATH=" + configContainerPath}, Args: []string{launcherPath, gatewayLauncherPath},
 		Labels:    map[string]string{"aries.managed": "true", "aries.kind": "openclaw-harness", "aries.component": "harness", "aries.run": request.RunID, "aries.task": request.TaskID, "aries.attempt": active.AttemptID},
 		Placement: request.Connectivity.Placement, CPU: request.CPU, MemoryMB: request.MemoryMB, ServicePort: 18789,
+	}
+	if manager.options.WorkloadInputs != nil {
+		active.DeploymentRequest.Hostname = "aries-workload"
+		if protocol := manager.options.WorkloadInputs.ReplayToolProtocol; protocol != "" {
+			active.DeploymentRequest.Env = append(active.DeploymentRequest.Env, "ARIES_REPLAY_TOOL_PROTOCOL="+protocol)
+		}
 	}
 	fail := func(primary error) error {
 		err := manager.runtime.Rollback(ctx, active.Occurrence, primary)
@@ -282,6 +333,9 @@ func (manager *Manager) Start(ctx context.Context, request core.HarnessRequest) 
 	if err := active.Artifacts.Write("openclaw.json", configuration); err != nil {
 		return fail(fmt.Errorf("retain rendered OpenClaw config: %w", err))
 	}
+	if err := manager.stageNativeIdentity(active); err != nil {
+		return fail(err)
+	}
 	archive, err := manager.runtimeArchive(active, configuration)
 	if err != nil {
 		return fail(err)
@@ -290,6 +344,11 @@ func (manager *Manager) Start(ctx context.Context, request core.HarnessRequest) 
 	secrets := active.Credentials.Secrets()
 	if err := manager.runtime.Start(ctx, active.Occurrence, active.DeploymentRequest, archive, secrets); err != nil {
 		return fail(err)
+	}
+	if manager.options.ExpectedVersion != "" {
+		if err := manager.verifyNativeVersion(ctx, active); err != nil {
+			return fail(err)
+		}
 	}
 	readyCtx, cancel := context.WithTimeout(ctx, manager.runtime.Options.StartTimeout)
 	err = manager.waitReady(readyCtx, active)
@@ -308,7 +367,7 @@ func (manager *Manager) Start(ctx context.Context, request core.HarnessRequest) 
 	return nil
 }
 
-func (manager *Manager) Run(ctx context.Context, instruction string) (core.HarnessResult, error) {
+func (manager *Manager) Run(ctx context.Context, instruction string) (result core.HarnessResult, runErr error) {
 	started := time.Now()
 	manager.mu.Lock()
 	if err := manager.runtime.AdmitRun(instruction); err != nil {
@@ -331,23 +390,48 @@ func (manager *Manager) Run(ctx context.Context, instruction string) (core.Harne
 		return active.FailedResult(started, err), err
 	}
 	defer client.Close()
+	sessionKey, sessionID := "agent:main:aries-"+active.safeTaskID, ""
+	if inputs := manager.options.WorkloadInputs; inputs != nil {
+		sessionKey, sessionID = inputs.SessionKey, inputs.SessionID
+	}
 	connectSummary, err := client.Connect(runCtx, gatewayclient.ConnectOptions{})
 	var agentResult gatewayclient.AgentResult
+	var collector *NativeToolCollector
 	if err == nil && !connectSummary.HasScope("operator.write") {
 		err = errors.New("OpenClaw agent gateway requires operator.write scope")
 	}
 	if err == nil {
 		thinking := requestedThinking(active.Model)
+		if manager.options.ObserveNativeTools {
+			collector = NewNativeToolCollector(sessionKey, active.Credentials)
+			collector.StartReading(runCtx, client)
+		}
+		runtimeStarted := time.Now()
 		agentResult, err = client.Agent(runCtx, gatewayclient.AgentRequest{
-			Message: instruction, SessionKey: "agent:main:aries-" + active.safeTaskID,
+			Message: instruction, SessionKey: sessionKey, SessionID: sessionID,
 			IdempotencyKey: active.agentIdempotency, Thinking: thinking,
 		})
+		runtimeFinished := time.Now()
+		runtimeDuration := runtimeFinished.Sub(runtimeStarted)
+		defer func() {
+			result.RuntimeStartedAt = &runtimeStarted
+			result.RuntimeFinishedAt = &runtimeFinished
+			result.RuntimeExecutionDuration = &runtimeDuration
+			result.SessionID = sessionKey
+		}()
+	}
+	if collector != nil {
+		report, observationErr := collector.FinishObservation(agentResult.RunID, active.ArtifactDir, 2*time.Second)
+		active.Artifacts.Add(report.LogPaths...)
+		manager.mu.Lock()
+		manager.nativeToolObservation, manager.nativeToolObservationErr = report, observationErr
+		manager.mu.Unlock()
 	}
 	cancel()
 	connectSummary = redactConnectSummary(connectSummary, active)
 	agentResult = redactAgentResult(agentResult, active)
 	err = active.Credentials.RedactErr(err)
-	resultPath, writeErr := manager.writeAgentResult(active, connectSummary, agentResult, err)
+	resultPath, writeErr := manager.writeAgentResult(active, connectSummary, agentResult, sessionKey, err)
 	if writeErr == nil {
 		active.Artifacts.Add(resultPath)
 	}
@@ -498,12 +582,12 @@ func (manager *Manager) runAgentWithTranscript(ctx context.Context, active *sess
 	return nil
 }
 
-func newGatewayClientWithDisposition(rawURL string, token []byte, scopes []string, disposition gatewayclient.EventDisposition) (gatewayConnection, error) {
+func newGatewayClientWithDisposition(rawURL string, token []byte, scopes []string, disposition gatewayclient.EventDisposition, toolEvents bool) (gatewayConnection, error) {
 	dialer, err := gatewayclient.NewWebSocketDialer(gatewayclient.WebSocketOptions{URL: rawURL})
 	if err != nil {
 		return nil, err
 	}
-	return gatewayclient.New(dialer, gatewayclient.Options{Token: string(token), Scopes: scopes, EventDisposition: disposition})
+	return gatewayclient.New(dialer, gatewayclient.Options{Token: string(token), Scopes: scopes, EventDisposition: disposition, ToolEvents: toolEvents})
 }
 
 func gatewayEventDisposition(mode string) gatewayclient.EventDisposition {
@@ -639,7 +723,7 @@ func (manager *Manager) writeRealtimeResult(active *session, result realtimeclie
 	return path, nil
 }
 
-func (manager *Manager) writeAgentResult(active *session, summary gatewayclient.ConnectSummary, result gatewayclient.AgentResult, runErr error) (string, error) {
+func (manager *Manager) writeAgentResult(active *session, summary gatewayclient.ConnectSummary, result gatewayclient.AgentResult, sessionKey string, runErr error) (string, error) {
 	summary = redactConnectSummary(summary, active)
 	result = redactAgentResult(result, active)
 	runErr = active.Credentials.RedactErr(runErr)
@@ -647,13 +731,20 @@ func (manager *Manager) writeAgentResult(active *session, summary gatewayclient.
 	if runErr != nil {
 		errorText = runErr.Error()
 	}
+	requestedSessionID := ""
+	if inputs := manager.options.WorkloadInputs; inputs != nil {
+		requestedSessionID = inputs.SessionID
+	}
 	content, err := json.MarshalIndent(struct {
-		Role     string   `json:"role"`
-		Scopes   []string `json:"scopes"`
-		RunID    string   `json:"run_id"`
-		Response string   `json:"response"`
-		Error    string   `json:"error,omitempty"`
-	}{Role: summary.Role, Scopes: append([]string(nil), summary.Scopes...), RunID: result.RunID, Response: result.Text, Error: errorText}, "", "  ")
+		Role               string   `json:"role"`
+		Scopes             []string `json:"scopes"`
+		RunID              string   `json:"run_id"`
+		NativeRunID        string   `json:"native_run_id,omitempty"`
+		SessionKey         string   `json:"session_key"`
+		Response           string   `json:"response"`
+		Error              string   `json:"error,omitempty"`
+		RequestedSessionID string   `json:"requested_native_session_id,omitempty"`
+	}{Role: summary.Role, Scopes: append([]string(nil), summary.Scopes...), RunID: result.RunID, NativeRunID: result.RunID, SessionKey: sessionKey, Response: result.Text, Error: errorText, RequestedSessionID: requestedSessionID}, "", "  ")
 	if err != nil {
 		return "", fmt.Errorf("encode OpenClaw agent result: %w", err)
 	}
@@ -776,6 +867,8 @@ func (manager *Manager) realtimeAPIKeyEnv(active *session) string {
 func gatewayLauncherScript() []byte {
 	return []byte(`#!/bin/sh
 set -eu
+# Use the pinned compiled plugins; large sandbox inode values can mimic source mounts.
+export OPENCLAW_DISABLE_BUNDLED_SOURCE_OVERLAYS=1
 node /run/aries/gateway-proxy.js &
 proxy_pid=$!
 cleanup() {
@@ -832,6 +925,12 @@ func (manager *Manager) stopSession(ctx context.Context, active *session) error 
 
 func (manager *Manager) collectArtifacts(ctx context.Context, active *session) error {
 	var errs []error
+	// This opt-in evidence is reported independently of the native Agent result.
+	// Existing artifact semantics below remain unchanged.
+	_ = manager.collectNativeIdentities(ctx, active)
+	if err := manager.collectReplayToolProtocol(ctx, active); err != nil {
+		manager.runtime.Options.Logger.WithContext(ctx).WithError(active.Credentials.RedactErr(err)).Warn("OpenClaw replay tool evidence is incomplete")
+	}
 	logs, err := manager.runtime.Options.Deployment.Logs(ctx, active.ID, maxDockerOutput)
 	if err != nil {
 		errs = append(errs, fmt.Errorf("collect OpenClaw gateway logs: %w", err))

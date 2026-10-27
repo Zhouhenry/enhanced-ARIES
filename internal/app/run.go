@@ -11,6 +11,7 @@ import (
 	"github.com/hyscale-lab/aries/pkg/config"
 	"github.com/hyscale-lab/aries/pkg/core"
 	"github.com/hyscale-lab/aries/pkg/monitor"
+	"github.com/hyscale-lab/aries/pkg/performance"
 	"github.com/hyscale-lab/aries/pkg/runner"
 	"github.com/sirupsen/logrus"
 )
@@ -231,7 +232,7 @@ func Run(ctx context.Context, profilePath string, stdout io.Writer, dependencies
 		for _, entry := range loaded {
 			schedule = append(schedule, arrival{logicalID: entry.TaskID, at: entry.At})
 		}
-		logger.WithFields(logrus.Fields{"arrivals": len(schedule), "rate_per_min": cfg.Execution.ArrivalRatePerMin, "last_offset": schedule[len(schedule)-1].at.String()}).Info("open-loop arrival schedule loaded")
+		logger.WithFields(logrus.Fields{"arrivals": len(schedule), "rate_per_min": cfg.Execution.ArrivalRatePerMin, "last_offset": schedule[len(schedule)-1].at.String()}).Info("arrival replay schedule loaded")
 	}
 
 	runCtx, cancelRun := context.WithCancel(ctx)
@@ -239,15 +240,19 @@ func Run(ctx context.Context, profilePath string, stdout io.Writer, dependencies
 	completed := make(chan error, 1)
 	go func() {
 		completed <- executeAndRecord(runCtx, func(executionCtx context.Context) (core.RunResult, error) {
-			return runWithInfrastructure(executionCtx, cfg, runID, outputRoot, logger, dependencies.Wiring, func(executionCtx context.Context, taskWiring Wiring) (core.RunResult, error) {
-				return runProfile(executionCtx, cfg.Name, runID, cfg.Benchmark.Tasks, cfg.Execution.Concurrency, cfg.Execution.Loop, schedule,
-					func(taskCtx context.Context, occurrence taskOccurrence) (core.RunResult, error) {
-						experiment, err := buildTaskExperiment(cfg, prepared.Model, prepared.EffectiveGPUIndices, runID, outputRoot, occurrence.logicalID, occurrence.executionID, harnessLookup, logger, catalog, taskWiring)
-						if err != nil {
-							return core.RunResult{}, err
-						}
-						return experiment.Run(taskCtx)
-					})
+			return runWithPerformance(executionCtx, outputRoot, runID, func(executionCtx context.Context) (core.RunResult, error) {
+				return runWithInfrastructure(executionCtx, cfg, runID, outputRoot, logger, dependencies.Wiring, func(executionCtx context.Context, taskWiring Wiring) (core.RunResult, error) {
+					return runProfile(executionCtx, cfg.Name, runID, cfg.Benchmark.Tasks, cfg.Execution.Concurrency, cfg.Execution.Loop, schedule,
+						func(taskCtx context.Context, occurrence taskOccurrence) (core.RunResult, error) {
+							_, setup := performance.Begin(taskCtx, "occurrence.build")
+							experiment, err := buildTaskExperiment(cfg, prepared.Model, prepared.EffectiveGPUIndices, runID, outputRoot, occurrence.logicalID, occurrence.executionID, harnessLookup, logger, catalog, taskWiring)
+							setup.End(err)
+							if err != nil {
+								return core.RunResult{}, err
+							}
+							return experiment.Run(taskCtx)
+						}, cfg.Execution.Goodput)
+				})
 			})
 		}, outputRoot, stdout)
 	}()

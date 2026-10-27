@@ -56,6 +56,10 @@ type runOutcome struct {
 	StartedAt  string `json:"started_at"`
 	EndedAt    string `json:"ended_at"`
 	DurationMS int64  `json:"duration_ms"`
+	// Local protocol window, excluding advisory cancellation and artifact export.
+	// These retain monotonic clock readings and are not remote execution clocks.
+	runtimeStarted  time.Time
+	runtimeFinished time.Time
 }
 
 func (manager *Manager) runGateway(ctx context.Context, active *session, instruction string) (string, runOutcome, error) {
@@ -73,6 +77,7 @@ func (manager *Manager) runGateway(ctx context.Context, active *session, instruc
 	}
 	execution.cancel = cancel
 	execution.mu.Unlock()
+	outcome.runtimeStarted = time.Now()
 	id, err := execution.client.Submit(runCtx, instruction, outcome.SessionID)
 	var result native.Run
 	if err == nil {
@@ -99,6 +104,7 @@ func (manager *Manager) runGateway(ctx context.Context, active *session, instruc
 			}
 		}
 	}
+	outcome.runtimeFinished = time.Now()
 	if result.Status == "" && errors.Is(err, context.DeadlineExceeded) {
 		outcome.Status, outcome.EndReason = string(core.StatusCanceled), "deadline_exceeded"
 	}

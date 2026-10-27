@@ -316,6 +316,29 @@ func TestRuntimeCombinationValidation(t *testing.T) {
 	}
 }
 
+func TestDecodeExplicitGoodputDeadline(t *testing.T) {
+	for _, deadline := range []string{"5s", "", "0s", "-1s", "five seconds"} {
+		profile := strings.Replace(validConfig, `"benchmark":`, `"execution":{"goodput_deadline":"`+deadline+`"},"benchmark":`, 1)
+		cfg, err := Decode(strings.NewReader(profile))
+		if deadline != "5s" && deadline != "" {
+			if err == nil {
+				t.Fatalf("accepted invalid Goodput deadline %q", deadline)
+			}
+			continue
+		}
+		if err != nil {
+			t.Fatal(err)
+		}
+		want := time.Duration(0)
+		if deadline == "5s" {
+			want = 5 * time.Second
+		}
+		if cfg.Execution.Goodput != want {
+			t.Fatalf("Goodput = %s, want %s", cfg.Execution.Goodput, want)
+		}
+	}
+}
+
 func TestDecodeExecutionAndURLValidation(t *testing.T) {
 	cfg, err := Decode(strings.NewReader(strings.Replace(validConfig, `"benchmark":`, `"execution":{"concurrency":5,"loop_duration":"250ms"},"benchmark":`, 1)))
 	if err != nil || cfg.Execution.Concurrency != 5 || cfg.Execution.Loop != 250*time.Millisecond {
@@ -604,6 +627,12 @@ func TestCheckedInProfilesLoad(t *testing.T) {
 	}
 	for _, path := range paths {
 		t.Run(strings.TrimPrefix(path, root+string(filepath.Separator)), func(t *testing.T) {
+			if strings.HasPrefix(path, filepath.Join(root, "cloud")+string(filepath.Separator)) {
+				if _, err := LoadCloud(path); err != nil {
+					t.Fatal(err)
+				}
+				return
+			}
 			// Resource override documents accompany the experiment profiles and
 			// use their own schema rather than the experiment schema.
 			if strings.HasSuffix(path, "-overrides.json") {

@@ -65,7 +65,10 @@ func TestRunProfileConcurrentDuplicatesPreserveDispatchOrder(t *testing.T) {
 	var peak atomic.Int32
 	run := func(_ context.Context, occurrence taskOccurrence) (core.RunResult, error) {
 		current := active.Add(1)
-		for current > peak.Load() && !peak.CompareAndSwap(peak.Load(), current) {
+		for previous := peak.Load(); current > previous; previous = peak.Load() {
+			if peak.CompareAndSwap(previous, current) {
+				break
+			}
 		}
 		started <- occurrence
 		<-release
@@ -102,7 +105,10 @@ func TestRunProfileGlobalIDsErrorsAndLimit(t *testing.T) {
 		func(_ context.Context, occurrence taskOccurrence) (core.RunResult, error) {
 			current := active.Add(1)
 			defer active.Add(-1)
-			for current > peak.Load() && !peak.CompareAndSwap(peak.Load(), current) {
+			for previous := peak.Load(); current > previous; previous = peak.Load() {
+				if peak.CompareAndSwap(previous, current) {
+					break
+				}
 			}
 			var err error
 			if occurrence.executionID == "b-002" {

@@ -4,6 +4,33 @@ Run one checked-in task with either DeepSeek or a local SGLang model. Choose
 one option below, then inspect its result. The commands below use Docker for the
 harness, sandbox, and bridge. Run commands from the repository root.
 
+This guide covers the original `aries PROFILE.json` path. Build, test, deploy,
+and run it on the designated **remote Linux ECS**; use the workstation only for
+editing and static review. “Local Docker” below means the daemon on that ECS.
+
+For the separate `aries cloud` command and the five E2B recording/replay profiles,
+start with the [ECS deployment guide](../deploy/e2b/README.md) and
+[cloud configuration](configuration.md#e2b-cloud-workload-profiles).
+Its accepted runs and remaining gaps are listed in the [support matrix](supported.md#experimental-e2b-cloud-path);
+it needs an appropriate cgroup-capable template and reachable HTTPS model origin.
+Do not apply this guide's legacy profile schema or managed bridge image to it.
+
+For original TerminalBench tasks on cloud sandboxes, use the separate
+[single-task profiles](../profiles/cloud/terminalbench/README.md). Each requires
+a frozen task-template binding for the selected provider and retains the original
+`task.toml` budgets. The new [Huawei C++ recording profile](../profiles/cloud/terminalbench/openclaw-huawei-a-custom-memory-heap-crash-record.json)
+uses a Huawei binding and 4200-second TTL. Huawei real recordings have passed
+the original 6/6 verifier; Strict replay still has a recorded output-order
+divergence. E2B's current project limit remains below this profile's TTL.
+See the [current case evidence](remaining-strict-cases-20261026.md); this profile
+does not enable a verifier egress assumption.
+
+For fixed-decision tool workloads, explicitly select
+[`model.replay_policy=workload`](implementation/model-replay.md#如何使用工作量回放)
+in a separate replay profile. Strict remains the default. The policy is implemented
+and has same-Tape E2B/Huawei DB and SQLite acceptances; additional experiments
+still need their own tool, verifier, observation and cleanup checks.
+
 ## Prerequisites
 
 - Linux with a running **local Docker Engine** and access to `/var/run/docker.sock`.
@@ -158,11 +185,18 @@ contain private task or model content; review them before sharing.
 
 ## Next experiments
 
+- **E2B sandbox workloads:** the experimental [cloud path](../deploy/e2b/README.md)
+  compares external/embedded OpenClaw with real-model recording and strict replay.
+  Cumulative creates are counted without a hard limit; preserve ownership records
+  and confirm cleanup after each run.
 - **Hermes:** run `profiles/hermes-tb2-fix-git-deepseek.json` with the same key.
 - **More tasks:** run `profiles/openclaw-tb2-five-deepseek.json`; it pulls more
   images, uses concurrent execution, and can incur more API charges.
 - **Local or other model services:** configure [external SGLang](configuration.md#external-sglang)
   or an [OpenAI-compatible endpoint](configuration.md#external-openai-compatible-server).
+- **Infrastructure checks without model inference:** use the
+  [scripted mock model](configuration.md#scripted-mock-model). Its Hermes example
+  probes the environment and file I/O; it does not solve the benchmark task.
 - **Custom experiments:** use the [configuration reference](configuration.md)
   for deployment, resource limits, task arrivals, and harness settings.
 - **Other benchmarks and modes:** see [supported implementations](supported.md).

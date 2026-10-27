@@ -69,12 +69,14 @@ type Request struct {
 	// AllowImageVolumes permits anonymous volumes declared by the image.
 	AllowImageVolumes bool
 	Name              string
-	Image             string
-	Env               []string
-	Entrypoint        []string
-	Args              []string
-	Labels            map[string]string
-	Placement         core.RuntimePlacement
+	// Hostname optionally fixes the guest-visible name independently of runtime identity.
+	Hostname   string
+	Image      string
+	Env        []string
+	Entrypoint []string
+	Args       []string
+	Labels     map[string]string
+	Placement  core.RuntimePlacement
 	// Nil CPU and memory dimensions impose no runtime limit.
 	CPU      *float64
 	MemoryMB *int

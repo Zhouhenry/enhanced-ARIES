@@ -76,6 +76,9 @@ the instruction. The manager obtains a private service endpoint through
 deployment operations, and a Gateway client performs the agent protocol. Shutdown uses deployment operations to confirm absence.
 Changing hosting must preserve Gateway semantics, request correlation,
 cancellation, credentials, artifacts, and isolation.
+OpenClaw's shared Gateway launcher sets `OPENCLAW_DISABLE_BUNDLED_SOURCE_OVERLAYS=1`
+in both separate and embedded placements to use the pinned image's compiled bundled
+plugins without source overlays; normal plugin discovery remains enabled.
 
 Current implementations are [OpenClaw and Hermes](../implementation/harnesses.md).
 New harnesses must preserve these lifecycle and ownership guarantees, with tests

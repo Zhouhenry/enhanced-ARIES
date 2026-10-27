@@ -1,0 +1,35 @@
+{
+	admin off
+	# IP clients may omit SNI; ECS NAT exposes a different local address.
+	default_sni {$ARIES_MODEL_PROXY_TLS_NAME:localhost}
+}
+
+{$ARIES_MODEL_PROXY_PUBLIC_URL} {
+	# Explicit public issuer: IP sites otherwise default to Caddy's local CA.
+	tls {
+		issuer acme https://acme-v02.api.letsencrypt.org/directory {
+			profile shortlived
+		}
+	}
+
+	@model {
+		path /v1/chat/completions /v1/models
+		method GET POST
+	}
+	handle @model {
+		request_body {
+			max_size 67108864
+		}
+		# SSE is flushed automatically. Do not use flush_interval -1: its
+		# documented disconnect behavior would keep the upstream request alive.
+		reverse_proxy 127.0.0.1:8082 {
+			lb_retries 0
+			transport http {
+				dial_timeout 5s
+			}
+		}
+	}
+	handle {
+		respond "Not found" 404
+	}
+}

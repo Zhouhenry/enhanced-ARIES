@@ -10,6 +10,7 @@ import (
 
 	"github.com/hyscale-lab/aries/pkg/core"
 	"github.com/hyscale-lab/aries/pkg/monitor"
+	"github.com/hyscale-lab/aries/pkg/performance"
 	"github.com/hyscale-lab/aries/pkg/runner"
 )
 
@@ -32,6 +33,7 @@ func (experiment *experiment) Run(ctx context.Context) (core.RunResult, error) {
 type taskOccurrence struct {
 	logicalID   string
 	executionID string
+	arrivalID   string
 }
 
 func nextTaskOccurrence(logicalID string, index *uint64) (taskOccurrence, error) {
@@ -39,7 +41,10 @@ func nextTaskOccurrence(logicalID string, index *uint64) (taskOccurrence, error)
 		return taskOccurrence{}, errors.New("task occurrence index overflow")
 	}
 	*index++
-	return taskOccurrence{logicalID: logicalID, executionID: fmt.Sprintf("%s-%03d", logicalID, *index)}, nil
+	return taskOccurrence{
+		logicalID: logicalID, executionID: fmt.Sprintf("%s-%03d", logicalID, *index),
+		arrivalID: fmt.Sprintf("arrival-%06d", *index),
+	}, nil
 }
 
 type occurrenceRunner func(context.Context, taskOccurrence) (core.RunResult, error)
@@ -52,11 +57,19 @@ type arrival struct {
 
 type occurrenceSlot struct {
 	occurrence taskOccurrence
+	attempt    *core.AttemptResult
 	result     core.RunResult
 	err        error
 }
 
-func runProfile(ctx context.Context, name, runID string, taskIDs []string, concurrency int, loopDuration time.Duration, arrivals []arrival, run occurrenceRunner) (core.RunResult, error) {
+type plannedOccurrence struct {
+	occurrence taskOccurrence
+	slot       *occurrenceSlot
+	at         time.Duration
+	ctx        context.Context
+}
+
+func runProfile(ctx context.Context, name, runID string, taskIDs []string, concurrency int, loopDuration time.Duration, arrivals []arrival, run occurrenceRunner, deadlines ...time.Duration) (core.RunResult, error) {
 	started := time.Now()
 	result := core.RunResult{Name: name, RunID: runID}
 	if concurrency <= 0 || len(taskIDs) == 0 {
@@ -67,6 +80,13 @@ func runProfile(ctx context.Context, name, runID string, taskIDs []string, concu
 	}
 	if len(arrivals) > 0 && len(arrivals) != len(taskIDs) {
 		return result, fmt.Errorf("arrival schedule has %d entries for %d tasks", len(arrivals), len(taskIDs))
+	}
+	var goodputDeadline time.Duration
+	if len(deadlines) > 1 || len(deadlines) == 1 && deadlines[0] < 0 {
+		return result, errors.New("execution accepts at most one nonnegative Goodput deadline")
+	}
+	if len(deadlines) == 1 {
+		goodputDeadline = deadlines[0]
 	}
 	var deadline <-chan time.Time
 	var deadlineAt time.Time
@@ -81,7 +101,52 @@ func runProfile(ctx context.Context, name, runID string, taskIDs []string, concu
 	var slots []*occurrenceSlot
 	var wg sync.WaitGroup
 	var index uint64
-	admit := func(logicalID string) bool {
+	anchorOffset := performance.AnchorOffset(ctx, started)
+	recordArrival := func(next plannedOccurrence, eventType, status, reason string, duration *int64) {
+		plannedOffset := int64(next.at)
+		performance.Record(next.ctx, performance.Event{
+			EventType: eventType, Operation: "arrival", Status: status, Reason: reason,
+			PlannedOffsetNS: &plannedOffset, ScheduleAnchorOffsetNS: &anchorOffset, DurationNS: duration,
+		})
+	}
+	plan := func(logicalID string, at time.Duration) (plannedOccurrence, error) {
+		occurrence, err := nextTaskOccurrence(logicalID, &index)
+		if err != nil {
+			return plannedOccurrence{}, err
+		}
+		next := plannedOccurrence{
+			occurrence: occurrence, at: at,
+			ctx: performance.WithIdentity(ctx, performance.Identity{
+				LogicalTaskID: logicalID, OccurrenceID: occurrence.executionID,
+				ArrivalID: occurrence.arrivalID, Purpose: "task",
+			}),
+		}
+		next.slot = &occurrenceSlot{occurrence: occurrence, attempt: &core.AttemptResult{
+			AttemptID: runID + "/" + occurrence.executionID, OccurrenceID: occurrence.executionID,
+			LogicalTaskID: logicalID, ArrivalID: occurrence.arrivalID,
+			ScheduledAt: started.Add(at), Status: core.StatusNotStarted,
+		}}
+		slots = append(slots, next.slot)
+		recordArrival(next, "arrival_planned", "succeeded", "", nil)
+		return next, nil
+	}
+	stopReason := func() string {
+		switch {
+		case errors.Is(ctx.Err(), context.DeadlineExceeded):
+			return "context_deadline_exceeded"
+		case ctx.Err() != nil:
+			return "context_canceled"
+		default:
+			return "loop_deadline"
+		}
+	}
+	notStarted := func(next plannedOccurrence) {
+		finished := time.Now()
+		next.slot.attempt.FinishedAt = &finished
+		next.slot.attempt.Reason = stopReason()
+		recordArrival(next, "arrival_not_started", core.StatusNotStarted, next.slot.attempt.Reason, nil)
+	}
+	admit := func(next plannedOccurrence) bool {
 		if !deadlineAt.IsZero() && !time.Now().Before(deadlineAt) {
 			return false
 		}
@@ -96,29 +161,59 @@ func runProfile(ctx context.Context, name, runID string, taskIDs []string, concu
 			<-capacity
 			return false
 		}
-		occurrence, err := nextTaskOccurrence(logicalID, &index)
-		if err != nil {
-			<-capacity
-			slots = append(slots, &occurrenceSlot{err: err})
-			return false
-		}
-		slot := &occurrenceSlot{occurrence: occurrence}
-		slots = append(slots, slot)
+		admitted := time.Now()
+		queueDuration := admitted.Sub(next.slot.attempt.ScheduledAt)
+		next.slot.attempt.AdmittedAt = &admitted
+		next.slot.attempt.QueueDuration = &queueDuration
+		queued := queueDuration.Nanoseconds()
+		recordArrival(next, "arrival_admitted", "succeeded", "", &queued)
+		slot := next.slot
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
 			defer func() { <-capacity }()
-			slot.result, slot.err = run(ctx, occurrence)
+			dispatched := time.Now()
+			slot.attempt.StartedAt = &dispatched
+			dispatchDelay := dispatched.Sub(admitted)
+			slot.attempt.DispatchDelay = &dispatchDelay
+			recordArrival(next, "arrival_dispatched", "succeeded", "", nil)
+			slot.result, slot.err = run(next.ctx, next.occurrence)
+			finished := time.Now()
+			elapsed := finished.Sub(dispatched)
+			slot.attempt.FinishedAt, slot.attempt.Duration = &finished, &elapsed
+			finishAttempt(slot.attempt, slot.result, slot.err)
+			duration := elapsed.Nanoseconds()
+			status, reason := "succeeded", ""
+			switch {
+			case errors.Is(slot.err, context.DeadlineExceeded):
+				status, reason = "timeout", "context_deadline_exceeded"
+			case errors.Is(slot.err, context.Canceled):
+				status, reason = "canceled", "context_canceled"
+			case slot.err != nil:
+				status, reason = "failed", "occurrence_failed"
+			}
+			recordArrival(next, "arrival_finished", status, reason, &duration)
 		}()
 		return true
 	}
-	switch {
-	case len(arrivals) > 0:
-		// Open loop: every task starts at its scheduled offset, whatever the
-		// pool is doing. Admission still blocks on a full pool, and that wait is
-		// the closed-loop artifact the concurrency setting must be sized to
-		// avoid; the realised start is recorded on the task result either way.
-		for _, next := range arrivals {
+	if loopDuration == 0 {
+		// Preallocate the finite plan so cancellation also accounts for tasks
+		// whose planned arrival has not happened yet.
+		planned := make([]plannedOccurrence, 0, len(taskIDs))
+		for i, logicalID := range taskIDs {
+			var at time.Duration
+			if len(arrivals) > 0 {
+				logicalID, at = arrivals[i].logicalID, arrivals[i].at
+			}
+			next, err := plan(logicalID, at)
+			if err != nil {
+				return result, err
+			}
+			planned = append(planned, next)
+		}
+		// Arrival replay retains blocking admission. A full pool delays actual
+		// dispatch, so the schedule is not a strict open-loop load generator.
+		for i, next := range planned {
 			wait := time.Until(started.Add(next.at))
 			if wait > 0 {
 				timer := time.NewTimer(wait)
@@ -128,30 +223,42 @@ func runProfile(ctx context.Context, name, runID string, taskIDs []string, concu
 				case <-timer.C:
 				}
 			}
-			if ctx.Err() != nil || !admit(next.logicalID) {
+			if ctx.Err() != nil || !admit(next) {
+				for _, unstarted := range planned[i:] {
+					notStarted(unstarted)
+				}
 				break
 			}
 		}
-	case loopDuration == 0:
-		for _, logicalID := range taskIDs {
-			if !admit(logicalID) {
-				break
-			}
-		}
-	default:
+	} else {
 	admissions:
 		for {
 			for _, logicalID := range taskIDs {
-				if !admit(logicalID) {
+				if ctx.Err() != nil || !time.Now().Before(deadlineAt) {
+					break admissions
+				}
+				next, err := plan(logicalID, time.Since(started))
+				if err != nil {
+					slots = append(slots, &occurrenceSlot{err: err})
+					break admissions
+				}
+				if !admit(next) {
+					notStarted(next)
 					break admissions
 				}
 			}
 		}
 	}
+	admissionFinished := time.Now()
 	wg.Wait()
+	finished := time.Now()
 	var joined []error
 	for _, slot := range slots {
+		if slot.attempt != nil {
+			result.Attempts = append(result.Attempts, *slot.attempt)
+		}
 		result.Tasks = append(result.Tasks, slot.result.Tasks...)
+		result.ModelSessions = append(result.ModelSessions, slot.result.ModelSessions...)
 		addSummary(&result.Summary, slot.result.Summary)
 		if slot.err != nil {
 			if slot.occurrence.executionID != "" {
@@ -164,6 +271,7 @@ func runProfile(ctx context.Context, name, runID string, taskIDs []string, concu
 	if ctx.Err() != nil {
 		joined = append(joined, ctx.Err())
 	}
+	result.AttemptSummary = summarizeAttempts(result.Attempts, started, admissionFinished, finished, goodputDeadline)
 	result.Duration = time.Since(started)
 	return result, errors.Join(joined...)
 }

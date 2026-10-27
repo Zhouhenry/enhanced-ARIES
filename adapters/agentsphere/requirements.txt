@@ -1,0 +1,6 @@
+# Supplied wheel archives are staged into the private ECS build context.
+# Dockerfile checks their SHA256 before installation.
+e2b @ file:///tmp/wheels/e2b-2.42.0-py3-none-any.whl
+agentsphere-e2b-patch @ file:///tmp/wheels/agentsphere_e2b_patch-0.1.0-py3-none-any.whl
+httpx==0.28.1
+packaging==26.3

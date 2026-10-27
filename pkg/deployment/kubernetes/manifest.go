@@ -86,6 +86,9 @@ func (manager *Manager) validateRequest(request deployment.Request) error {
 	if !validName(request.Name) {
 		return fmt.Errorf("Kubernetes deployment requires a DNS-label runtime name, got %q", request.Name)
 	}
+	if request.Hostname != "" && !validName(request.Hostname) {
+		return errors.New("Kubernetes deployment hostname must be a DNS label")
+	}
 	if request.Placement.AttachmentID != manager.options.Namespace {
 		return fmt.Errorf("Kubernetes deployment requires placement in namespace %q", manager.options.Namespace)
 	}
@@ -197,6 +200,9 @@ func (manager *Manager) podManifest(request deployment.Request) ([]byte, error) 
 	if manager.options.ServiceAccount != "" {
 		spec["serviceAccountName"] = manager.options.ServiceAccount
 	}
+	if request.Hostname != "" {
+		spec["hostname"] = request.Hostname
+	}
 	if manager.options.ImagePullSecret != "" {
 		spec["imagePullSecrets"] = []any{map[string]string{"name": manager.options.ImagePullSecret}}
 	}
@@ -249,6 +255,7 @@ type podObject struct {
 	Spec struct {
 		NodeName                     string `json:"nodeName"`
 		HostNetwork                  bool   `json:"hostNetwork"`
+		Hostname                     string `json:"hostname"`
 		HostPID                      bool   `json:"hostPID"`
 		HostIPC                      bool   `json:"hostIPC"`
 		AutomountServiceAccountToken *bool  `json:"automountServiceAccountToken"`

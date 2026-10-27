@@ -191,6 +191,23 @@ func (b *Benchmark) ForTask(logicalID, occurrenceID string) (runner.Benchmark, e
 	return nil, fmt.Errorf("terminalbench task %q was not loaded by Tasks", logicalID)
 }
 
+// WithInstructionAppendix derives a separate logical task without changing the
+// checkout, original environment, budgets, or private verifier inputs.
+func (b *Benchmark) WithInstructionAppendix(originalID, variantID, appendix string) (*Benchmark, error) {
+	if !safeTaskID(variantID) || variantID == originalID || strings.TrimSpace(appendix) == "" {
+		return nil, errors.New("terminalbench instruction appendix requires a distinct valid variant ID and nonempty text")
+	}
+	occurrence, err := b.ForTask(originalID, originalID)
+	if err != nil {
+		return nil, err
+	}
+	variant := occurrence.(*Benchmark)
+	variant.tasks[0].ID = variantID
+	variant.tasks[0].Instruction += "\n\n" + appendix
+	variant.details = map[string]taskDetails{variantID: variant.details[originalID]}
+	return variant, nil
+}
+
 func (b *Benchmark) Tasks(ctx context.Context) ([]core.Task, error) {
 	b.mu.Lock()
 	defer b.mu.Unlock()

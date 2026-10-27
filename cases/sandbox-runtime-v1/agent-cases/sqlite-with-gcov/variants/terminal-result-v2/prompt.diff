@@ -1,0 +1,15 @@
+--- sqlite-with-gcov/original-instruction
++++ sqlite-with-gcov/terminal-result-v2-instruction
+@@ -1,2 +1,12 @@
+ Compile SQLite in /app/sqlite with gcov instrumentation and make it available in the PATH.
+ The SQLite source snapshot is pre-vendored at /app/vendor/sqlite-fossil-release.tar.gz; use it instead of fetching sources over the network.
++
++Benchmark interaction appendix — terminal-result-v2
++
++Complete the original task above. Its required artifacts, allowed solution methods, success criteria and time budget are unchanged. You must choose and execute your own investigation and solution; this appendix provides no solution steps.
++
++For directory discovery, use names-only output such as LC_ALL=C ls -1A <directory>, rather than long listings. When a property is needed for the task, inspect only that relevant property. Avoid unrelated timestamps, process identifiers and elapsed-time summaries in diagnostic output. This does not prohibit necessary debugging, genuine errors, command capabilities or task-required measurements. Do not falsify metadata, alter the system clock, conceal errors or substitute previously recorded command output.
++
++For work expected to take time and then terminate, start it explicitly with exec background=true. Retain the returned logical sessionId and obtain the complete final result with process action=wait using that sessionId. You may do other necessary work between starting and waiting. An accepted response confirms job admission, not successful completion. Check the actual final result and exit status; a canceled or timed-out wait does not terminate the background job. For finite background work in this comparison workload, omit the optional per-wait timeout and wait for the real terminal result; the original task deadline and cancellation still apply. Do not turn terminal waiting into repeated short timed polls.
++
++Native poll, log, process controls and PTY remain available when the task needs them. Their live state and partial output are timing-dependent. Prefer the explicit start/wait interaction for finite background work instead of depending on a particular polling interval or output prefix. Do not add artificial sleeps or skip genuine work merely to imitate a previous execution.

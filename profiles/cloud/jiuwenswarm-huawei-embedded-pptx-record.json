@@ -1,0 +1,28 @@
+{
+  "name": "jiuwenswarm-huawei-embedded-pptx-record",
+  "agent_type": "jiuwenswarm",
+  "placement": "embedded",
+  "sandbox_backend": "huawei-agentsphere",
+  "workload": "llm-development-pptx-v1",
+  "versions_file": "../../configs/versions.json",
+  "output_dir": "runs",
+  "sandbox": {
+    "template": "d0b4522b-9da2-48a0-9702-5362165b4dfd:cf1c7428-d508-4400-90f5-1fe190495447",
+    "timeout_seconds": 2100,
+    "assume_network_isolation": true
+  },
+  "harness": {
+    "jiuwen_source_dir": "/opt/jiuwenswarm",
+    "jiuwen_python_path": "/opt/jiuwenswarm/.venv/bin/python"
+  },
+  "model": {
+    "mode": "record",
+    "max_turns": 96
+  },
+  "execution": {
+    "concurrency": 1,
+    "attempts": 1,
+    "task_timeout": "25m",
+    "verifier_timeout": "2m"
+  }
+}

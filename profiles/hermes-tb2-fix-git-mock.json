@@ -1,0 +1,55 @@
+{
+  "name": "hermes-tb2-fix-git-mock",
+  "versions_file": "../configs/versions.json",
+  "overrides_file": "",
+  "execution": {
+    "concurrency": 1
+  },
+  "benchmark": {
+    "type": "terminalbench2",
+    "root": ".cache/terminal-bench-2-1",
+    "tasks": [
+      "fix-git"
+    ]
+  },
+  "harness": {
+    "type": "hermes",
+    "deployment": {
+      "backend": "docker",
+      "docker": {
+        "socket": "/var/run/docker.sock"
+      }
+    },
+    "compaction": {
+      "enabled": false
+    },
+    "subagents": {
+      "enabled": false
+    }
+  },
+  "sandbox": {
+    "deployment": {
+      "backend": "docker",
+      "docker": {
+        "socket": "/var/run/docker.sock"
+      }
+    }
+  },
+  "bridge": {
+    "deployment": {
+      "backend": "docker"
+    },
+    "type": "hermes-ssh",
+    "mode": "managed"
+  },
+  "runtime": {
+    "backend": "openai",
+    "mode": "external"
+  },
+  "model": {
+    "base_url": "http://mock-model.local:8000/v1",
+    "api_key_env": "ARIES_MOCK_API_KEY",
+    "id": "aries-mock-hermes-sandbox-probe-4f0d8615062e"
+  },
+  "output_dir": "runs-mock"
+}

@@ -4,6 +4,7 @@ package client
 
 import (
 	"context"
+	"crypto/rand"
 	"errors"
 	"fmt"
 	"io"
@@ -14,6 +15,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/hyscale-lab/aries/pkg/bridge/ssh/execidentity"
 	"github.com/hyscale-lab/aries/pkg/core"
 )
 
@@ -33,6 +35,7 @@ type clientInvocation struct {
 type clientConfig struct {
 	hostName string
 	port     int
+	identity *execidentity.Metadata
 }
 
 // Main implements only the exact non-TTY OpenSSH argv used by the
@@ -148,5 +151,18 @@ func loadClientConfig(path string) (clientConfig, error) {
 	if string(content) != strings.Join(want, "\n")+"\n" {
 		return clientConfig{}, errors.New("SSH config does not exactly match the pinned OpenClaw directive order and values")
 	}
-	return clientConfig{hostName: hostName, port: port}, nil
+	identityPath := filepath.Join(filepath.Dir(path), "aries-tool-identity.json")
+	identityContent, err := readSecureRegularFile(identityPath, 0o400, execidentity.MaxPayload)
+	if errors.Is(err, os.ErrNotExist) {
+		return clientConfig{hostName: hostName, port: port}, nil
+	}
+	if err != nil {
+		return clientConfig{}, fmt.Errorf("read tool identity: %w", err)
+	}
+	identity, err := execidentity.DecodeNative(identityContent)
+	if err != nil {
+		return clientConfig{}, fmt.Errorf("read tool identity: %w", err)
+	}
+	identity.SSHRequestID = rand.Text()
+	return clientConfig{hostName: hostName, port: port, identity: &identity}, nil
 }

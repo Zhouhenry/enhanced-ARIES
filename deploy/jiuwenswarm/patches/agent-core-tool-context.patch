@@ -1,0 +1,94 @@
+--- a/openjiuwen/core/foundation/tool/base.py
++++ b/openjiuwen/core/foundation/tool/base.py
+@@ -3,6 +3,7 @@
+ 
+ import inspect
+ from abc import ABCMeta, abstractmethod
++from contextvars import ContextVar
+ from functools import wraps
+ from typing import Any, AsyncIterator, Dict, Type
+ from typing import TypeVar
+@@ -51,6 +52,65 @@
+ 
+     def tool_info(self):
+         return ToolInfo(name=self.name, description=self.description, parameters=self.input_params)
++
++
++
++# Invocation identity is separate from ToolCard.id and never inferred from spans.
++_current_tool_call = ContextVar("current_tool_call", default=None)
++
++
++class _ToolCallScope:
++    def __init__(self, tool_call_id):
++        self.tool_call_id = tool_call_id if isinstance(tool_call_id, str) and tool_call_id else None
++        self.active = True
++
++
++def get_current_tool_call_id():
++    """Return the exact active invocation ID, including across child tasks."""
++    scope = _current_tool_call.get()
++    return scope.tool_call_id if scope is not None and scope.active else None
++
++
++def _with_invoke_context(fn):
++    @wraps(fn)
++    async def invoke(*args, **kwargs):
++        scope = _ToolCallScope(kwargs.get("tool_call_id"))
++        token = _current_tool_call.set(scope)
++        try:
++            return await fn(*args, **kwargs)
++        finally:
++            scope.active = False
++            _current_tool_call.reset(token)
++    return invoke
++
++
++def _with_stream_context(fn):
++    if not inspect.isasyncgenfunction(fn):
++        return _with_invoke_context(fn)
++
++    @wraps(fn)
++    async def stream(*args, **kwargs):
++        scope = _ToolCallScope(kwargs.get("tool_call_id"))
++        source = fn(*args, **kwargs)
++        try:
++            while True:
++                token = _current_tool_call.set(scope)
++                try:
++                    item = await anext(source)
++                except StopAsyncIteration:
++                    return
++                finally:
++                    _current_tool_call.reset(token)
++                # A suspended generator must not assign its identity to its consumer.
++                yield item
++        finally:
++            token = _current_tool_call.set(scope)
++            try:
++                await source.aclose()
++            finally:
++                scope.active = False
++                _current_tool_call.reset(token)
++    return stream
+ 
+ 
+ class _ToolMeta(ABCMeta):
+@@ -139,7 +199,7 @@
+             output_event=ToolCallEvents.TOOL_INVOKE_OUTPUT,
+         )(fn)
+         fn = _fw.emit_after(ToolCallEvents.TOOL_INVOKE_OUTPUT, extra_kwargs=_extra)(fn)
+-        instance.invoke = fn
++        instance.invoke = _with_invoke_context(fn)
+ 
+         fn = instance.stream
+         fn = _fw.emit_before(ToolCallEvents.TOOL_STREAM_INPUT, extra_kwargs=_extra)(fn)
+@@ -148,7 +208,7 @@
+             output_event=ToolCallEvents.TOOL_STREAM_OUTPUT,
+         )(fn)
+         fn = _fw.emit_after(ToolCallEvents.TOOL_STREAM_OUTPUT, item_key="result", extra_kwargs=_extra)(fn)
+-        instance.stream = fn
++        instance.stream = _with_stream_context(fn)
+         return instance
+ 
+ 

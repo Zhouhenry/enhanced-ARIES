@@ -341,6 +341,9 @@ func TestTransfersKeepModesBoundsAndAtomicPublication(t *testing.T) {
 	if err := os.WriteFile(src, []byte("upload"), 0750); err != nil {
 		t.Fatal(err)
 	}
+	if err := os.Chmod(src, 0750); err != nil {
+		t.Fatal(err)
+	}
 	if err := s.Upload(context.Background(), src, "/work/upload"); err != nil {
 		t.Fatal(err)
 	}

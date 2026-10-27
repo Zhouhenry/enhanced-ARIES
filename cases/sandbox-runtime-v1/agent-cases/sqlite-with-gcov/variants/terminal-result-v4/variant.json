@@ -1,0 +1,132 @@
+{
+  "schema_version": 1,
+  "variant_id": "sqlite-with-gcov-terminal-result-v4",
+  "classification": "approved_independent_benchmark_environment_and_interaction_variant",
+  "status": {
+    "materials": "CONSTRUCTED_VALIDATION_RECORDED_SEPARATELY",
+    "profile_wiring": "EXISTING_COMMAND_ENV_AND_APPENDIX_CONTRACT_REAL_V4_UNRUN",
+    "native_protocol_validation": "INHERITED_TERMINAL_RESULT_V1_NO_PROTOCOL_CHANGE",
+    "agent_recording": "UNRUN",
+    "strict_replay": "UNRUN",
+    "cross_cloud_comparison": "UNRUN"
+  },
+  "original_task_id": "sqlite-with-gcov",
+  "source": {
+    "repository": "https://github.com/harbor-framework/terminal-bench-2-1",
+    "revision": "7131e4375048a0e408a8fb404b5f499d726b695b",
+    "task_path": "tasks/sqlite-with-gcov",
+    "license": "Apache-2.0",
+    "original_content_unchanged": true,
+    "source_manifest": "../../../revision-2-source-manifest.json"
+  },
+  "original_case_files_unchanged": true,
+  "prompt": {
+    "original_file": "../../public/instruction.md",
+    "original_file_sha256": "b6ba9acf62292bc2a0bab40d4805b3abceededbb0ccd4477a1ce9ccc42c14dd9",
+    "original_task_instruction_sha256": "ce64d3568f68cbdc240249a64847f5aba30f06daa2991b4d74addee9799da56b",
+    "appendix_file": "instruction-appendix.md",
+    "appendix_file_sha256": "f284e4badb9b4be7c6f3018043d124f25eb2d0d8823210389adc6a9a6a3260f4",
+    "effective_instruction_file": "effective-instruction.txt",
+    "effective_instruction_sha256": "5289f7f40fcf0b9b0d9766a4f8b8db98266eb5ba17ea07ede466d72dbb361767",
+    "composition": "UTF-8 original Task.Instruction (upstream trim) + two LF + exact appendix file bytes; appendix is not trimmed",
+    "diff_file": "prompt.diff",
+    "diff_sha256": "d45f016a180d5b1fc12c403a696ec0e4b499215e365d2264a6cf7334d5759fff"
+  },
+  "harness": {
+    "placement": "external",
+    "native_observation_protocol": "aries-ssh-identity-v1",
+    "tool_output_renderer": "stdout-stderr-v1",
+    "replay_tool_protocol": "terminal-result-v1",
+    "native_default_modified": false
+  },
+  "preserved": {
+    "task_toml": "../../task.toml",
+    "task_toml_sha256": "9a0da96990ee2ecbf4d92682a4c5301a53db45fc6e2d46ac7d45d3b8ee7fe523",
+    "agent_timeout_seconds": 900,
+    "verifier_timeout_seconds": 900,
+    "cpu": 1,
+    "memory_mb": 2048,
+    "storage_mb": 10240,
+    "gpus": 0,
+    "allow_network": true,
+    "original_scoring_method": true,
+    "reference_solution_included": false,
+    "expected_tool_call_count": null,
+    "fixed_solution_commands": false
+  },
+  "private_verifier": {
+    "location": "../../private/tests",
+    "distribution": "controller-only; inject into the original Sandbox only after confirmed stop and bridge revocation",
+    "original_source_sha256": {
+      "tests/test.sh": "4770437ea96c3cc84684b4f99d55fb148fcac09f9ea1e8ef49de487716e6c334",
+      "tests/test_outputs.py": "b165f8504bb93a901451b80c4ea73344b71b6af377ebdabef745fbcdd1d2993b"
+    }
+  },
+  "environment_preparation": {
+    "binding": "derive new per-provider bindings from accepted SQLite v3 Workload replay-2; only command_env.TIME_STYLE and one adaptation note change",
+    "declared_command_env": {
+      "TIME_STYLE": "+"
+    },
+    "template": "reuse current E2B and public-profile-aligned Huawei templates; no image rebuild",
+    "native_image": "explicit preflight observation candidate digest; default version catalogs unchanged",
+    "runtime_created_metadata": "remain real; no clock/stat/mtime rewriting",
+    "sqlite_toolchain": "unchanged existing general toolchain; no prebuilt task answer",
+    "overrides": "native per-command environment and explicit GNU ls --time-style override the default; stat remains available",
+    "scope": "all GNU ls processes inheriting binding defaults, including preparation/verification commands"
+  },
+  "acceptance": [
+    "new real autonomous Agent recording passes the original independent verifier",
+    "new Tape complete; same full request/history Strict matching; real tools execute again",
+    "at least two new-Sandbox replays plus same-Tape Huawei/E2B comparison after independent preparation",
+    "preserve all failed, canceled and unstarted attempts; no post-hoc Tape or matcher edits",
+    "same CPU/memory, variant, Tape and placement; report disk/platform differences without disqualifying solely for those differences",
+    "confirm stop/revocation, private verification and owned Sandbox cleanup; keep missing timing absent"
+  ],
+  "limits": [
+    "not an unchanged official benchmark submission",
+    "a stable logical handle is not a real PID; child output can still be dynamic",
+    "native poll/log/PTY remain available and may produce non-repeatable live results",
+    "raw job evidence is not automatically an analyzed Trace or complete process-call coverage",
+    "preparation, runtime, model wait, tool work and independent verification have distinct measured boundaries",
+    "names-only discovery does not make unrelated platform-generated names reproducible; inspect the task-relevant scope",
+    "the native optional wait timeout and live polling remain available with real timing-dependent outcomes; v4 retains the v2 guidance directing finite-work comparisons to omit the wait timeout but does not enforce compliance or normalize results",
+    "new public instructions require one new qualified real recording; v1/v2/v3 tapes cannot validate v4",
+    "retaining logs in the workspace does not automatically export or archive every workspace log; no new log collector is introduced",
+    "redirection and real log-reading tools change observable workload and model context; keep v4 timing/statistics separate",
+    "public guidance cannot guarantee Agent compliance or byte equality of task-required diagnostic output; Strict matching remains unchanged",
+    "TIME_STYLE is a native GNU ls display option; it does not guarantee other tool output or explicit timestamp reads are deterministic",
+    "old v3 Strict failure and all original materials/Tapes/results remain unchanged",
+    "new native preflight observer closes only its verified boundary and does not change the terminal-result protocol"
+  ],
+  "profile": "../../../../../../profiles/cloud/terminalbench/variants/openclaw-e2b-a-sqlite-with-gcov-terminal-result-v4-record.json",
+  "profile_contract": {
+    "benchmark.task_id": "sqlite-with-gcov",
+    "benchmark.variant.id": "sqlite-with-gcov-terminal-result-v4",
+    "benchmark.variant.instruction_appendix_file": "instruction-appendix.md (resolved relative to profile in actual configuration)",
+    "benchmark.variant.appendix_sha256": "f284e4badb9b4be7c6f3018043d124f25eb2d0d8823210389adc6a9a6a3260f4",
+    "attempt_logical_task_id": "sqlite-with-gcov-terminal-result-v4"
+  },
+  "native_version_catalog": {
+    "file": "native-versions.json",
+    "sha256_at_construction": "ef92fb97b31de60587366c420f6e8884d58465d1d7fff7afc4d1b1dd82bbe45b",
+    "openclaw_image": "swr.cn-southwest-2.myhuaweicloud.com/benchmark-zhoutao/aries-openclaw:2026.7.1-terminal-result-v1-preflight-39964c39357e@sha256:39964c39357eee32a1c5fff7c5562aebfca2495fcdeb7a7871dd06fed73134ea",
+    "replay_tool_protocol": "terminal-result-v1",
+    "publication_evidence": "/opt/aries-artifacts/r01-script-preflight-publish-1/evidence.json",
+    "publication_sha256": "b6551b9959eaf494c9c77e6a100505cfca02945a137068b6a2e323f467512951"
+  },
+  "revision_provenance": {
+    "previous_variant_id": "sqlite-with-gcov-terminal-result-v3",
+    "previous_manifest": "../terminal-result-v3/variant.json",
+    "previous_manifest_sha256": "72b296d95d8804710b89c3c44c96d07451cab943bdee58d10895fd87cecc89fe",
+    "previous_appendix_sha256": "7fae98659041edf2600c81f7e78d3a2036cae7ff3b536d4f59f9d3102789cccc",
+    "scope": "Only replace appendix heading v3 with v4 and add one public environment-default paragraph; all other appendix bytes unchanged. New bindings set TIME_STYLE=+ and keep current templates.",
+    "added_paragraph_sha256": "e49dbbe332112d21da769b9a4321ddf2fa17463d5a3221d8c703b0552ac732cf",
+    "reason": "Original SQLite main.mk installation recipe prints three newly-created artifact mtimes; same exec tails the full log into model history. GNU ls supports native empty date formatting without modifying file timestamps.",
+    "rootcause_evidence": "/opt/aries-artifacts/sqlite-v3-mtime-rootcause-1/audit.json",
+    "rootcause_sha256": "314b0720e8bb0397b9ff1aca6295dcc9ca9ee60f91c2ada704de6a7d70b7b9d8",
+    "old_materials_tapes_results_unchanged": true,
+    "solution_or_private_test_content_added": false,
+    "toolresult_postprocessing_or_matcher_changed": false,
+    "native_gnu_ls_default_display_changed": true
+  }
+}

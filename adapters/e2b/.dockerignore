@@ -1,0 +1,7 @@
+**
+!Dockerfile
+!requirements.txt
+!constraints.txt
+!server.py
+!guest_exec.py
+!smoke.py

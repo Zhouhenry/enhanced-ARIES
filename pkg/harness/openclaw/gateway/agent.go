@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"time"
 )
 
 const agentResponseQueueSize = 4
@@ -14,6 +15,7 @@ const maxAgentResultBytes = 16 << 20
 type AgentRequest struct {
 	Message        string
 	SessionKey     string
+	SessionID      string
 	IdempotencyKey string
 	Thinking       string
 }
@@ -23,7 +25,7 @@ type AgentResult struct {
 	Text  string
 }
 
-func (client *Client) Agent(ctx context.Context, request AgentRequest) (AgentResult, error) {
+func (client *Client) Agent(ctx context.Context, request AgentRequest) (result AgentResult, err error) {
 	if strings.TrimSpace(request.Message) == "" || strings.ContainsRune(request.Message, 0) {
 		return AgentResult{}, errors.New("gateway agent message is invalid")
 	}
@@ -51,6 +53,8 @@ func (client *Client) Agent(ctx context.Context, request AgentRequest) (AgentRes
 	}
 
 	id := client.nextID("agent")
+	acceptedRunID := ""
+	defer func() { client.observeAgentReturned(ctx, id, request.SessionKey, acceptedRunID, err) }()
 	reply := make(chan responseDelivery, agentResponseQueueSize)
 	client.mu.Lock()
 	if client.transport != transport || client.generation != generation || client.readerFatal {
@@ -69,6 +73,9 @@ func (client *Client) Agent(ctx context.Context, request AgentRequest) (AgentRes
 		"message": request.Message, "sessionKey": request.SessionKey,
 		"idempotencyKey": request.IdempotencyKey,
 	}
+	if request.SessionID != "" {
+		params["sessionId"] = request.SessionID
+	}
 	if request.Thinking != "" {
 		params["thinking"] = request.Thinking
 	}
@@ -76,17 +83,27 @@ func (client *Client) Agent(ctx context.Context, request AgentRequest) (AgentRes
 	if err != nil {
 		return AgentResult{}, fmt.Errorf("marshal gateway agent request: %w", err)
 	}
-	if err := transport.Send(ctx, content); err != nil {
+	client.observeAgent(ctx, "gateway.agent.send_started", id, request.SessionKey, "", time.Now())
+	sendErr := transport.Send(ctx, content)
+	client.observeAgent(ctx, "gateway.agent.send_returned", id, request.SessionKey, "", time.Now())
+	if err := sendErr; err != nil {
 		if fatalErr := client.connectionFatal(generation); fatalErr != nil {
 			return AgentResult{}, fmt.Errorf("gateway agent delivery is ambiguous after fatal send failure: %w", fatalErr)
 		}
 		return AgentResult{}, fmt.Errorf("gateway agent delivery is ambiguous after send failure: %w", err)
 	}
 
-	acceptedRunID := ""
+	defer func() {
+		// An acknowledged run remains real even when its terminal outcome is
+		// unknown. Retain it so independent event evidence can be correlated.
+		if result.RunID == "" {
+			result.RunID = acceptedRunID
+		}
+	}()
 	for {
 		select {
 		case delivery := <-reply:
+			client.observeFrame(ctx, "gateway.response.consumed", delivery.frame, delivery.observationID, time.Now())
 			if fatalErr := client.connectionFatal(generation); fatalErr != nil {
 				if acceptedRunID == "" {
 					return AgentResult{}, fmt.Errorf("gateway agent delivery is ambiguous before acknowledgement: %w", fatalErr)
@@ -114,15 +131,18 @@ func (client *Client) Agent(ctx context.Context, request AgentRequest) (AgentRes
 					return AgentResult{}, errors.New("gateway agent expected accepted response with non-empty runId")
 				}
 				acceptedRunID = runID
+				client.observeAgent(ctx, "gateway.agent.accepted", id, request.SessionKey, runID, time.Now())
 				continue
 			}
 			if strings.TrimSpace(runID) == "" || runID != acceptedRunID {
 				return AgentResult{}, errors.New("gateway agent terminal runId did not match accepted runId")
 			}
+			client.observeAgent(ctx, "gateway.agent.followup_received", id, request.SessionKey, runID, time.Now())
 			text, err := parseAgentTerminal(payload)
 			if err != nil {
 				return AgentResult{}, err
 			}
+			client.observeAgent(ctx, "gateway.agent.terminal_validated", id, request.SessionKey, runID, time.Now())
 			return AgentResult{RunID: runID, Text: text}, nil
 		case <-ctx.Done():
 			if acceptedRunID == "" {

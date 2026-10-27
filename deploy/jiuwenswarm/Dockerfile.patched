@@ -1,0 +1,12 @@
+# Incremental image5: keep image4 dependencies, apply only reviewed native patches.
+ARG BASE_IMAGE=swr.cn-southwest-2.myhuaweicloud.com/benchmark-zhoutao/aries-jiuwenswarm:0.2.3-e2c9d519-image4@sha256:f0a82b0e258a0e763defa922c7a01410a40698b92967d03d7279e7976fdf6489
+FROM ${BASE_IMAGE}
+ARG BASE_IMAGE
+USER root
+COPY --chown=0:0 --chmod=0444 patches/*.patch patches/*.json /opt/aries-template/native-patches/
+COPY --chown=0:0 --chmod=0555 apply_patches.py /opt/aries-template/apply_patches.py
+COPY --chown=0:0 --chmod=0555 verify.py /opt/aries-template/verify.py
+RUN chmod 0755 /opt/aries-template/native-patches \
+    && python3 -B -I /opt/aries-template/apply_patches.py --base-image "${BASE_IMAGE}" \
+    && python3 -B -I /opt/aries-template/verify.py > /opt/aries-template/image-evidence.json \
+    && chmod 0444 /opt/aries-template/image-evidence.json
